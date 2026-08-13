@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.test import Client
 from django.utils import timezone
 
 from apps.registry import notices, selectors
@@ -102,6 +103,74 @@ class TestRegistryHealth:
         )
 
         assert selectors.registry_health().unnotified_critical == 0
+
+
+class TestRegistryHealthzEndpoint:
+    """``/healthz/registry`` - what an external uptime monitor polls."""
+
+    url = "/healthz/registry"
+
+    def test_200_when_fresh(self, client: Client, baseline_csv: Path) -> None:
+        sync_registry(file_path=baseline_csv)
+
+        response = client.get(self.url)
+
+        assert response.status_code == 200
+        assert response.json()["healthy"] is True
+        assert response.json()["row_count"] == 6
+
+    def test_503_when_stale(self, client: Client, baseline_csv: Path) -> None:
+        # The status code is the whole point: a monitor reads that, not the body.
+        sync_registry(file_path=baseline_csv)
+        age_the_last_sync(30)
+
+        response = client.get(self.url)
+
+        assert response.status_code == 503
+        assert response.json()["stale"] is True
+        assert "over the 26h limit" in response.json()["reason"]
+
+    def test_503_when_nothing_has_ever_synced(self, client: Client) -> None:
+        response = client.get(self.url)
+
+        assert response.status_code == 503
+        assert response.json()["last_success_at"] is None
+
+    def test_the_tolerance_can_be_set_per_monitor(self, client: Client, baseline_csv: Path) -> None:
+        sync_registry(file_path=baseline_csv)
+        age_the_last_sync(30)
+
+        assert client.get(self.url, {"max_age_hours": "48"}).status_code == 200
+        assert client.get(self.url, {"max_age_hours": "12"}).status_code == 503
+
+    def test_a_junk_tolerance_falls_back_to_the_default(
+        self, client: Client, baseline_csv: Path
+    ) -> None:
+        # A monitor cannot act on a 400, so bad input must not change the
+        # meaning of the status code.
+        sync_registry(file_path=baseline_csv)
+
+        for junk in ("abc", "-5", "0", ""):
+            response = client.get(self.url, {"max_age_hours": junk})
+            assert response.status_code == 200
+            assert response.json()["max_age_hours"] == selectors.DEFAULT_MAX_SYNC_AGE_HOURS
+
+    def test_it_is_never_cached(self, client: Client, baseline_csv: Path) -> None:
+        sync_registry(file_path=baseline_csv)
+
+        response = client.get(self.url)
+
+        assert "no-cache" in response.headers["Cache-Control"]
+
+    def test_it_needs_no_login(self, client: Client, baseline_csv: Path) -> None:
+        sync_registry(file_path=baseline_csv)
+
+        assert client.get(self.url).status_code == 200
+
+    def test_the_endpoint_and_the_command_agree(self, client: Client, baseline_csv: Path) -> None:
+        sync_registry(file_path=baseline_csv)
+
+        assert client.get(self.url).json() == json.loads(run_health("--json"))
 
 
 class TestRegistryHealthCommand:

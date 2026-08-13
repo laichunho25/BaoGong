@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import Case, IntegerField, Q, QuerySet, When
 from django.utils import timezone
@@ -160,6 +160,27 @@ class RegistryHealth:
                 f"which is over the {self.max_age_hours}h limit"
             )
         return ""
+
+    def as_dict(self) -> dict[str, Any]:
+        """Payload for ``registry_health --json`` and ``/healthz/registry``.
+
+        One definition so the command and the endpoint cannot drift apart and
+        report the same database differently. Everything here is either public
+        already (COMPLIANCE section 1 requires the site to publish
+        ``last_synced_at`` and the row count) or a bare count, so the endpoint
+        can stay unauthenticated for uptime monitors to poll.
+        """
+        return {
+            "healthy": self.is_healthy,
+            "stale": self.is_stale,
+            "reason": self.reason,
+            "last_success_at": (self.last_success_at.isoformat() if self.last_success_at else None),
+            "age_hours": round(self.age_hours, 2) if self.age_hours is not None else None,
+            "max_age_hours": self.max_age_hours,
+            "row_count": self.row_count,
+            "last_run_status": self.last_run_status,
+            "unnotified_critical": self.unnotified_critical,
+        }
 
 
 def registry_health(*, max_age_hours: int = DEFAULT_MAX_SYNC_AGE_HOURS) -> RegistryHealth:

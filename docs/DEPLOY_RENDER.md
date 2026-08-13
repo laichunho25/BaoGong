@@ -89,6 +89,26 @@ git push -u origin main
 `healthCheckPath: /healthz` 會讓 Render 在 DB 或 Redis 掛掉時把該版本判定為不健康、
 不切流量。這是刻意的。
 
+### 4.1 名單新鮮度監控 `/healthz/registry`
+
+`/healthz` 只答「這個 process 活著嗎」——每日同步悄悄停掉時它照樣回 200。
+`/healthz/registry` 答的是「資料還值得顯示嗎」：最後一次**成功**同步超過 26 小時
+（`?max_age_hours=` 可調）就回 **503**，否則 200。dry run 與 sanity abort 不算數。
+
+```
+GET /healthz/registry
+200 {"healthy": true, "stale": false, "reason": "", "last_success_at": "...",
+     "age_hours": 0.76, "max_age_hours": 26, "row_count": 7457,
+     "last_run_status": "success", "unnotified_critical": 0}
+```
+
+**不要**把它設成 Render 的 `healthCheckPath`——名單過期不代表這版程式壞了，
+把服務下線只會讓情況更糟。正確做法是掛外部 uptime monitor（UptimeRobot／
+Better Stack／Render Cron 打 `curl -f`）盯 503。
+
+不需登入，因為 monitor 要打得到；回傳內容不是網站本來就要公開的
+（COMPLIANCE §1 的 `last_synced_at`、筆數）就是純數字。
+
 ## 5. pgvector
 
 Render Postgres 支援 pgvector，但 extension 要自己開。P6（content app）之前，

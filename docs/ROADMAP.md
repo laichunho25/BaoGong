@@ -34,7 +34,7 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P1] district 由地址字串比對推導，覆蓋 94.4%（417 列未識別）` — P2 地區篩選會漏掉這些公司 — P2 前補足 locality 對照表，或改為「未分類」可見選項。
 - `[P1] 同步沒有用 ETag／checksum 短路` — 官方檔約每月更新一次，每日仍全量 upsert 7,457 列 — 資料量再大時再優化，目前一次約 20 秒。
 - `[P1] sanity check 告警只寫 logger.critical` — 靠 Sentry 的 logging integration 才會通知 — P8 接正式告警通道（郵件／IM）。
-- `[P1] registry_health 需外部排程去打` — 指令本身只回傳非零碼，沒人跑就等於沒有 — 部署到 Render 時掛 cron／uptime monitor，並在 P2 開 `/healthz/registry` endpoint。
+- `[P1] registry_health / healthz/registry 仍需外部 monitor 去打` — 指令回非零碼、endpoint 回 503，但沒人盯就等於沒有 — 部署到 Render 時掛 uptime monitor（見 DEPLOY_RENDER §4.1）。
 - `[P1] 除名通知文案未經法律覆核` — `apps/registry/notices.py` 的措辭是對具名公司的公開陳述 — 上線前（P8）連同 COMPLIANCE §7 免責文一併送律師。
 - `[P1] LicenseeChange.notified_at 目前無人寫入` — `registry_health --fail-on-critical` 會永遠告警 — P8 告警通道落地時同步寫入。
 - `[P1] LicenseeChange 未接 A7 RegistryDiffAgent` — `ai_summary` 目前恆為空 — P6。

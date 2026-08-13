@@ -44,25 +44,12 @@ class Command(BaseCommand):
         critical_blocks = options["fail_on_critical"] and pending > 0
 
         if options["as_json"]:
-            self.stdout.write(
-                json.dumps(
-                    {
-                        "healthy": health.is_healthy and not critical_blocks,
-                        "stale": health.is_stale,
-                        "reason": health.reason,
-                        "last_success_at": (
-                            health.last_success_at.isoformat() if health.last_success_at else None
-                        ),
-                        "age_hours": (
-                            round(health.age_hours, 2) if health.age_hours is not None else None
-                        ),
-                        "max_age_hours": health.max_age_hours,
-                        "row_count": health.row_count,
-                        "last_run_status": health.last_run_status,
-                        "unnotified_critical": pending,
-                    }
-                )
-            )
+            # Same payload the /healthz/registry endpoint serves, so the two
+            # never describe the same database differently. --fail-on-critical
+            # is a local escalation, so it only narrows `healthy` here.
+            payload = health.as_dict()
+            payload["healthy"] = health.is_healthy and not critical_blocks
+            self.stdout.write(json.dumps(payload))
         else:
             self._write_report(health, pending)
 
