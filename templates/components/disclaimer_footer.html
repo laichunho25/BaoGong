@@ -1,0 +1,26 @@
+{% load i18n %}
+{# COMPLIANCE.md section 7 - site-wide disclaimer. The msgid is the authoritative
+   Traditional Chinese text, reproduced verbatim from docs/COMPLIANCE.md. The
+   zh-Hans and en translations live in locale/ and MUST be signed off by the
+   project owner (and ultimately counsel) before launch - do not machine-convert. #}
+<footer class="mt-16 border-t border-slate-200 bg-slate-50">
+  <div class="mx-auto max-w-6xl px-4 py-8 text-xs leading-relaxed text-slate-600">
+    <p class="whitespace-pre-line">{% blocktranslate trimmed %}本平台為獨立資訊比較平台，並非香港公司註冊處或任何政府機構，亦非信託或公司服務持牌人。
+平台所載資料僅供一般參考，不構成法律、稅務、會計或任何專業意見，亦不構成對任何服務商的推薦或保證。
+銀行開戶與否由銀行全權決定，本平台不對開戶結果作任何承諾。
+用戶應自行向官方登記冊核實牌照狀態，並在需要時諮詢持牌專業人士。{% endblocktranslate %}</p>
+
+    <p class="mt-4">
+      {% translate "資料來源" %}:
+      <a class="underline hover:text-slate-900" href="{{ registry_source_url }}" rel="noopener" target="_blank">
+        {{ registry_source_name }}
+      </a>
+      &middot;
+      <a class="underline hover:text-slate-900" href="https://data.gov.hk/en/terms-and-conditions" rel="noopener" target="_blank">
+        {% translate "data.gov.hk 開放數據條款" %}
+      </a>
+    </p>
+
+    <p class="mt-4 text-slate-400">&copy; {% now "Y" %} QS Matching Platform</p>
+  </div>
+</footer>

@@ -1,0 +1,44 @@
+{% load i18n static %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'zh-Hans' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}QS Matching Platform{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{% translate '香港持牌秘书公司比较、真实评价与报价撮合平台' %}{% endblock %}">
+  {% block canonical %}{% endblock %}
+
+  {# Self-hosted assets only. PRD section 4: no Google Fonts / reCAPTCHA / GA -
+     they are unreliable or blocked for mainland-China visitors. #}
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'vendor/htmx-2.0.4.min.js' %}" defer></script>
+  <script src="{% static 'vendor/alpine-3.14.8.min.js' %}" defer></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-white font-sans text-slate-800 antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:p-3">{% translate "跳到主要内容" %}</a>
+
+  <header class="border-b border-slate-200">
+    <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+      <a href="/" class="text-lg font-semibold tracking-tight">QS Matching</a>
+      <form action="{% url 'set_language' %}" method="post" class="text-sm">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <select name="language" onchange="this.form.submit()" class="rounded border-slate-300 text-sm">
+          {% get_current_language as CURRENT %}
+          {% get_available_languages as LANGUAGES %}
+          {% for code, name in LANGUAGES %}
+            <option value="{{ code }}" {% if code == CURRENT %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </nav>
+  </header>
+
+  <main id="main" class="mx-auto max-w-6xl px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "components/disclaimer_footer.html" %}
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

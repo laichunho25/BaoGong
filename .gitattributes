@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.woff2 binary
+uv.lock linguist-generated=true
+static/css/app.css linguist-generated=true
+static/vendor/* linguist-vendored=true

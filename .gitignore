@@ -1,0 +1,37 @@
+# secrets
+.env
+*.pem
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# django
+staticfiles/
+media/
+*.log
+db.sqlite3
+
+# tooling
+.tools/
+node_modules/
+
+# uploads / local data
+raw/
+*.mo
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json

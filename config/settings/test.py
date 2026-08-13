@@ -1,0 +1,27 @@
+"""Test settings: fast, hermetic, no outbound network."""
+
+from .base import *
+from .base import LOGGING, env
+
+DEBUG = False
+ALLOWED_HOSTS = ["*", "testserver"]
+SECRET_KEY = "test-only-key"
+
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+DATABASES = {"default": env.db("DATABASE_URL", default="postgres://qs:qs@localhost:5432/qs_test")}
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+# Agents must never reach the real API from a test run.
+ANTHROPIC_API_KEY = "test-key-not-real"
+
+LOGGING["root"]["level"] = "WARNING"
