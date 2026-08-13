@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "QS Matching — 香港持牌秘书公司比较平台" %}{% endblock %}
+
+{% block content %}
+  <section class="py-10">
+    <h1 class="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+      {% translate "找到合适的香港持牌秘书公司" %}
+    </h1>
+    <p class="mt-4 max-w-2xl text-base leading-relaxed text-slate-600">
+      {% translate "只列公司注册处官方持牌名单，每日同步。价格区间公开，评价须经文件核验。" %}
+    </p>
+  </section>
+
+  <section class="grid gap-6 border-t border-slate-200 py-10 sm:grid-cols-3">
+    {# PRD section 1 - the three value propositions. #}
+    <div>
+      <h2 class="text-sm font-semibold text-slate-900">{% translate "透明" %}</h2>
+      <p class="mt-2 text-sm leading-relaxed text-slate-600">
+        {% translate "官方持牌名单每日同步，牌照状态与最后更新时间公开可查。" %}
+      </p>
+    </div>
+    <div>
+      <h2 class="text-sm font-semibold text-slate-900">{% translate "可信" %}</h2>
+      <p class="mt-2 text-sm leading-relaxed text-slate-600">
+        {% translate "评价须以文件核验「确有合作」为前提，才会标记为已验证。" %}
+      </p>
+    </div>
+    <div>
+      <h2 class="text-sm font-semibold text-slate-900">{% translate "撮合" %}</h2>
+      <p class="mt-2 text-sm leading-relaxed text-slate-600">
+        {% translate "发布需求，由秘书公司主动报价，平台生成同口径比较表。" %}
+      </p>
+    </div>
+  </section>
+
+  <section class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+    {# Placeholder until Phase 2 ships the public directory. Better to say the
+       data is not live than to render an empty directory that looks broken. #}
+    <p>{% translate "平台正在建设中：官方名单同步与目录页尚未上线。" %}</p>
+  </section>
+{% endblock %}

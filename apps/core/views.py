@@ -3,8 +3,19 @@
 from typing import Any
 
 from django.db import connection
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render
 from django.views.decorators.cache import never_cache
+
+
+def home(request: HttpRequest) -> HttpResponse:
+    """Placeholder landing page.
+
+    Phase 2 replaces this with the public directory. It exists now so the base
+    template, Tailwind build and compliance footer are exercised by a real
+    request rather than only by tests.
+    """
+    return render(request, "pages/home.html")
 
 
 def _check_database() -> tuple[bool, str | None]:

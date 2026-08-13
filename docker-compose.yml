@@ -70,12 +70,23 @@ services:
       mc anonymous set none local/qs-dev
       "
 
+  # One-shot migration step. web/worker/beat all wait for it to exit 0, so no
+  # service can race ahead and query a table that does not exist yet - beat with
+  # the DatabaseScheduler crashes on startup if django_celery_beat is unmigrated.
+  migrate:
+    <<: *django
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    restart: "no"
+
   web:
     <<: *django
-    command: >
-      /bin/sh -c "python manage.py migrate --noinput &&
-                  python manage.py runserver 0.0.0.0:8000"
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports: ["8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
       interval: 15s
@@ -86,11 +97,21 @@ services:
   worker:
     <<: *django
     command: ["celery", "-A", "config", "worker", "-l", "info"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
 
   beat:
     <<: *django
     command: ["celery", "-A", "config", "beat", "-l", "info",
               "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
 
 volumes:
   pgdata:

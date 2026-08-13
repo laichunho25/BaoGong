@@ -2,9 +2,10 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
-from apps.core.views import healthz
+from apps.core.views import healthz, home
 
 urlpatterns = [
+    path("", home, name="home"),
     path("healthz", healthz, name="healthz"),
     path("admin/", admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
