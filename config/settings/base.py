@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -130,6 +131,16 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 REDIS_URL = CELERY_BROKER_URL
+
+# DatabaseScheduler syncs these into django_celery_beat on startup, so the
+# schedule stays in version control while remaining editable from the admin.
+# CELERY_TIMEZONE is Asia/Hong_Kong, so this is 06:00 HKT (ARCHITECTURE 5).
+CELERY_BEAT_SCHEDULE = {
+    "sync-tcsp-registry-daily": {
+        "task": "registry.sync_tcsp_registry",
+        "schedule": crontab(hour=6, minute=0),
+    },
+}
 
 # ---------------------------------------------------------------- object storage
 

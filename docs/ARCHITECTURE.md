@@ -37,7 +37,7 @@ qs-platform/
 ├── apps/
 │   ├── core/          # BaseModel(uuid, created_at, updated_at), middleware, money, i18n utils
 │   ├── accounts/      # User(AbstractUser), BuyerProfile, ProviderMember, roles
-│   ├── registry/      # Licensee, LicenseeSnapshot, SyncRun, LicenseeChange
+│   ├── registry/      # Licensee, SyncRun, LicenseeChange
 │   ├── providers/     # Provider, ProviderClaim, ServiceOffering, PriceItem, Certification
 │   ├── reviews/       # Review, ReviewScore, Nnc1Verification, ReviewReply, Dispute
 │   ├── rfq/           # Rfq, RfqRequirement, Quote, QuoteLineItem, QuotaLedger
@@ -117,7 +117,8 @@ class BaseAgent(ABC):
 1. `sync_tcsp_registry` (Celery beat, 06:00 HKT)
 2. 下載 CSV → 存原始檔到 S3（`raw/tcsp/YYYY-MM-DD.csv`）
 3. **Sanity check**：筆數與上次相差 > 15% → 中止 + 告警，**不寫入**
-4. Upsert `Licensee`（by `licence_no`）；建立 `LicenseeSnapshot`
+4. Upsert `Licensee`（by `licence_no`）——`raw` 保留當次官方 row
+   （原稿的 `LicenseeSnapshot` 不實作，理由見 DATA_MODEL.md registry 段）
 5. Diff → 寫 `LicenseeChange`（new / removed / renamed / address_changed）
 6. `RegistryDiffAgent` 對 change 產生人類可讀摘要 + 風險標記（如「已認領且付費的公司牌照消失」→ P0 告警）
 7. 更新 `SyncRun(status, row_count, duration, checksum)`

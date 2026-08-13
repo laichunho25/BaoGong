@@ -6,22 +6,45 @@
 
 ## registry（官方數據，唯讀區）
 
+### 官方 CSV 實際欄位（2026-08-13 驗證，7,457 列，UTF-8 無 BOM、CRLF）
+
+| CSV 欄位 | 對映 model 欄位 |
+|---|---|
+| `Licence No.(牌照編號)` | `licence_no` |
+| `Name of TCSP Licensee in English(持牌人的英文姓名／名稱)` | `name_en` |
+| `Name of TCSP Licensee in Chinese(持牌人的中文姓名／名稱)` | `name_zh`（2,037 列為空） |
+| `Business Address(營業地址)` | `business_address` |
+| `Remarks in English(英文備註)` | `remarks_en`（291 列為《受託人條例》第 78(1) 條註冊之信託公司） |
+| `Remarks in Chinese(中文備註)` | `remarks_zh` |
+
+> 官方 CSV **沒有** status、發牌日期或到期日欄位。`status` 由「是否出現於當次名單」推導。
+> 標頭比對只取英文部分（`normalise_header`），中文標點改動不會弄壞匯入。
+
 ### Licensee
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | `licence_no` | `CharField(unique=True, db_index=True)` | 官方牌照編號，**天然主鍵** |
-| `name_en` / `name_zh` | `CharField` | 官方名稱 |
-| `business_address` | `TextField` | 官方地址原文 |
-| `district` | `CharField(null=True)` | 由地址解析（enrich，可為空） |
-| `status` | `CharField` | `active` / `inactive` |
+| `name_en` / `name_zh` | `CharField` | 官方名稱（`name_zh` 可為空字串） |
+| `business_address` | `TextField` | 官方地址原文（已 NFKC normalize，原值在 `raw`） |
+| `remarks_en` / `remarks_zh` | `TextField(blank=True)` | 官方備註 |
+| `district` | `CharField(blank=True, default="")` | 由地址解析（enrich，未識別時為空字串；實測覆蓋 94.4%） |
+| `status` | `CharField` | `active` / `inactive`（推導，非官方欄位） |
 | `first_seen_at` / `last_seen_at` | `DateTimeField` | 出現於官方名單的首次／最後一次 |
 | `raw` | `JSONField` | 官方原始 row，永不修改 |
 | `last_synced_at` | `DateTimeField` | UI 必須顯示 |
 
 > **規則**：除 `sync` 任務外，任何 code 不得寫入本表。人工 enrich 一律放 `providers`。
+> 執行面：`Licensee.save/delete` 與 `LicenseeQuerySet.update/delete/bulk_create/bulk_update`
+> 只在 `allow_registry_writes()`（ContextVar）內才放行，admin 亦註冊為唯讀。
+
+> **`LicenseeSnapshot` 不實作**：ARCHITECTURE §5 提過，但本文件（權威）從未定義它。
+> 每次同步的完整 `raw` row 加上 `LicenseeChange` 已能還原歷史，另存 7,457 列／日的快照
+> 只是純儲存成本。若日後需要「任意時點完整名單」再引入。
 
 ### SyncRun
-`source_url`, `started_at`, `finished_at`, `status(success|failed|aborted_sanity)`, `row_count`, `prev_row_count`, `checksum`, `raw_file_key`, `error`
+`source_url`, `started_at`, `finished_at`, `status(running|success|failed|aborted_sanity)`, `row_count`, `prev_row_count`, `checksum(sha256)`, `raw_file_key`, `error`, `is_dry_run`
+
+> `is_dry_run` 為 P1 新增：dry run 也要留紀錄，但不得成為下次 sanity check 的基準。
 
 ### LicenseeChange
 `sync_run(FK)`, `licence_no`, `change_type(new|removed|reactivated|renamed|address_changed)`, `before(JSON)`, `after(JSON)`, `severity(info|warn|critical)`, `ai_summary(TextField, null)`, `notified_at`

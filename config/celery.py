@@ -1,4 +1,4 @@
-"""Celery application. Beat schedules are declared by each app's tasks module."""
+"""Celery application. Beat schedules live in ``CELERY_BEAT_SCHEDULE`` (settings)."""
 
 import os
 

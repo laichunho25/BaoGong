@@ -15,6 +15,7 @@ dependencies = [
     "uuid-utils>=0.9",
     "anthropic>=0.40",
     "pydantic>=2.9",
+    "requests>=2.32",
     "boto3>=1.35",
     "django-storages>=1.14",
     "whitenoise>=6.7",
@@ -29,6 +30,7 @@ dev = [
     "django-stubs[compatible-mypy]>=5.1",
     "djangorestframework-stubs>=3.15",
     "types-boto3>=1.35",
+    "types-requests>=2.32",
     "pytest>=8.3",
     "pytest-django>=4.9",
     "pytest-cov>=5.0",
@@ -104,7 +106,10 @@ django_settings_module = "config.settings.test"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
-addopts = "--strict-markers --cov=apps --cov-report=term-missing --cov-fail-under=80"
+# --ds wins over the DJANGO_SETTINGS_MODULE environment variable, which the
+# compose services set to config.settings.dev. Without it, running pytest in a
+# container silently tests the dev settings instead of the test settings.
+addopts = "--ds=config.settings.test --strict-markers --cov=apps --cov-report=term-missing --cov-fail-under=80"
 markers = [
     "eval: LLM eval runs against the real API; excluded from CI (`-m 'not eval'`)",
 ]
