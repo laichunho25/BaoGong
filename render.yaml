@@ -1,0 +1,149 @@
+# Render Blueprint - https://render.com/docs/blueprint-spec
+#
+# Region: Singapore. Render has no Hong Kong region; Singapore is the closest
+# option and satisfies COMPLIANCE section 5 (servers in HK or overseas, never
+# mainland China). All four services must share a region so they can talk over
+# the private network instead of the public internet.
+#
+# Secrets marked `sync: false` are NOT stored in this file. Set them once in the
+# Render dashboard (CLAUDE.md rule 8: secrets come from the environment only).
+
+previewsEnabled: false
+
+databases:
+  - name: qs-postgres
+    databaseName: qs
+    user: qs
+    region: singapore
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+
+services:
+  # ------------------------------------------------------------------ web
+  - type: web
+    name: qs-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: starter
+    healthCheckPath: /healthz
+    # Render sets $PORT; gunicorn must bind it, not the Dockerfile's 8000.
+    dockerCommand: >-
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 60"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: qs-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: qs-keyvalue
+          type: keyvalue
+          property: connectionString
+      - fromGroup: qs-shared
+
+  # ------------------------------------------------------------------ worker
+  - type: worker
+    name: qs-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: starter
+    dockerCommand: celery -A config worker -l info --concurrency 2
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: SECRET_KEY
+        fromService:
+          name: qs-web
+          type: web
+          envVarKey: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: qs-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: qs-keyvalue
+          type: keyvalue
+          property: connectionString
+      # A worker has no external hostname; ALLOWED_HOSTS still has to be
+      # non-empty for prod.py to import.
+      - key: ALLOWED_HOSTS
+        value: qs-worker.internal
+      - fromGroup: qs-shared
+
+  # ------------------------------------------------------------------ beat
+  # Exactly one beat instance, ever. Two schedulers means two daily TCSP syncs.
+  - type: worker
+    name: qs-beat
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    plan: starter
+    dockerCommand: >-
+      celery -A config beat -l info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: SECRET_KEY
+        fromService:
+          name: qs-web
+          type: web
+          envVarKey: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: qs-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: qs-keyvalue
+          type: keyvalue
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: qs-beat.internal
+      - fromGroup: qs-shared
+
+  # ------------------------------------------------------------------ redis
+  - type: keyvalue
+    name: qs-keyvalue
+    region: singapore
+    plan: starter
+    maxmemoryPolicy: noeviction  # Celery broker: never drop queued tasks.
+    ipAllowList: []              # Private network only.
+
+envVarGroups:
+  - name: qs-shared
+    envVars:
+      - key: LOG_LEVEL
+        value: INFO
+      - key: AGENT_BUDGET_DAILY_USD
+        value: "20"
+      - key: TCSP_CSV_URL
+        value: https://www.tcsp.cr.gov.hk/open-data/licensees.csv
+      - key: S3_REGION
+        value: apac
+      # --- set these in the dashboard, they are never committed ---
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: TURNSTILE_SITE_KEY
+        sync: false
+      - key: TURNSTILE_SECRET
+        sync: false

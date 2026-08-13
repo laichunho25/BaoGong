@@ -20,11 +20,27 @@ def _required(name: str) -> str:
 
 
 SECRET_KEY = _required("SECRET_KEY")
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
+
+# Render injects RENDER_EXTERNAL_HOSTNAME for every web service. Trusting it
+# automatically means a fresh deploy or a renamed service does not 400 on every
+# request before someone remembers to update ALLOWED_HOSTS by hand. Custom
+# domains still have to be listed explicitly.
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS = [*ALLOWED_HOSTS, RENDER_EXTERNAL_HOSTNAME]
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, f"https://{RENDER_EXTERNAL_HOSTNAME}"]
+
+if not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS is empty and RENDER_EXTERNAL_HOSTNAME is unset")
 
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["CONN_MAX_AGE"] = 60
+# Render Postgres terminates TLS; refuse to connect in the clear.
+DATABASES["default"].setdefault("OPTIONS", {})
+DATABASES["default"]["OPTIONS"]["sslmode"] = env("DATABASE_SSLMODE", default="require")
 
 for _name in ("REDIS_URL", "ANTHROPIC_API_KEY", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"):
     _required(_name)
