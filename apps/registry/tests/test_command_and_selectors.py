@@ -74,12 +74,38 @@ class TestSelectors:
         assert selectors.search_licensees("FULLYEAR").count() == 1
         assert selectors.search_licensees("富年").count() == 1
 
-    def test_search_never_returns_a_deregistered_licensee(self) -> None:
-        # COMPLIANCE: an inactive licence must not surface as a live listing.
-        assert selectors.search_licensees("TC000008").count() == 0
+    def test_search_still_finds_a_deregistered_licensee(self) -> None:
+        # The record does not vanish from the platform when the licence
+        # vanishes from the register: someone checking a company they were
+        # about to hire has to be able to find out that it is gone.
+        found = selectors.search_licensees("TC000008")
 
-    def test_blank_search_returns_the_active_register(self) -> None:
-        assert selectors.search_licensees("   ").count() == selectors.active_licensees().count()
+        assert [licensee.licence_no for licensee in found] == ["TC000008"]
+        assert found[0].is_on_register is False
+
+    def test_search_ranks_licensees_still_on_the_register_first(self) -> None:
+        results = list(selectors.search_licensees("LIMITED"))
+
+        on_register = [licensee.is_on_register for licensee in results]
+        assert on_register.count(False) == 1
+        assert on_register[-1] is False
+
+    def test_blank_search_returns_the_whole_directory(self) -> None:
+        assert selectors.search_licensees("   ").count() == selectors.listed_licensees().count()
+        assert selectors.listed_licensees().count() > selectors.active_licensees().count()
+
+    def test_deregistered_licensees_are_listed_most_recent_first(self) -> None:
+        assert [licensee.licence_no for licensee in selectors.deregistered_licensees()] == [
+            "TC000008"
+        ]
+
+    def test_removal_change_cites_the_run_that_detected_it(self) -> None:
+        licensee = Licensee.objects.get(licence_no="TC000008")
+        change = selectors.removal_change(licensee)
+
+        assert change is not None
+        assert change.before["name_en"] == licensee.name_en
+        assert selectors.removal_change(Licensee.objects.get(licence_no="TC000002")) is None
 
     def test_last_synced_at_comes_from_the_last_successful_run(self) -> None:
         # COMPLIANCE section 1: the UI must show this.

@@ -80,5 +80,6 @@
 - [ ] 佣金披露元件在有 `commission_agreement=true` 的頁面渲染
 - [ ] 贊助位有「贊助」標示
 - [ ] 無評價公司不顯示 5.00 分（見 RATING_SYSTEM §4）
+- [ ] 已離開官方名單的公司仍可瀏覽，且每處都渲染 `registry.notices.deregistration_notice()`；文案不含任何暗示執法行動的措辭，並已經律師覆核
 - [ ] DSAR 後台流程可用
 - [ ] Agent kill switch 全部可用

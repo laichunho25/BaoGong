@@ -28,6 +28,7 @@ from apps.core.models import BaseModel
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from datetime import datetime
 
 _writes_allowed: ContextVar[bool] = ContextVar("registry_writes_allowed", default=False)
 
@@ -122,6 +123,22 @@ class Licensee(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.licence_no} {self.name_en}"
+
+    @property
+    def is_on_register(self) -> bool:
+        """Whether the latest official file still lists this licence."""
+        return self.status == LicenceStatus.ACTIVE
+
+    @property
+    def deregistered_since(self) -> datetime | None:
+        """The last sync in which the register still listed this licence.
+
+        The register states no removal reason and carries no dates, so this is
+        the only fact the platform may publish about a licence that stopped
+        appearing: it was listed on this date and not after. See
+        ``apps.registry.notices``.
+        """
+        return None if self.is_on_register else self.last_seen_at
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         _assert_writable("save")

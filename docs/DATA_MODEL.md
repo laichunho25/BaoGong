@@ -37,6 +37,14 @@
 > 執行面：`Licensee.save/delete` 與 `LicenseeQuerySet.update/delete/bulk_create/bulk_update`
 > 只在 `allow_registry_writes()`（ContextVar）內才放行，admin 亦註冊為唯讀。
 
+> **牌照從官方名單消失 ≠ 從平台消失**：`status` 轉 `inactive`，資料列保留，
+> 目錄與搜尋（`selectors.listed_licensees` / `search_licensees`）**仍會列出**，只是排在後面，
+> 並強制顯示 `notices.deregistration_notice()`。撮合資格（RFQ、報價權）另用
+> `selectors.active_licensees()`，只含仍在名單者 —— 兩個集合刻意不同。
+> 官方名單不載明移除原因也沒有日期欄，因此平台唯一可陳述的事實是
+> 「最後一次出現於官方名單的日期」（`Licensee.deregistered_since` = `last_seen_at`）。
+> 不得使用「吊銷／撤銷／除牌／違規」等暗示執法行動的措辭（COMPLIANCE §3）。
+
 > **`LicenseeSnapshot` 不實作**：ARCHITECTURE §5 提過，但本文件（權威）從未定義它。
 > 每次同步的完整 `raw` row 加上 `LicenseeChange` 已能還原歷史，另存 7,457 列／日的快照
 > 只是純儲存成本。若日後需要「任意時點完整名單」再引入。

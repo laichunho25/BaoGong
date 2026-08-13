@@ -13,6 +13,8 @@ MIDDLEWARE = ["debug_toolbar.middleware.DebugToolbarMiddleware", *MIDDLEWARE]
 
 # django-debug-toolbar inside docker: the request IP is the gateway, not 127.0.0.1.
 INTERNAL_IPS = ["127.0.0.1", "localhost"]
+
+
 def _show_toolbar(request: Any) -> bool:
     """Read DEBUG off the live settings.
 
