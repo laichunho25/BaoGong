@@ -1,0 +1,46 @@
+{% load i18n registry_tags %}
+{% comment %} One row of the directory. Official fields (name, licence number, district,
+   register status) and platform fields (rating, tier, services) are visually
+   separated so the reader can tell which is which - COMPLIANCE section 1. {% endcomment %}
+<article class="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 hover:border-slate-300 sm:flex-row sm:items-start sm:justify-between">
+  <div class="min-w-0">
+    <h3 class="truncate text-base font-semibold text-slate-900">
+      <a class="hover:underline" href="{{ provider.get_absolute_url }}">{{ provider.display_name }}</a>
+    </h3>
+    {% if provider.licensee.name_zh %}
+      <p class="truncate text-sm text-slate-600">{{ provider.licensee.name_zh }}</p>
+    {% endif %}
+
+    <p class="mt-1 text-xs text-slate-500">
+      {% translate "牌照号" %} {{ provider.licensee.licence_no }}
+      {% if provider.licensee.district %}&middot; {{ provider.licensee.district }}{% endif %}
+    </p>
+
+    {% if not provider.is_on_register %}
+      <p class="mt-2 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
+        {% deregistration_headline provider.licensee %}
+      </p>
+    {% endif %}
+
+    <div class="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-600">
+      {% if provider.claim_status == "claimed" %}
+        <span class="rounded bg-slate-100 px-2 py-0.5">{% translate "已认领" %}</span>
+      {% else %}
+        <span class="rounded bg-slate-50 px-2 py-0.5 text-slate-400">{% translate "尚未认领" %}</span>
+      {% endif %}
+      {% if provider.bank_account_support %}
+        <span class="rounded bg-slate-100 px-2 py-0.5">{% translate "协助银行开户" %}</span>
+      {% endif %}
+      {% if provider.remote_onboarding %}
+        <span class="rounded bg-slate-100 px-2 py-0.5">{% translate "可远程办理" %}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="flex shrink-0 items-center gap-4 sm:flex-col sm:items-end sm:gap-2">
+    {% include "components/rating_display.html" with provider=provider %}
+    <a class="text-sm text-slate-700 underline hover:text-slate-900" href="{{ provider.get_absolute_url }}">
+      {% translate "查看详情" %}
+    </a>
+  </div>
+</article>

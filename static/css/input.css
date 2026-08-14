@@ -9,4 +9,24 @@
   html {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  /* Alpine sets x-cloak until it initialises. Without this rule the compare
+     tray flashes on every page load before Alpine hides it. */
+  [x-cloak] {
+    display: none !important;
+  }
+}
+
+@layer components {
+  /* HTMX toggles .htmx-request on the indicator's trigger element. Fading
+     rather than showing/hiding keeps the results block from jumping while a
+     filter request is in flight. */
+  .htmx-indicator {
+    opacity: 0;
+    transition: opacity 150ms ease-in;
+  }
+  .htmx-request .htmx-indicator,
+  .htmx-request.htmx-indicator {
+    opacity: 1;
+  }
 }

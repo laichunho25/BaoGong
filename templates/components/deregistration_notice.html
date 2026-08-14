@@ -1,0 +1,18 @@
+{% load i18n registry_tags %}
+{% comment %} A licence that leaves the official list does not leave the platform - the
+   record stays, labelled. Hiding it would answer a buyer's question ("what
+   happened to this company?") by deleting the question.
+
+   The copy comes from apps/registry/notices.py and must not be rewritten here:
+   the register publishes no reason for a removal, so neither may this page. {% endcomment %}
+{% if not licensee.is_on_register %}
+  <div class="rounded-lg border border-amber-300 bg-amber-50 p-4" role="note">
+    <p class="text-sm font-semibold text-amber-900">{% deregistration_headline licensee %}</p>
+    <p class="mt-2 text-sm leading-relaxed text-amber-900">{% deregistration_notice licensee %}</p>
+    <p class="mt-2 text-xs">
+      <a class="underline hover:text-amber-950" href="{{ registry_source_url }}" rel="noopener" target="_blank">
+        {% translate "前往官方登记册核实" %}
+      </a>
+    </p>
+  </div>
+{% endif %}

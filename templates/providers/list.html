@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "香港持牌秘书公司目录 — QS Matching" %}{% endblock %}
+{% block meta_description %}{% translate "香港公司注册处官方 TCSP 持牌名单，每日同步。可按地区、语言、是否协助银行开户筛选并比较。" %}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'providers:list' %}">{% endblock %}
+
+{% block content %}
+  <header>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "持牌秘书公司目录" %}</h1>
+    <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+      {% translate "以下名单来自香港公司注册处公布的《信托或公司服务持牌人登记册》，本平台每日同步，不增删名单本身。" %}
+    </p>
+    <div class="mt-2">{% include "components/data_source_notice.html" %}</div>
+  </header>
+
+  {% comment %} The whole filter state is the querystring: hx-push-url keeps the address
+     bar in step so any view of this page can be copied and shared. {% endcomment %}
+  <form class="mt-6 grid gap-3 rounded-lg border border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-4"
+        hx-get="{% url 'providers:list' %}"
+        hx-target="#results"
+        hx-select="#results"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-indicator="#results-indicator">
+    <label class="sm:col-span-2 lg:col-span-2">
+      <span class="mb-1 block text-xs font-medium text-slate-700">{% translate "名称或牌照号" %}</span>
+      <input type="search" name="q" value="{{ filters.query }}"
+             placeholder="{% translate '例如：TC000123 或公司名称' %}"
+             class="w-full rounded border-slate-300 text-sm"
+             hx-trigger="keyup changed delay:400ms, search">
+    </label>
+
+    <label>
+      <span class="mb-1 block text-xs font-medium text-slate-700">{% translate "地区" %}</span>
+      <select name="district" class="w-full rounded border-slate-300 text-sm" hx-trigger="change">
+        <option value="">{% translate "不限" %}</option>
+        {% for district in districts %}
+          <option value="{{ district }}" {% if district == filters.district %}selected{% endif %}>{{ district }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      <span class="mb-1 block text-xs font-medium text-slate-700">{% translate "服务语言" %}</span>
+      <select name="language" class="w-full rounded border-slate-300 text-sm" hx-trigger="change">
+        <option value="">{% translate "不限" %}</option>
+        {% for value, label in languages %}
+          <option value="{{ value }}" {% if value == filters.language %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      <span class="mb-1 block text-xs font-medium text-slate-700">{% translate "认证等级" %}</span>
+      <select name="tier" class="w-full rounded border-slate-300 text-sm" hx-trigger="change">
+        <option value="">{% translate "不限" %}</option>
+        {% for value, label in tiers %}
+          <option value="{{ value }}" {% if value == filters.tier %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      <span class="mb-1 block text-xs font-medium text-slate-700">{% translate "银行类型经验" %}</span>
+      <select name="bank_type" class="w-full rounded border-slate-300 text-sm" hx-trigger="change">
+        <option value="">{% translate "不限" %}</option>
+        {% for value, label in bank_types %}
+          <option value="{{ value }}" {% if value == filters.bank_type %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      <span class="mb-1 block text-xs font-medium text-slate-700">{% translate "排序" %}</span>
+      <select name="sort" class="w-full rounded border-slate-300 text-sm" hx-trigger="change">
+        {% for value, label in sort_options %}
+          <option value="{{ value }}" {% if value == filters.sort %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <fieldset class="sm:col-span-2 lg:col-span-4 flex flex-wrap gap-4 text-sm text-slate-700">
+      <label class="inline-flex items-center gap-2">
+        <input type="checkbox" name="bank_support" value="1" class="rounded border-slate-300"
+               {% if filters.bank_support %}checked{% endif %} hx-trigger="change">
+        {% translate "协助银行开户" %}
+      </label>
+      <label class="inline-flex items-center gap-2">
+        <input type="checkbox" name="remote_onboarding" value="1" class="rounded border-slate-300"
+               {% if filters.remote_onboarding %}checked{% endif %} hx-trigger="change">
+        {% translate "可远程办理" %}
+      </label>
+      {% comment %} Off by default: a removed licence stays findable, but a buyer browsing
+         the directory should see who is on the register today. {% endcomment %}
+      <label class="inline-flex items-center gap-2">
+        <input type="checkbox" name="include_deregistered" value="1" class="rounded border-slate-300"
+               {% if filters.include_deregistered %}checked{% endif %} hx-trigger="change">
+        {% translate "同时显示已不在官方名单内的公司" %}
+      </label>
+
+      <noscript><button type="submit" class="rounded bg-slate-900 px-3 py-1 text-white">{% translate "筛选" %}</button></noscript>
+      {% if filters.is_active %}
+        <a href="{% url 'providers:list' %}" class="ml-auto text-sm underline text-slate-500 hover:text-slate-800">
+          {% translate "清除筛选" %}
+        </a>
+      {% endif %}
+    </fieldset>
+  </form>
+
+  {% comment %} The compare tray lives outside the swapped region so a filter change or a
+     page turn does not empty the user's selection. Alpine picks up the
+     checkboxes that arrive with each swap through its own mutation observer. {% endcomment %}
+  <div x-data="{ compare: [] }">
+    {% include "providers/_results.html" %}
+
+    <div class="sticky bottom-4 mt-6 flex items-center justify-between gap-4 rounded-lg border border-slate-300 bg-white p-3 shadow-sm"
+         x-show="compare.length" x-cloak>
+      <p class="text-sm text-slate-700">
+        {% translate "已选择" %} <span x-text="compare.length"></span> / {{ max_compare }}
+      </p>
+      <div class="flex items-center gap-3">
+        <button type="button" class="text-sm text-slate-500 underline" @click="compare = []">{% translate "清空" %}</button>
+        <a class="rounded bg-slate-900 px-3 py-1.5 text-sm text-white"
+           :class="compare.length < 2 && 'pointer-events-none opacity-40'"
+           :href="'{% url 'compare' %}?ids=' + compare.slice(0, {{ max_compare }}).join(',')">
+          {% translate "并排比较" %}
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

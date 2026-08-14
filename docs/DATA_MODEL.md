@@ -71,8 +71,24 @@
 `bank_account_support(bool)`, `bank_types(ArrayField: traditional|virtual|emi)`
 `non_resident_shareholder_experience(bool)`
 `industry_specialties(ArrayField)`
-`rating_cached(Decimal 3,2)`, `rating_count(int)`, `verified_review_count(int)`
+`rating_cached(Decimal 3,2, null)`, `rating_count(int)`, `verified_review_count(int)`
 `is_published(bool)`, `commission_agreement(bool)` ← 若 true，頁面必須顯示披露
+
+排序快取欄位（P2 加，由 `providers.services.recompute_ranking_inputs` 寫入）：
+`profile_completeness(Decimal 4,3)`、`responsiveness_score(Decimal 4,3)`、`ranking_score(Decimal 6,4, indexed)`
+
+- `rating_cached` 是 **null 而非 0**：「還沒有已驗證評價」不是「分數為零」。RATING_SYSTEM §4
+  禁止在這種情況顯示數字，`ranking_score` 也不會拿貝氏先驗的 5.00 去排序（見 §5 實作）。
+- `ranking_score` 是反正規化欄位：RATING_SYSTEM §5 的權重混合四個 app 的輸入，列表頁必須在
+  DB 內排序與分頁，不能在 Python 算完再切頁。
+- `profile_completeness` 的定義是 `services.COMPLETENESS_FIELDS` 中「有填」的比例——刻意只算
+  公司自己能控制的欄位，因為這個數字餵給公開排序，被問「為什麼我排這麼後面」時要解釋得出來。
+
+**每個 Licensee 都有一個 Provider**：`services.ensure_providers` 在每日同步後半小時單獨跑
+（`providers.backfill_providers`，06:30 HKT），把新出現的持牌人建成 `unclaimed` 頁面。
+它與同步分開排程，因為平台層的失敗不可以回滾或拖延官方檔的鏡像。
+slug 為 `slugify(name_en) + "-" + licence_no`：登記冊裡真的有同名公司，而用流水號會讓
+同一份檔案在不同機器上產生不同 URL。
 
 ### ProviderClaim
 `provider(FK)`, `submitted_by(FK User)`, `evidence_files(JSON)`, `business_registration_no`,
@@ -86,6 +102,9 @@
 ### PriceItem
 `offering(FK)`, `label`, `currency(char3)`, `amount_minor(BigInteger)`, `unit(one_off|yearly|monthly|hourly)`,
 `includes_govt_fee(bool)`, `min_amount_minor / max_amount_minor`（區間報價）, `effective_from`, `source(provider_declared|quote_derived|platform_survey)`
+
+DB 約束 `providers_price_point_or_range`：必須是單點價或完整區間，兩者皆空會被拒——
+比較表上的空格會被讀成「免費」。
 
 ### Certification
 `provider(FK)`, `type(tcsp_licence|office_verified|website_verified|track_record|premium_badge)`,

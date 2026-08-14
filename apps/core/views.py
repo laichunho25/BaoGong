@@ -7,15 +7,19 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 
+from apps.registry.selectors import registry_last_synced_at
+
 
 def home(request: HttpRequest) -> HttpResponse:
-    """Placeholder landing page.
+    """Landing page: the pitch plus a way into the directory.
 
-    Phase 2 replaces this with the public directory. It exists now so the base
-    template, Tailwind build and compliance footer are exercised by a real
-    request rather than only by tests.
+    Carries the sync time because it states that the register is synced daily
+    (COMPLIANCE section 1): a claim about freshness has to be checkable on the
+    page that makes it.
     """
-    return render(request, "pages/home.html")
+    return render(
+        request, "pages/home.html", {"registry_last_synced_at": registry_last_synced_at()}
+    )
 
 
 def _check_database() -> tuple[bool, str | None]:

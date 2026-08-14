@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "并排比较 — QS Matching" %}{% endblock %}
+{% comment %} A comparison of an arbitrary set of companies is not a page search engines
+   should index: the content is assembled from the querystring and duplicates
+   the detail pages. {% endcomment %}
+{% block extra_head %}<meta name="robots" content="noindex,follow">{% endblock %}
+
+{% block content %}
+  <header>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "并排比较" %}</h1>
+    <p class="mt-2 text-sm text-slate-600">
+      {% blocktranslate trimmed with limit=max_compare %}
+        最多可同时比较 {{ limit }} 间公司。
+      {% endblocktranslate %}
+    </p>
+    <div class="mt-2">{% include "components/data_source_notice.html" %}</div>
+  </header>
+
+  {% if providers %}
+    <div class="mt-6 overflow-x-auto">
+      <table class="w-full min-w-[40rem] border-collapse text-sm">
+        <thead>
+          <tr>
+            <th class="w-40 border-b border-slate-200 p-3 text-left text-xs font-medium text-slate-500">
+              {% translate "项目" %}
+            </th>
+            {% for provider in providers %}
+              <th class="border-b border-slate-200 p-3 text-left align-top">
+                <a class="font-semibold text-slate-900 hover:underline" href="{{ provider.get_absolute_url }}">
+                  {{ provider.display_name }}
+                </a>
+                {% if not provider.is_on_register %}
+                  <span class="mt-1 block rounded bg-amber-100 px-2 py-0.5 text-xs font-normal text-amber-900">
+                    {% translate "已不在官方持牌名单内" %}
+                  </span>
+                {% endif %}
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody class="align-top">
+          <tr>
+            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "牌照号" %}</th>
+            {% for provider in providers %}
+              <td class="border-b border-slate-100 p-3">{{ provider.licensee.licence_no }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "地区" %}</th>
+            {% for provider in providers %}
+              <td class="border-b border-slate-100 p-3">{{ provider.licensee.district|default:"—" }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "评分" %}</th>
+            {% for provider in providers %}
+              <td class="border-b border-slate-100 p-3">
+                {% include "components/rating_display.html" with provider=provider %}
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "协助银行开户" %}</th>
+            {% for provider in providers %}
+              <td class="border-b border-slate-100 p-3">{{ provider.bank_account_support|yesno:_("是,未提供") }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "可远程办理" %}</th>
+            {% for provider in providers %}
+              <td class="border-b border-slate-100 p-3">{{ provider.remote_onboarding|yesno:_("是,未提供") }}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "服务语言" %}</th>
+            {% for provider in providers %}
+              <td class="border-b border-slate-100 p-3">
+                {% for language in provider.language_labels %}{{ language }}{% if not forloop.last %}、{% endif %}{% empty %}
+                  <span class="text-slate-400">{% translate "未提供" %}</span>
+                {% endfor %}
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "服务与价格" %}</th>
+            {% for provider in providers %}
+              <td class="border-b border-slate-100 p-3">
+                {% for offering in provider.offerings.all %}
+                  <p class="font-medium text-slate-800">{{ offering.get_category_display }}</p>
+                  <ul class="mb-2 text-xs text-slate-600">
+                    {% for price in offering.prices.all %}
+                      <li>{{ price.label }}: {{ price.display }}</li>
+                    {% empty %}
+                      {# An empty cell would read as "free" - say what is true. #}
+                      <li class="text-slate-400">{% translate "未公布价格" %}</li>
+                    {% endfor %}
+                  </ul>
+                {% empty %}
+                  <span class="text-slate-400">{% translate "未公布服务与价格" %}</span>
+                {% endfor %}
+              </td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-4 text-xs text-slate-500">
+      {% translate "官方登记字段来自公司注册处登记册；服务与价格由公司提供或由本平台整理，仅供参考。" %}
+    </p>
+  {% else %}
+    <p class="mt-6 rounded-lg border border-slate-200 p-6 text-sm text-slate-600">
+      {% translate "尚未选择要比较的公司。" %}
+      <a class="underline" href="{% url 'providers:list' %}">{% translate "回到目录挑选" %}</a>
+    </p>
+  {% endif %}
+{% endblock %}

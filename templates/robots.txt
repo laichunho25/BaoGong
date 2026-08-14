@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Assembled from the querystring and duplicating the detail pages.
+Disallow: /compare/
+# Operational endpoints, not content.
+Disallow: /healthz
+Disallow: /admin/
+
+Sitemap: {{ request.scheme }}://{{ request.get_host }}/sitemap.xml

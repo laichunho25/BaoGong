@@ -1,0 +1,19 @@
+{% load i18n %}
+{% comment %} RATING_SYSTEM.md section 4: a provider with no verified reviews has no score.
+   The Bayesian prior would render it as 5.00, which is the one number this
+   platform must never show for a company nobody has reviewed. Empty state
+   instead - and it says "not yet reviewed", not "0 分". {% endcomment %}
+{% if provider.has_verified_reviews %}
+  <span class="inline-flex items-baseline gap-1">
+    <span class="text-base font-semibold text-slate-900">{{ provider.rating_cached|floatformat:2 }}</span>
+    <span class="text-xs text-slate-500">
+      {% blocktranslate trimmed count counter=provider.verified_review_count %}
+        {{ counter }} 条已验证评价
+      {% plural %}
+        {{ counter }} 条已验证评价
+      {% endblocktranslate %}
+    </span>
+  </span>
+{% else %}
+  <span class="text-xs text-slate-400">{% translate "暂无已验证评价" %}</span>
+{% endif %}

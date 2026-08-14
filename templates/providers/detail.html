@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ provider.display_name }} — {% translate "香港持牌秘书公司" %} | QS Matching{% endblock %}
+{% block meta_description %}{% blocktranslate trimmed with name=provider.display_name licence=licensee.licence_no %}{{ name }}（TCSP 牌照号 {{ licence }}）的官方登记资料、服务范围与价格区间。资料来源为香港公司注册处持牌人登记册。{% endblocktranslate %}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ provider.get_absolute_url }}">{% endblock %}
+
+{% block extra_head %}
+  {% comment %} Built and serialised in the view. No aggregateRating is emitted unless
+     verified reviews exist, for the same reason the page shows no score
+     without them (RATING_SYSTEM section 4). {% endcomment %}
+  <script type="application/ld+json">{{ jsonld }}</script>
+{% endblock %}
+
+{% block content %}
+  <nav class="text-sm text-slate-500">
+    <a class="underline hover:text-slate-800" href="{% url 'providers:list' %}">{% translate "持牌秘书公司目录" %}</a>
+    <span class="mx-1">/</span>{{ provider.display_name }}
+  </nav>
+
+  <header class="mt-4">
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ provider.display_name }}</h1>
+    {% if licensee.name_zh %}<p class="mt-1 text-base text-slate-600">{{ licensee.name_zh }}</p>{% endif %}
+    <div class="mt-3">{% include "components/rating_display.html" with provider=provider %}</div>
+  </header>
+
+  {% include "components/deregistration_notice.html" with licensee=licensee %}
+
+  {# ---------------- official block: verbatim from the register ------------- #}
+  <section class="mt-6 rounded-lg border border-slate-300 bg-slate-50 p-5">
+    <h2 class="text-sm font-semibold text-slate-900">{% translate "官方登记资料" %}</h2>
+    <p class="mt-1 text-xs text-slate-500">
+      {% translate "以下字段直接来自官方登记册，本平台不作修改。" %}
+    </p>
+    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs text-slate-500">{% translate "牌照号" %}</dt>
+        <dd class="text-slate-900">{{ licensee.licence_no }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500">{% translate "牌照状态" %}</dt>
+        <dd class="text-slate-900">
+          {% if licensee.is_on_register %}{% translate "在官方名单内" %}{% else %}{% translate "已不在官方名单内" %}{% endif %}
+        </dd>
+      </div>
+      <div class="sm:col-span-2">
+        <dt class="text-xs text-slate-500">{% translate "登记地址" %}</dt>
+        <dd class="text-slate-900">{{ licensee.business_address }}</dd>
+      </div>
+      {% if licensee.district %}
+        <div>
+          <dt class="text-xs text-slate-500">{% translate "地区" %}</dt>
+          <dd class="text-slate-900">{{ licensee.district }}</dd>
+        </div>
+      {% endif %}
+      <div>
+        <dt class="text-xs text-slate-500">{% translate "本平台首次收录" %}</dt>
+        <dd class="text-slate-900">{{ licensee.first_seen_at|date:"Y-m-d" }}</dd>
+      </div>
+      {% if licensee.remarks_en or licensee.remarks_zh %}
+        <div class="sm:col-span-2">
+          <dt class="text-xs text-slate-500">{% translate "备注" %}</dt>
+          <dd class="text-slate-900">{{ licensee.remarks_zh|default:licensee.remarks_en }}</dd>
+        </div>
+      {% endif %}
+    </dl>
+    <div class="mt-4 border-t border-slate-200 pt-3">{% include "components/data_source_notice.html" %}</div>
+  </section>
+
+  {# ---------------- platform block: self-declared or staff-verified -------- #}
+  <section class="mt-6 rounded-lg border border-slate-200 p-5">
+    <h2 class="text-sm font-semibold text-slate-900">{% translate "平台补充资料" %}</h2>
+    <p class="mt-1 text-xs text-slate-500">
+      {% translate "以下资料由公司自行提供或由本平台整理，非官方登记内容。" %}
+    </p>
+
+    {% if provider.claim_status != "claimed" %}
+      {% comment %} Unclaimed page CTA. It says the company has not filled the page in -
+         not that it declined to, which the platform has no way of knowing. {% endcomment %}
+      <div class="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4 text-sm">
+        <p class="font-medium text-slate-800">{% translate "此页面尚未被认领" %}</p>
+        <p class="mt-1 text-slate-600">
+          {% translate "该公司尚未在本平台补充服务范围与价格资料。若您是该公司的负责人，可认领此页面并完善资料。" %}
+        </p>
+        <p class="mt-2 text-slate-400">{% translate "认领功能即将开放。" %}</p>
+      </div>
+    {% endif %}
+
+    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs text-slate-500">{% translate "网站" %}</dt>
+        <dd>
+          {% if provider.website %}
+            <a class="underline text-slate-900" href="{{ provider.website }}" rel="nofollow noopener" target="_blank">{{ provider.website }}</a>
+          {% else %}<span class="text-slate-400">{% translate "未提供" %}</span>{% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500">{% translate "服务语言" %}</dt>
+        <dd class="text-slate-900">
+          {% for language in provider.language_labels %}{{ language }}{% if not forloop.last %}、{% endif %}{% empty %}
+            <span class="text-slate-400">{% translate "未提供" %}</span>
+          {% endfor %}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500">{% translate "协助银行开户" %}</dt>
+        <dd class="text-slate-900">{{ provider.bank_account_support|yesno:_("是,未提供") }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-slate-500">{% translate "可远程办理" %}</dt>
+        <dd class="text-slate-900">{{ provider.remote_onboarding|yesno:_("是,未提供") }}</dd>
+      </div>
+    </dl>
+
+    {% if certifications %}
+      <div class="mt-5">
+        <h3 class="text-xs font-semibold text-slate-700">{% translate "平台认证" %}</h3>
+        <ul class="mt-2 flex flex-wrap gap-2 text-xs">
+          {% for certification in certifications %}
+            <li class="rounded bg-slate-100 px-2 py-0.5 text-slate-700">
+              {{ certification.get_type_display }}
+              <span class="text-slate-400">{{ certification.verified_at|date:"Y-m" }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if provider.commission_agreement %}
+      {% comment %} COMPLIANCE section 6: a referral arrangement is disclosed on the page
+         it affects, not only in the site footer. {% endcomment %}
+      <p class="mt-5 rounded border border-slate-300 bg-white p-3 text-xs text-slate-700">
+        {% translate "披露：本平台与该公司有导流合作关系，若您经本平台联系并成交，本平台可能收取佣金。此关系不影响该公司在目录中的排序或评分。" %}
+      </p>
+    {% endif %}
+  </section>
+
+  {# ---------------- services and prices ----------------------------------- #}
+  <section class="mt-6">
+    <h2 class="text-sm font-semibold text-slate-900">{% translate "服务与价格" %}</h2>
+    {% if offerings %}
+      <div class="mt-3 space-y-4">
+        {% for offering in offerings %}
+          <div class="rounded-lg border border-slate-200 p-4">
+            <h3 class="text-sm font-medium text-slate-900">{{ offering.get_category_display }}</h3>
+            {% if offering.description %}
+              <p class="mt-1 text-sm text-slate-600">{{ offering.description }}</p>
+            {% endif %}
+            {% if offering.prices.all %}
+              <ul class="mt-3 space-y-1 text-sm">
+                {% for price in offering.prices.all %}
+                  <li class="flex justify-between gap-4 border-b border-slate-100 py-1 last:border-0">
+                    <span class="text-slate-700">
+                      {{ price.label }}
+                      <span class="text-xs text-slate-400">
+                        {{ price.get_unit_display }}
+                        {% if price.includes_govt_fee %}&middot; {% translate "已含政府费用" %}{% endif %}
+                      </span>
+                    </span>
+                    <span class="whitespace-nowrap text-slate-900">{{ price.display }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+              <p class="mt-2 text-xs text-slate-400">
+                {% translate "价格由该公司提供或由本平台整理，仅供参考，最终以正式报价为准。" %}
+              </p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mt-3 rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+        {% translate "该公司尚未在本平台公布服务与价格。" %}
+      </p>
+    {% endif %}
+  </section>
+{% endblock %}

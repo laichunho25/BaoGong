@@ -140,6 +140,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "registry.sync_tcsp_registry",
         "schedule": crontab(hour=6, minute=0),
     },
+    # Half an hour after the sync: long enough for a 7,457-row run to finish,
+    # and deliberately a separate task so a failure here cannot roll back the
+    # mirror of the official file.
+    "backfill-provider-pages-daily": {
+        "task": "providers.backfill_providers",
+        "schedule": crontab(hour=6, minute=30),
+    },
 }
 
 # ---------------------------------------------------------------- object storage

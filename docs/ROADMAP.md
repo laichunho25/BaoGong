@@ -6,7 +6,7 @@
 |---|---|---|---|
 | **P0 骨架** | Django 專案、docker-compose(db/redis/minio/web/worker/beat)、settings 分層、ruff/mypy/pytest、CI、`core.BaseModel`、base template + Tailwind | 可 `docker compose up` 跑起來，`/healthz` 200 | ✅ |
 | **P1 registry** | `Licensee/SyncRun/LicenseeChange`、下載+sanity check+upsert+diff、Celery beat、admin、管理指令 `sync_tcsp` / `registry_health`、除名通知 | 名單入庫，可重跑冪等 | ✅ |
-| **P2 目錄前台** | 名單列表頁（搜尋/篩選/分頁，HTMX）、Provider 詳情頁、來源與免責元件、i18n 骨架、SEO | 可公開瀏覽的 MVP | ⬜ |
+| **P2 目錄前台** | `providers` app（Provider/ServiceOffering/PriceItem/Certification）、每日回填、列表頁（HTMX 搜尋/篩選/排序/分頁）、詳情頁、`/compare/`、來源與評分元件、sitemap/robots | 可公開瀏覽的 MVP | ✅ |
 | **P3 帳號 + 認領** | User/角色、註冊登入（郵箱+手機）、`ProviderClaim` 流程、審核後台、Certification | 秘書公司可認領 | ⬜ |
 | **P4 評價 + 核驗** | Review/ReviewScore/ReviewReply/Dispute、評分演算法、NNC1 上傳與加密存放、**A3 + A4 agent**、審核佇列 | 已驗證評價可上線 | ⬜ |
 | **P5 RFQ 撮合** | Rfq/Quote/QuoteLineItem/QuotaLedger、需求牆、報價表單、比較表、**A1 + A5 agent**、每日 3 單額度 | 撮合閉環 | ⬜ |
@@ -31,7 +31,7 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P0] 免責文字只有繁中 msgid，locale/ 尚無 zh-Hans／en 翻譯` — 預設語言 zh-Hans 會落回繁中 — P2 做 i18n 時補，且法律文字須人手翻譯不得機器轉換。
 - `[P0] check_banned_phrases 為正則規則版` — 變體寫法（拼音、諧音、圖片文字）可繞過 — 有真實違規樣本後補測試語料，P8 合規檢查前重新評估。
 - ~~`[P0] TCSP_CSV_URL 未經驗證`~~ — 已於 P1 對真實檔案驗證（7,457 列），欄位對映見 DATA_MODEL.md。
-- `[P1] district 由地址字串比對推導，覆蓋 94.4%（417 列未識別）` — P2 地區篩選會漏掉這些公司 — P2 前補足 locality 對照表，或改為「未分類」可見選項。
+- `[P1] district 由地址字串比對推導，覆蓋 94.4%（417 列未識別）` — **P2 地區篩選已上線，這 417 間公司選任何地區都不會出現**（空字串不進篩選清單，見 `available_districts`）— 補足 locality 對照表，或在 UI 加「未分類地區」選項；P3 前處理。
 - `[P1] 同步沒有用 ETag／checksum 短路` — 官方檔約每月更新一次，每日仍全量 upsert 7,457 列 — 資料量再大時再優化，目前一次約 20 秒。
 - `[P1] sanity check 告警只寫 logger.critical` — 靠 Sentry 的 logging integration 才會通知 — P8 接正式告警通道（郵件／IM）。
 - `[P1] registry_health / healthz/registry 仍需外部 monitor 去打` — 指令回非零碼、endpoint 回 503，但沒人盯就等於沒有 — 部署到 Render 時掛 uptime monitor（見 DEPLOY_RENDER §4.1）。
@@ -39,6 +39,12 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P1] LicenseeChange.notified_at 目前無人寫入` — `registry_health --fail-on-critical` 會永遠告警 — P8 告警通道落地時同步寫入。
 - `[P1] LicenseeChange 未接 A7 RegistryDiffAgent` — `ai_summary` 目前恆為空 — P6。
 - `[P0] 未自託管字體、無 CSP／rate limiting` — 首屏字體會落回系統字體、安全 header 缺失 — 字體 P2、安全 header P8。
+- `[P2] responsiveness_score 恆為 0` — 排序權重 §5 的 0.08 目前對所有公司同值，等於少了一個維度 — P5 RFQ 落地後由回覆時間寫入。
+- `[P2] rating_cached / verified_review_count 尚無寫入者` — 全站目前都是「暫無已驗證評價」空狀態，排序只由認證等級與資料完整度決定 — P4 評價系統上線後由 `reviews.services` 回寫。
+- `[P2] 認領 CTA 只是靜態文字` — 詳情頁寫「認領功能即將開放」，沒有可點的入口 — P3 接 `ProviderClaim` 流程。
+- `[P2] UI 文案只有簡中硬字串（gettext 已包，locale/ 仍空）` — 切到繁中／英文會落回簡中 — 與 P0 的免責文案一併處理，法律相關文字須人手翻譯。
+- `[P2] Provider.logo 用 FileField 而非 ImageField` — 沒有裝 Pillow，因此不驗證圖片尺寸／格式 — P3 開放上傳時一併做 MIME、大小與病毒掃描驗證。
+- `[P2] 目錄頁沒有快取` — 7,457 列每次都打 DB，查詢數已測 < 15 但仍是每請求全打 — 有真實流量後再加 Redis 片段快取。
 
 ---
 

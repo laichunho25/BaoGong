@@ -1,0 +1,69 @@
+{% load i18n %}
+{% comment %} HTMX swaps this element by outerHTML, so the id must live on the root node
+   here and nowhere else. The same view renders it standalone for the fragment
+   request and inside list.html for the full page. {% endcomment %}
+<section id="results" class="mt-6">
+  <div class="flex items-baseline justify-between">
+    <p class="text-sm text-slate-600">
+      {% blocktranslate trimmed count counter=total %}
+        共 {{ counter }} 间公司
+      {% plural %}
+        共 {{ counter }} 间公司
+      {% endblocktranslate %}
+    </p>
+    <span id="results-indicator" class="htmx-indicator text-xs text-slate-400">{% translate "载入中…" %}</span>
+  </div>
+
+  {% if page.object_list %}
+    <ul class="mt-4 space-y-3">
+      {% for provider in page.object_list %}
+        <li class="flex items-start gap-3">
+          <label class="mt-4 shrink-0" title="{% translate '加入比较' %}">
+            <input type="checkbox" class="rounded border-slate-300" value="{{ provider.slug }}"
+                   x-model="compare"
+                   :disabled="compare.length >= {{ max_compare }} && !compare.includes('{{ provider.slug }}')">
+            <span class="sr-only">{% translate "加入比较" %}</span>
+          </label>
+          <div class="min-w-0 flex-1">
+            {% include "components/provider_card.html" with provider=provider %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if page.has_other_pages %}
+      <nav class="mt-6 flex items-center justify-between text-sm" aria-label="{% translate '分页' %}">
+        {% if page.has_previous %}
+          <a class="underline text-slate-700 hover:text-slate-900"
+             href="{% querystring page=page.previous_page_number %}"
+             hx-get="{% querystring page=page.previous_page_number %}"
+             hx-target="#results" hx-select="#results" hx-swap="outerHTML"
+             hx-push-url="true" hx-indicator="#results-indicator">{% translate "上一页" %}</a>
+        {% else %}<span></span>{% endif %}
+
+        <span class="text-slate-500">
+          {% blocktranslate trimmed with current=page.number total_pages=page.paginator.num_pages %}
+            第 {{ current }} / {{ total_pages }} 页
+          {% endblocktranslate %}
+        </span>
+
+        {% if page.has_next %}
+          <a class="underline text-slate-700 hover:text-slate-900"
+             href="{% querystring page=page.next_page_number %}"
+             hx-get="{% querystring page=page.next_page_number %}"
+             hx-target="#results" hx-select="#results" hx-swap="outerHTML"
+             hx-push-url="true" hx-indicator="#results-indicator">{% translate "下一页" %}</a>
+        {% else %}<span></span>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="mt-4 rounded-lg border border-slate-200 p-6 text-sm text-slate-600">
+      <p>{% translate "没有符合条件的公司。" %}</p>
+      {% if not filters.include_deregistered %}
+        <p class="mt-2 text-slate-500">
+          {% translate "提示：已不在官方持牌名单内的公司预设不显示，可在上方勾选后一并查看。" %}
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>

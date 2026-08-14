@@ -1,4 +1,9 @@
+import pytest
 from django.test import Client
+
+# The page now reads the last sync time, because it claims the register is
+# synced daily and that claim has to be checkable on the page making it.
+pytestmark = pytest.mark.django_db
 
 
 class TestHomePage:
