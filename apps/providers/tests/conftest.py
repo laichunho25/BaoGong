@@ -10,8 +10,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
+from apps.accounts.models import Role, User
 from apps.providers.models import Provider
 from apps.providers.services import ensure_providers
 from apps.registry.models import LicenceStatus, Licensee, allow_registry_writes
@@ -42,6 +44,45 @@ def make_licensee() -> Callable[..., Licensee]:
         defaults.update(overrides)
         with allow_registry_writes():
             return Licensee.objects.create(**defaults)
+
+    return _make
+
+
+#: A minimal but genuine PDF: ``inspect_upload`` sniffs the leading bytes, so a
+#: file of zeros would be rejected for the right reason and prove nothing.
+PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+
+
+@pytest.fixture
+def make_user() -> Callable[..., User]:
+    counter = {"n": 0}
+
+    def _make(*, verified: bool = True, **overrides: Any) -> User:
+        counter["n"] += 1
+        fields: dict[str, Any] = {
+            "email": f"claimant{counter['n']}@example.com",
+            "password": "correct-horse-battery",
+            "role": Role.BUYER,
+        }
+        fields.update(overrides)
+        user = User.objects.create_user(**fields)
+        if verified:
+            user.email_verified_at = timezone.now()
+            user.save(update_fields=["email_verified_at"])
+        return user
+
+    return _make
+
+
+@pytest.fixture
+def moderator(make_user: Callable[..., User]) -> User:
+    return make_user(email="moderator@example.com", role=Role.MODERATOR)
+
+
+@pytest.fixture
+def make_upload() -> Callable[..., SimpleUploadedFile]:
+    def _make(name: str = "br.pdf", content: bytes = PDF_BYTES) -> SimpleUploadedFile:
+        return SimpleUploadedFile(name, content, content_type="application/pdf")
 
     return _make
 

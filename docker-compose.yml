@@ -59,6 +59,24 @@ services:
       timeout: 3s
       retries: 10
 
+  # Deliberately not in x-django's depends_on: the daemon spends a few minutes
+  # loading signatures on first start, and web/worker must not wait for that.
+  # Uploads stay unreadable while it is down (UnavailableScanner is the default
+  # and an unreachable clamd is an ERROR, not a pass), so nothing is let through
+  # by starting without it. Point FILE_SCANNER_BACKEND at
+  # apps.core.scanning.ClamAvScanner to use it.
+  clamav:
+    image: clamav/clamav:stable
+    ports: ["3310:3310"]
+    volumes:
+      - clamavdb:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -117,3 +135,4 @@ volumes:
   pgdata:
   redisdata:
   miniodata:
+  clamavdb:

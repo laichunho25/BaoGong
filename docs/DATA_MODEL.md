@@ -4,6 +4,37 @@
 
 所有 model 繼承 `core.BaseModel`：`id (UUIDv7)`, `created_at`, `updated_at`。
 
+## accounts（身分與授權）
+
+### User（`AUTH_USER_MODEL`）
+`email(unique, USERNAME_FIELD)`, `role(buyer|provider|moderator|admin)`, `phone`,
+`preferred_language`, `email_verified_at`, 以及 `AbstractUser` 的 `is_staff / is_active / …`
+（`username` 已移除）。
+
+- Email 是登入身分：秘書公司換人接手時，帳號是跟著信箱走的。
+- `email_verified_at` 為 null 代表「還沒證明自己收得到這個信箱」，認領流程（見
+  `ProviderClaim`）在此之前一律擋下——否則任何人都能用別人的信箱申請控制一間公司的頁面。
+
+### EmailVerification
+`user(FK)`, `token_hash(unique)`, `email`, `expires_at`, `used_at`
+
+只存 token 的 SHA-256：DB 外洩時不應該連帶交出可用的驗證連結。
+
+### ProviderMember
+`user(FK)`, `provider(FK providers.Provider)`, `member_role(owner|manager|staff)`,
+`is_active(bool, indexed)`, `claim(FK ProviderClaim, null)`
+`UNIQUE (user, provider)`、`INDEX (provider, is_active)`
+
+**這張表就是全站的權限模型。** 平台只問兩個問題：「這個人是不是這間 provider 的成員」與
+「是不是 moderator（`User.role`）」，因此不裝 django-guardian、不做 per-object ACL 表——
+那會多出一整組要維護與備份的權限資料，換來用不到的彈性。判斷寫在
+`apps/accounts/permissions.py`（`is_provider_member` / `member_providers` /
+`moderator_required`）。
+`is_active=False` 與「從來不是成員」等價：公司請走員工時用停用，不刪列，紀錄要留。
+`claim` 記錄這個成員資格是由哪一份認領申請授予的。
+
+---
+
 ## registry（官方數據，唯讀區）
 
 ### 官方 CSV 實際欄位（2026-08-13 驗證，7,457 列，UTF-8 無 BOM、CRLF）
@@ -91,9 +122,44 @@ slug 為 `slugify(name_en) + "-" + licence_no`：登記冊裡真的有同名公�
 同一份檔案在不同機器上產生不同 URL。
 
 ### ProviderClaim
-`provider(FK)`, `submitted_by(FK User)`, `evidence_files(JSON)`, `business_registration_no`,
-`website_verification_token`, `status(pending|approved|rejected)`, `reviewer(FK)`, `reviewed_at`, `notes`
-`ai_risk_flags(JSON)` ← AI 建議，非決策
+申請人資料：`provider(FK)`, `submitted_by(FK User)`, `contact_name`, `contact_role`,
+`contact_phone`, `business_registration_no`, `applicant_note`
+（表單另有「確認獲授權」勾選，屬送出前檢查，不存欄位）
+網站所有權：`website`, `website_verification_token(indexed)`, `website_verified_at`,
+`website_verification_method(dns_txt|well_known|meta_tag)`, `website_verification_log(JSON)`
+決策：`status(pending|approved|rejected|withdrawn)`, `reviewer(FK User)`, `reviewed_at`,
+`decision_reason(TextField)`, `notes`（內部，永不對申請人顯示）
+`ai_risk_flags(JSON)` ← AI 建議，非決策（CLAUDE.md §4.3）
+
+`UNIQUE (provider) WHERE status='pending'`（`providers_one_pending_claim_per_provider`）：
+沒有它，同一頁可以被兩份申請並行認領，第二次批准會無聲地把同一個 profile 交給第二間公司。
+`INDEX (status, created_at)` 給 moderator 佇列用。
+
+- **BR 號碼不是官方持牌名單的欄位**，只供審核人核對，不公開顯示（rule 1：registry 唯讀，
+  enrich 資料一律留在 providers）。
+- 網站驗證是**證據，不是放行條件**：token 只證明申請人控制那個網域，證明不了那個網域屬於
+  持牌人。批准與否仍由 moderator 決定，理由必填。
+- 批准時 `services.approve_claim` 一次交易內做三件事：建 `ProviderMember(owner)`、
+  `provider.claim_status = claimed`、發 `Certification(tcsp_licence)`。
+
+### ClaimEvidence
+`claim(FK)`, `kind(business_registration|address_proof|authorisation|other)`,
+`file(FileField, private storage)`, `original_filename`, `content_type`, `extension`,
+`size_bytes`, `sha256(indexed)`
+掃描：`scan_status(pending|clean|infected|error|skipped, indexed)`, `scan_detail`, `scanner`,
+`scanned_at`, `scan_override_by(FK User)`
+保留期：`purge_at(indexed)`, `purged_at`
+
+**一份檔案一列，不是 `ProviderClaim.evidence_files(JSON)`**（本文件早期版本如此規劃）：
+每個檔案有自己的掃描狀態與自己的保留期，而清除任務與「這份可以打開嗎」都是逐檔判斷，
+兩者都必須可查詢。
+
+- 儲存路徑為 `claims/<claim_id>/<pk>.<sniffed ext>`：上傳者提供的檔名是攻擊者可控字串、
+  且常含真人姓名，不該出現在會進 log 的 storage key，因此改存欄位。
+- `is_readable` 才可預覽或下載：未掃描等同未清白，moderator 的瀏覽器不該是「發現這個檔有毒」
+  的那一步。放行只能經 `scan_override_by` 這條有署名、有理由的路，且 `infected` 不得放行。
+- `purge_at = 決策時間 + 90 日`（COMPLIANCE §4）。每日 Celery beat 刪掉 bytes，**保留列與
+  sha256**：審核紀錄要留，個資不留。
 
 ### ServiceOffering
 `provider(FK)`, `category`: `incorporation | company_secretary | registered_address | accounting | audit_liaison | bank_account_assist | tax_filing | trademark | work_visa`
@@ -109,6 +175,10 @@ DB 約束 `providers_price_point_or_range`：必須是單點價或完整區間�
 ### Certification
 `provider(FK)`, `type(tcsp_licence|office_verified|website_verified|track_record|premium_badge)`,
 `verified_at`, `expires_at`, `evidence_ref`, `verified_by(FK User)`
+
+`UNIQUE (provider, type)`（`providers_one_certification_per_type`）：同一種徽章兩列會在頁面上
+重複渲染，也答不出「哪一個才是現行的」；續期是更新該列，不是新增。
+`tcsp_licence` 由 `services.approve_claim` 在批准認領時發出，`evidence_ref` 指向該份申請。
 
 ---
 
@@ -202,6 +272,10 @@ DB 約束 `providers_price_point_or_range`：必須是單點價或完整區間�
 ```sql
 UNIQUE (registry_licensee.licence_no)
 UNIQUE (providers_provider.licensee_id)
+UNIQUE (accounts_user.email)
+UNIQUE (accounts_providermember.user_id, accounts_providermember.provider_id)
+UNIQUE (providers_providerclaim.provider_id) WHERE status = 'pending'  -- 一頁一份待審申請
+UNIQUE (providers_certification.provider_id, providers_certification.type)
 UNIQUE (reviews_review.provider_id, reviews_review.author_id)   -- 一人一公司一評
 UNIQUE (rfq_quote.rfq_id, rfq_quote.provider_id)                -- 一單一報價
 UNIQUE (rfq_quotaledger.provider_id, rfq_quotaledger.date)

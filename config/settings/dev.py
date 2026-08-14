@@ -3,7 +3,7 @@
 from typing import Any
 
 from .base import *
-from .base import INSTALLED_APPS, MIDDLEWARE, env
+from .base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE, env
 
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
@@ -33,6 +33,12 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Local disk, no signing and no base_url: evidence is streamed through the
+    # permission-checked view, exactly as it will be in production.
+    "private": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": str(BASE_DIR / "private_media")},
+    },
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 

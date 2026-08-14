@@ -36,6 +36,9 @@
 
 - 收集目的須在 PICS（Personal Information Collection Statement）明示。
 - NNC1 上傳檔：加密存放、**只抽取必要欄位**、預設 90 日自動刪除（Celery beat purge task，必須有測試）。
+- 認領證明檔案（`providers.ClaimEvidence`）同一規則：私有 bucket、只有申請人與 moderator 可取用、
+  審核決定後 90 日由 `providers.purge_claim_evidence` 刪除 bytes；**保留該列與 sha256**，
+  因為審核紀錄要留，個資不留。未經掃描的檔案一律不可預覽、不可下載。
 - 用戶可要求查閱／更正／刪除其個資 → 後台必須有 DSAR 處理介面。
 - **不得**把用戶個資或 NNC1 原文送給 LLM 供應商以外的第三方；送 LLM 前做 PII redaction（除 NNC1 抽取這個必要用途）。
 - Anthropic API 用量不做 training（確認 commercial terms）。

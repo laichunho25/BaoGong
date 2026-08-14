@@ -1,0 +1,37 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{# Intermediate page for every action that must carry a reason: claim approval,
+   claim rejection and scan override. The list of what is about to be affected
+   is shown again here, because the selection was made on a different page and
+   an approval granted to the wrong company is not undoable. #}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<ul>
+  {% for object in objects %}
+    <li>{{ object }}</li>
+  {% endfor %}
+</ul>
+
+<form method="post">
+  {% csrf_token %}
+  {% for object in objects %}
+    <input type="hidden" name="_selected_action" value="{{ object.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="apply_reason" value="1">
+
+  {{ form.as_p }}
+
+  <p class="help">
+    {% translate "The reason is stored on the record and is part of the audit trail." %}
+  </p>
+
+  <div class="submit-row">
+    <input type="submit" class="default" value="{% translate 'Confirm' %}">
+    <a href="." class="button cancel-link">{% translate "Cancel" %}</a>
+  </div>
+</form>
+{% endblock %}

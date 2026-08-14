@@ -18,6 +18,9 @@ htmlcov/
 # django
 staticfiles/
 media/
+# Uploaded claim evidence in local development. Personal data (COMPLIANCE 4) -
+# it must never reach the repository.
+private_media/
 *.log
 db.sqlite3
 

@@ -23,6 +23,7 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+    "private": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 

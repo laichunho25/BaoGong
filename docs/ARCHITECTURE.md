@@ -36,9 +36,9 @@ qs-platform/
 │   └── wsgi.py asgi.py
 ├── apps/
 │   ├── core/          # BaseModel(uuid, created_at, updated_at), middleware, money, i18n utils
-│   ├── accounts/      # User(AbstractUser), BuyerProfile, ProviderMember, roles
+│   ├── accounts/      # User(AbstractUser), ProviderMember, EmailVerification, permissions.py
 │   ├── registry/      # Licensee, SyncRun, LicenseeChange
-│   ├── providers/     # Provider, ProviderClaim, ServiceOffering, PriceItem, Certification
+│   ├── providers/     # Provider, ProviderClaim, ClaimEvidence, ServiceOffering, PriceItem, Certification
 │   ├── reviews/       # Review, ReviewScore, Nnc1Verification, ReviewReply, Dispute
 │   ├── rfq/           # Rfq, RfqRequirement, Quote, QuoteLineItem, QuotaLedger
 │   ├── agents/        # BaseAgent, registry, prompts/, tools/, AgentRun, evals/
@@ -65,7 +65,16 @@ qs-platform/
 | `views.py` | HTMX/HTML view，薄 | 不直接 ORM 寫入 |
 | `api.py` | DRF viewsets/serializers | 同上 |
 | `tasks.py` | Celery tasks，只 orchestrate 呼叫 services | 不放邏輯 |
-| `admin.py` | 內部審核介面 | — |
+| `admin.py` | 內部審核介面 | 規則不放這裡（見下） |
+
+**授權**：不裝 django-guardian。全站只有兩個判斷——「是不是這間 provider 的成員」與「是不是
+moderator」——都由 `apps/accounts/permissions.py` 從 `ProviderMember` / `User.role` 回答。
+存在與否本身即資訊的頁面（別人的認領申請、moderator 佇列）一律回 **404 而非 403**。
+
+**審核佇列**：P3 的認領審核用**客製 Django admin**（並排顯示申請內容與官方登記冊、證明檔案
+連結、批准／拒絕且理由必填），不自建介面——每日審核量是個位數，自建介面的成本留給 P4 的評價
+審核佇列。規則（moderator 身分、檔案須經掃描、理由不得為空）一律寫在 `services.py`，admin
+只是眾多呼叫者之一，因此換介面時規則不會跟著消失。
 
 ## 4. AI Agent 架構
 
@@ -137,7 +146,16 @@ S3_ENDPOINT_URL= S3_BUCKET= S3_ACCESS_KEY= S3_SECRET_KEY=
 TCSP_CSV_URL=https://www.tcsp.cr.gov.hk/open-data/licensees.csv
 SENTRY_DSN=
 TURNSTILE_SITE_KEY= TURNSTILE_SECRET=
+ADMIN_URL= ADMIN_ENABLED= ADMIN_IP_ALLOWLIST= ADMIN_TRUST_PROXY_IP=
+S3_PRIVATE_BUCKET= PRIVATE_FILE_URL_TTL=300
+FILE_SCANNER_BACKEND=apps.core.scanning.UnavailableScanner
+CLAMAV_HOST=clamav CLAMAV_PORT=3310
+CLAIM_SITE_VERIFICATION_KEY=qs-site-verification
 ```
+
+以 `.env.example` 為準，上表只是導覽。證明檔案存**私有 bucket**，只透過會過權限檢查的
+download view 取用；backend 能簽名就發限時簽名 URL，不能簽名就串流，**沒有退回
+`storage.url()` 這條路**——那等於給私有檔案一個永久免驗證連結。
 
 ## 7. 測試策略
 

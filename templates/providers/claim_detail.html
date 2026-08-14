@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "认领申请" %} - {{ provider.display_name }} - QS Matching{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <div>
+    <a href="{{ provider.get_absolute_url }}" class="text-sm text-slate-500 underline">
+      &larr; {{ provider.display_name }}
+    </a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      {% translate "认领申请" %}
+    </h1>
+    <p class="mt-1 text-sm text-slate-600">
+      {% translate "提交于" %} {{ claim.created_at|date:"Y-m-d H:i" }}
+    </p>
+  </div>
+
+  {# Status. A decided claim always shows the reason it was decided on - a
+     rejection the applicant cannot act on is not a decision they can answer. #}
+  {% if claim.status == "pending" %}
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <p class="font-medium">{% translate "审核中" %}</p>
+      <p class="mt-1">{% translate "我们会在 3 个工作日内以邮件回复审核结果。" %}</p>
+    </div>
+  {% elif claim.status == "approved" %}
+    <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+      <p class="font-medium">{% translate "认领已通过" %}</p>
+      <p class="mt-1">{{ claim.decision_reason }}</p>
+    </div>
+  {% elif claim.status == "rejected" %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+      <p class="font-medium">{% translate "认领未通过" %}</p>
+      <p class="mt-1">{{ claim.decision_reason }}</p>
+      <p class="mt-2 text-xs">{% translate "补充资料后可重新提交申请。" %}</p>
+    </div>
+  {% else %}
+    <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+      <p class="font-medium">{% translate "申请已撤回" %}</p>
+    </div>
+  {% endif %}
+
+  {# ---------------- website ownership ------------------------------------- #}
+  <section class="rounded-lg border border-slate-200 p-4 text-sm">
+    <h2 class="font-semibold text-slate-900">{% translate "网站所有权验证（可选）" %}</h2>
+    {% if claim.is_website_verified %}
+      <p class="mt-2 text-emerald-700">
+        {% translate "已验证" %} · {{ claim.website_verification_method }} ·
+        {{ claim.website_verified_at|date:"Y-m-d H:i" }}
+      </p>
+    {% elif claim.website %}
+      <p class="mt-2 text-slate-600">
+        {% blocktranslate with site=claim.website %}
+          在 {{ site }} 上以下任一位置发布此令牌，然后点击验证。验证并非通过认领的必要条件，但可加快审核。
+        {% endblocktranslate %}
+      </p>
+      <div class="mt-3 rounded bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100 break-all">
+        {{ claim.expected_token_value }}
+      </div>
+      <ul class="mt-3 space-y-2 text-slate-700">
+        <li>
+          <span class="font-medium">{% translate "方式一：DNS TXT 记录" %}</span>
+          <span class="text-slate-500">{% translate "（最快被接受）" %}</span>
+        </li>
+        <li>
+          <span class="font-medium">{% translate "方式二：上传文件" %}</span>
+          <code class="ml-1 text-xs">{{ well_known_path }}</code>
+        </li>
+        <li>
+          <span class="font-medium">{% translate "方式三：首页 meta 标签" %}</span>
+          <code class="ml-1 block text-xs break-all">
+            &lt;meta name="{{ site_verification_key }}" content="{{ claim.website_verification_token }}"&gt;
+          </code>
+        </li>
+      </ul>
+      {% if claim.website_verification_log %}
+        <div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <p class="font-medium text-slate-700">{% translate "上次检查结果" %}</p>
+          <ul class="mt-1 space-y-1">
+            {% for entry in claim.website_verification_log %}
+              <li>{{ entry.method }}: {{ entry.detail }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      {% if claim.status == "pending" %}
+        <form method="post" action="{% url 'providers:claim_verify' claim.pk %}" class="mt-3">
+          {% csrf_token %}
+          <button type="submit"
+                  class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+            {% translate "立即验证" %}
+          </button>
+        </form>
+      {% endif %}
+    {% else %}
+      <p class="mt-2 text-slate-500">{% translate "此申请未填写公司网站，将仅以证明文件审核。" %}</p>
+    {% endif %}
+  </section>
+
+  {# ---------------- evidence ---------------------------------------------- #}
+  <section class="rounded-lg border border-slate-200 p-4 text-sm">
+    <h2 class="font-semibold text-slate-900">{% translate "证明文件" %}</h2>
+    <ul class="mt-3 space-y-2">
+      {% for item in evidence %}
+        <li class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-0">
+          <div class="min-w-0">
+            <p class="truncate text-slate-900">{{ item.original_filename }}</p>
+            <p class="text-xs text-slate-500">{{ item.get_kind_display }}</p>
+          </div>
+          {% comment %} A file that no scanner has cleared is not linked, not even
+             for the person who uploaded it: the same rule that keeps it out of a
+             moderator's browser applies here. {% endcomment %}
+          {% if item.is_readable %}
+            <a class="shrink-0 text-xs underline"
+               href="{% url 'providers:claim_evidence' item.pk %}">{% translate "查看" %}</a>
+          {% elif item.purged_at %}
+            <span class="shrink-0 text-xs text-slate-400">{% translate "已按保留期删除" %}</span>
+          {% else %}
+            <span class="shrink-0 text-xs text-slate-400">{% translate "安全检查中" %}</span>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li class="text-slate-500">{% translate "未上传文件。" %}</li>
+      {% endfor %}
+    </ul>
+    <p class="mt-3 text-xs text-slate-500">
+      {% translate "文件存放于私有存储，仅审核人员可查看，审核结束 90 日后自动删除。" %}
+    </p>
+  </section>
+
+  {% if claim.status == "pending" %}
+    <form method="post" action="{% url 'providers:claim_withdraw' claim.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="text-sm text-slate-500 underline">
+        {% translate "撤回申请" %}
+      </button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

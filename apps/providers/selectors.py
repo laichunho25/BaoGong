@@ -12,7 +12,16 @@ from typing import TYPE_CHECKING
 
 from django.db.models import Case, F, IntegerField, Prefetch, Q, QuerySet, When
 
-from apps.providers.models import BankType, Language, Provider, ServiceOffering, Tier
+from apps.providers.models import (
+    BankType,
+    ClaimDecision,
+    ClaimStatus,
+    Language,
+    Provider,
+    ProviderClaim,
+    ServiceOffering,
+    Tier,
+)
 from apps.registry.models import LicenceStatus
 
 if TYPE_CHECKING:
@@ -198,3 +207,48 @@ def get_providers_for_compare(slugs: Sequence[str]) -> list[Provider]:
         .filter(slug__in=wanted)
     }
     return [found[slug] for slug in wanted if slug in found]
+
+
+# ---------------------------------------------------------------- claims
+
+
+def get_claim(claim_id: str) -> ProviderClaim | None:
+    """One claim with everything its page and the review queue render."""
+    return (
+        ProviderClaim.objects.select_related(
+            "provider", "provider__licensee", "submitted_by", "reviewer"
+        )
+        .prefetch_related("evidence")
+        .filter(pk=claim_id)
+        .first()
+    )
+
+
+def claims_for_user(user_id: str) -> QuerySet[ProviderClaim]:
+    return (
+        ProviderClaim.objects.filter(submitted_by__pk=user_id)
+        .select_related("provider", "provider__licensee")
+        .order_by("-created_at")
+    )
+
+
+def pending_claims() -> QuerySet[ProviderClaim]:
+    """The moderation queue, oldest first - the queue is answered in order."""
+    return (
+        ProviderClaim.objects.filter(status=ClaimDecision.PENDING)
+        .select_related("provider", "provider__licensee", "submitted_by")
+        .order_by("created_at")
+    )
+
+
+def claimable_provider(slug: str) -> Provider | None:
+    """A provider that may still be claimed, or None.
+
+    Unpublished profiles and candidates with no licence behind them are
+    excluded here as well as in ``services.submit_claim``: the view needs to
+    answer 404 before rendering a form that could never be accepted.
+    """
+    provider = directory_queryset().filter(slug=slug, licensee__isnull=False).first()
+    if provider is None or provider.claim_status == ClaimStatus.CLAIMED:
+        return None
+    return provider

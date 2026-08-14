@@ -115,6 +115,60 @@ class User(BaseModel, AbstractUser):
         return self.is_superuser or self.role in {Role.MODERATOR, Role.ADMIN}
 
 
+class MemberRole(models.TextChoices):
+    OWNER = "owner", _("Owner")
+    STAFF = "staff", _("Staff")
+
+
+class ProviderMember(BaseModel):
+    """A user's membership of one provider - the whole per-object permission model.
+
+    There is no ACL table. The only object-level question the platform asks is
+    "is this user a member of this provider?", and this row answers it in one
+    indexed lookup. django-guardian would answer the same question through a
+    generic permission table that has to be maintained, migrated and backed up,
+    in exchange for a granularity nothing here uses. See ``permissions.py``.
+
+    ``is_active`` rather than deletion: a company that removes a colleague
+    still needs the record of who approved what, and reviews and quotes point
+    at the acting member.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="provider_memberships")
+    # A string reference, not an import: providers already imports accounts
+    # indirectly through settings.AUTH_USER_MODEL, and a real import here would
+    # close the loop.
+    provider = models.ForeignKey(
+        "providers.Provider", on_delete=models.CASCADE, related_name="members"
+    )
+    member_role = models.CharField(
+        max_length=16, choices=MemberRole.choices, default=MemberRole.OWNER
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    # Which approved claim created this membership. Null for a member added by
+    # staff, which is why it is nullable rather than required.
+    claim = models.ForeignKey(
+        "providers.ProviderClaim",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="granted_memberships",
+    )
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("provider member")
+        verbose_name_plural = _("provider members")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "provider"], name="accounts_one_membership_per_provider"
+            )
+        ]
+        indexes = [models.Index(fields=["provider", "is_active"])]
+
+    def __str__(self) -> str:
+        return f"{self.user.email} @ {self.provider_id}"
+
+
 class EmailVerification(BaseModel):
     """A single-use email verification link.
 

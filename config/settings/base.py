@@ -158,7 +158,25 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    # Uploaded evidence (claim documents now, NNC1 in P4). Separate from
+    # "default" because COMPLIANCE section 4 makes it personal data: it must
+    # never be reachable by URL alone. See apps/core/storage.py.
+    "private": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": str(BASE_DIR / "private_media")},
+    },
 }
+
+# Lifetime of a signed evidence URL. Long enough to open a PDF, short enough
+# that a link pasted into a chat has expired by the time anyone reads it.
+PRIVATE_FILE_URL_TTL = env.int("PRIVATE_FILE_URL_TTL", default=300)
+
+# Virus scanning for uploads. The default reports "pending", which keeps files
+# unreadable and blocks claim approval - a scanner that is not configured must
+# fail closed, not silently pass everything. See apps/core/scanning.py.
+FILE_SCANNER_BACKEND = env("FILE_SCANNER_BACKEND", default="apps.core.scanning.UnavailableScanner")
+CLAMAV_HOST = env("CLAMAV_HOST", default="clamav")
+CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 
 # ---------------------------------------------------------------- celery
 
@@ -187,7 +205,27 @@ CELERY_BEAT_SCHEDULE = {
         "task": "providers.backfill_providers",
         "schedule": crontab(hour=6, minute=30),
     },
+    # COMPLIANCE section 4: uploaded evidence is personal data with a retention
+    # limit, and a retention promise nobody executes is worse than none.
+    "purge-claim-evidence-daily": {
+        "task": "providers.purge_claim_evidence",
+        "schedule": crontab(hour=3, minute=30),
+    },
 }
+
+# ---------------------------------------------------------------- claims
+
+# How long a decided claim's evidence is kept. COMPLIANCE section 4 sets 90
+# days for NNC1 uploads; the same clock is applied here because the documents
+# are the same kind of data.
+CLAIM_EVIDENCE_RETENTION_DAYS = env.int("CLAIM_EVIDENCE_RETENTION_DAYS", default=90)
+# Prefix of the DNS TXT record / meta tag value a company publishes to prove it
+# controls the website it claims.
+CLAIM_SITE_VERIFICATION_KEY = "qs-site-verification"
+# Ceiling on the page fetched during website verification: the response is
+# attacker-chosen, so it is read with a limit rather than into memory whole.
+CLAIM_VERIFICATION_MAX_BYTES = 512 * 1024
+CLAIM_VERIFICATION_TIMEOUT = env.int("CLAIM_VERIFICATION_TIMEOUT", default=10)
 
 # ---------------------------------------------------------------- object storage
 

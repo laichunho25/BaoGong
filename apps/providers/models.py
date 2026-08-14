@@ -21,6 +21,8 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import BaseModel
 from apps.core.money import Money
+from apps.core.scanning import READABLE_STATUSES, ScanStatus
+from apps.core.storage import private_storage
 from apps.registry.models import Licensee
 
 
@@ -164,6 +166,169 @@ class Provider(BaseModel):
         return [str(labels[value]) for value in self.bank_types if value in labels]
 
 
+class ClaimDecision(models.TextChoices):
+    PENDING = "pending", _("Pending review")
+    APPROVED = "approved", _("Approved")
+    REJECTED = "rejected", _("Rejected")
+    WITHDRAWN = "withdrawn", _("Withdrawn by the applicant")
+
+
+class ProviderClaim(BaseModel):
+    """A company's application to take control of its own page.
+
+    Approving one binds a real person to a licensed company and grants the
+    ``tcsp_licence`` badge, so the row keeps the whole evidence trail: what was
+    submitted, what the official register says, whether the website was proved,
+    who decided, and why. ``ai_risk_flags`` is advisory only - CLAUDE.md rule 3
+    forbids an agent's output from becoming a fact on its own.
+    """
+
+    provider = models.ForeignKey(Provider, on_delete=models.CASCADE, related_name="claims")
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="provider_claims"
+    )
+
+    # Applicant-declared, never presented as official: the register carries no
+    # BR number, so this cannot be checked against it automatically.
+    business_registration_no = models.CharField(max_length=32, blank=True)
+    contact_name = models.CharField(max_length=120)
+    contact_phone = models.CharField(max_length=32, blank=True)
+    contact_role = models.CharField(max_length=120, blank=True)
+    applicant_note = models.TextField(blank=True)
+
+    website = models.URLField(
+        blank=True, help_text="The site the token is published on; may differ from the profile."
+    )
+    website_verification_token = models.CharField(max_length=64, db_index=True)
+    website_verified_at = models.DateTimeField(null=True, blank=True)
+    website_verification_method = models.CharField(max_length=16, blank=True)
+    website_verification_log = models.JSONField(default=list, blank=True)
+
+    status = models.CharField(
+        max_length=16, choices=ClaimDecision.choices, default=ClaimDecision.PENDING, db_index=True
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_claims",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    # Required by services on any decision: a rejection the applicant cannot be
+    # told the reason for is not a reviewable decision.
+    decision_reason = models.TextField(blank=True)
+    notes = models.TextField(blank=True, help_text="Internal; never shown to the applicant.")
+    ai_risk_flags = models.JSONField(
+        default=dict, blank=True, help_text="Advisory only (CLAUDE.md rule 3). Never decides."
+    )
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("provider claim")
+        verbose_name_plural = _("provider claims")
+        constraints = [
+            # One open application per company. Without it, a page could be
+            # claimed twice in parallel and the second approval would silently
+            # hand a second company control of the same profile.
+            models.UniqueConstraint(
+                fields=["provider"],
+                condition=models.Q(status="pending"),
+                name="providers_one_pending_claim_per_provider",
+            ),
+        ]
+        indexes = [models.Index(fields=["status", "created_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.provider.slug} <- {self.submitted_by_id} ({self.status})"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == ClaimDecision.PENDING
+
+    @property
+    def is_website_verified(self) -> bool:
+        return self.website_verified_at is not None
+
+    @property
+    def expected_token_value(self) -> str:
+        """What the applicant publishes in DNS or in the page's meta tag."""
+        return f"{settings.CLAIM_SITE_VERIFICATION_KEY}={self.website_verification_token}"
+
+
+class EvidenceKind(models.TextChoices):
+    BUSINESS_REGISTRATION = "business_registration", _("Business registration certificate")
+    ADDRESS_PROOF = "address_proof", _("Proof of business address")
+    AUTHORISATION = "authorisation", _("Letter of authorisation")
+    OTHER = "other", _("Other supporting document")
+
+
+def claim_evidence_path(instance: ClaimEvidence, filename: str) -> str:
+    """Storage key: opaque, per claim, with the sniffed extension only.
+
+    The uploader's filename is kept in a column instead of in the path - it is
+    attacker-controlled text and often carries a person's name, which does not
+    belong in a storage key that appears in logs.
+    """
+    return f"claims/{instance.claim_id}/{instance.pk}.{instance.extension}"
+
+
+class ClaimEvidence(BaseModel):
+    """One uploaded document supporting a claim.
+
+    A row per file rather than a JSON list on the claim: each file carries its
+    own scan state and its own retention clock, and both have to be queryable -
+    the purge task and the "may this be opened?" check are per file.
+    """
+
+    claim = models.ForeignKey(ProviderClaim, on_delete=models.CASCADE, related_name="evidence")
+    kind = models.CharField(
+        max_length=32, choices=EvidenceKind.choices, default=EvidenceKind.BUSINESS_REGISTRATION
+    )
+    file = models.FileField(storage=private_storage, upload_to=claim_evidence_path)
+    original_filename = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=64)
+    extension = models.CharField(max_length=8)
+    size_bytes = models.PositiveIntegerField(default=0)
+    # Lets a moderator recognise the same document submitted twice without
+    # opening either, and proves the stored bytes were not altered afterwards.
+    sha256 = models.CharField(max_length=64, db_index=True)
+
+    scan_status = models.CharField(
+        max_length=16, choices=ScanStatus.choices, default=ScanStatus.PENDING, db_index=True
+    )
+    scan_detail = models.CharField(max_length=255, blank=True)
+    scanner = models.CharField(max_length=32, blank=True)
+    scanned_at = models.DateTimeField(null=True, blank=True)
+    scan_override_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Set only when a reviewer accepted a file the scanner did not clear.",
+    )
+
+    # COMPLIANCE section 4: uploaded personal data has a retention limit.
+    purge_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    purged_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("claim evidence")
+        verbose_name_plural = _("claim evidence")
+
+    def __str__(self) -> str:
+        return f"{self.kind} ({self.scan_status})"
+
+    @property
+    def is_readable(self) -> bool:
+        """Whether these bytes may be opened or served.
+
+        Pending is treated exactly like unscanned: a moderator's browser must
+        not be the thing that finds out a file was malicious.
+        """
+        return bool(self.file) and self.purged_at is None and self.scan_status in READABLE_STATUSES
+
+
 class ServiceCategory(models.TextChoices):
     INCORPORATION = "incorporation", _("Company incorporation")
     COMPANY_SECRETARY = "company_secretary", _("Company secretary")
@@ -282,6 +447,14 @@ class Certification(BaseModel):
 
     class Meta:
         ordering = ["type"]
+        constraints = [
+            # One badge of each kind per company. Two "tcsp_licence" rows would
+            # render the badge twice and leave no answer to "which one is
+            # current"; renewals update the row instead.
+            models.UniqueConstraint(
+                fields=["provider", "type"], name="providers_one_certification_per_type"
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.provider.slug} {self.type}"

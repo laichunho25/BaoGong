@@ -42,7 +42,14 @@ DATABASES["default"]["CONN_MAX_AGE"] = 60
 DATABASES["default"].setdefault("OPTIONS", {})
 DATABASES["default"]["OPTIONS"]["sslmode"] = env("DATABASE_SSLMODE", default="require")
 
-for _name in ("REDIS_URL", "ANTHROPIC_API_KEY", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"):
+for _name in (
+    "REDIS_URL",
+    "ANTHROPIC_API_KEY",
+    "S3_BUCKET",
+    "S3_PRIVATE_BUCKET",
+    "S3_ACCESS_KEY",
+    "S3_SECRET_KEY",
+):
     _required(_name)
 
 # ---------------------------------------------------------------- admin
@@ -84,6 +91,22 @@ STORAGES = {
             "region_name": env("S3_REGION", default="ap-east-1"),
             "default_acl": "private",
             "querystring_auth": True,
+            "file_overwrite": False,
+        },
+    },
+    # A separate bucket, not a prefix in the public one: personal data should
+    # be one bucket policy away from the world, not one path mistake.
+    "private": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": env("S3_PRIVATE_BUCKET"),
+            "endpoint_url": env("S3_ENDPOINT_URL", default=None),
+            "access_key": env("S3_ACCESS_KEY"),
+            "secret_key": env("S3_SECRET_KEY"),
+            "region_name": env("S3_REGION", default="ap-east-1"),
+            "default_acl": "private",
+            "querystring_auth": True,
+            "querystring_expire": env.int("PRIVATE_FILE_URL_TTL", default=300),
             "file_overwrite": False,
         },
     },

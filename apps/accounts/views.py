@@ -21,6 +21,7 @@ from apps.accounts import services
 from apps.accounts.forms import EmailLoginForm, RegistrationForm
 from apps.accounts.models import Role
 from apps.core import turnstile
+from apps.providers import selectors as provider_selectors
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
@@ -127,5 +128,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     """
     context: dict[str, Any] = {
         "is_provider_member": request.user.role == Role.PROVIDER_MEMBER,  # type: ignore[union-attr]
+        # An application takes days to decide, so the account page is where the
+        # applicant comes back to check on it - and it is the only place the
+        # claim's URL can be found again once the confirmation page is gone.
+        "claims": provider_selectors.claims_for_user(str(request.user.pk)),
     }
     return render(request, "accounts/dashboard.html", context)
