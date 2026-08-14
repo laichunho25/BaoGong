@@ -94,6 +94,27 @@ DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# ---------------------------------------------------------------- auth
+# The login identifier is the email address: buyers arrive from a search
+# engine and would not remember an invented username, and every flow that
+# matters already needs a working mailbox.
+AUTH_USER_MODEL = "accounts.User"
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "accounts:dashboard"
+LOGOUT_REDIRECT_URL = "/"
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 10},
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="QS Matching <no-reply@example.com>")
+
 # ---------------------------------------------------------------- i18n
 # UI copy targets mainland-China buyers -> Simplified Chinese is the default.
 # See CLAUDE.md section 6.

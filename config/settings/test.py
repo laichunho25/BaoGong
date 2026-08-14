@@ -24,4 +24,10 @@ STORAGES = {
 # Agents must never reach the real API from a test run.
 ANTHROPIC_API_KEY = "test-key-not-real"
 
+# The gate is off by default so the suite does not depend on whether the
+# developer's .env happens to carry a Cloudflare key; the tests that exercise
+# it switch it on explicitly.
+TURNSTILE_SITE_KEY = ""
+TURNSTILE_SECRET = ""
+
 LOGGING["root"]["level"] = "WARNING"

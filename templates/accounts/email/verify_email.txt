@@ -1,0 +1,10 @@
+{% load i18n %}{% blocktranslate %}您好，
+
+请点击以下链接验证您的邮箱地址：
+
+{{ url }}
+
+链接 48 小时内有效。如果这不是您本人的操作，请忽略本邮件。
+
+QS Matching Platform
+本平台不是政府机构，与香港公司注册处无隶属关系。{% endblocktranslate %}

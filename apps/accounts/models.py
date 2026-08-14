@@ -1,1 +1,141 @@
-# Fields, constraints, __str__, properties only. No business logic (ARCHITECTURE section 3).
+"""Accounts: who is using the platform, and in which role.
+
+Fields, constraints, __str__, properties only. No business logic
+(ARCHITECTURE section 3) - registration, verification and role changes live in
+``services.py``.
+
+Two deliberate choices:
+
+* The login identifier is the email address. Buyers arrive from a search
+  engine and will not remember an invented username, and every flow that
+  matters (verification, quote notifications, claim decisions) already needs a
+  working mailbox.
+* Email verification tokens are stored as a SHA-256 hash. A leaked database
+  dump must not hand out working account-takeover links.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+
+from apps.core.models import BaseModel
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+
+class Role(models.TextChoices):
+    BUYER = "buyer", _("Buyer")
+    PROVIDER_MEMBER = "provider_member", _("Provider member")
+    MODERATOR = "moderator", _("Moderator")
+    ADMIN = "admin", _("Administrator")
+
+
+class UserManager(BaseUserManager["User"]):
+    """Manager for an email-identified user.
+
+    ``createsuperuser`` and the test helpers both go through here, so the
+    normalisation rules live in one place.
+    """
+
+    use_in_migrations = True
+
+    def _create_user(self, email: str, password: str | None, **extra: Any) -> User:
+        if not email:
+            raise ValueError("An email address is required.")
+        user = self.model(email=self.normalize_email(email).lower(), **extra)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, email: str, password: str | None = None, **extra: Any) -> User:
+        extra.setdefault("role", Role.BUYER)
+        extra.setdefault("is_staff", False)
+        extra.setdefault("is_superuser", False)
+        return self._create_user(email, password, **extra)
+
+    def create_superuser(self, email: str, password: str | None = None, **extra: Any) -> User:
+        extra.setdefault("role", Role.ADMIN)
+        extra.setdefault("is_staff", True)
+        extra.setdefault("is_superuser", True)
+        # A superuser created from the command line has proved control of the
+        # server, which is a stronger proof than the email loop.
+        extra.setdefault("email_verified_at", timezone.now())
+        if not extra["is_staff"] or not extra["is_superuser"]:
+            raise ValueError("A superuser must have is_staff and is_superuser set.")
+        return self._create_user(email, password, **extra)
+
+
+class User(BaseModel, AbstractUser):
+    """Platform account.
+
+    ``username`` is dropped rather than kept unused: leaving it in place would
+    let a second, unnormalised identifier accumulate rows that nothing checks.
+    """
+
+    username = None  # type: ignore[assignment]
+    email = models.EmailField(_("email address"), unique=True)
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.BUYER, db_index=True)
+    # Kept optional: mainland buyers often prefer WeChat or a mainland number
+    # that we cannot verify by SMS yet (see ROADMAP tech debt).
+    phone = models.CharField(max_length=32, blank=True, default="")
+    preferred_language = models.CharField(max_length=10, blank=True, default="")
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS: ClassVar[list[str]] = []
+
+    # django-stubs types AbstractUser.objects as the username-based manager;
+    # this one is email-based by design, so the override is deliberate.
+    objects: ClassVar[UserManager] = UserManager()  # type: ignore[assignment]
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("user")
+        verbose_name_plural = _("users")
+
+    def __str__(self) -> str:
+        return self.email
+
+    @property
+    def is_email_verified(self) -> bool:
+        return self.email_verified_at is not None
+
+    @property
+    def is_moderator(self) -> bool:
+        """Whether this account may act on the moderation queue.
+
+        Superusers are included so that the first deployment has someone who
+        can approve the first claim.
+        """
+        return self.is_superuser or self.role in {Role.MODERATOR, Role.ADMIN}
+
+
+class EmailVerification(BaseModel):
+    """A single-use email verification link.
+
+    The raw token is returned once, by ``services.issue_email_verification``,
+    and never stored. ``used_at`` and ``expires_at`` are separate so that an
+    expired-but-unused token can be told apart from a replayed one - they need
+    different messages on screen.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_verifications")
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    email = models.EmailField(help_text="The address this token was sent to.")
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("email verification")
+        verbose_name_plural = _("email verifications")
+
+    def __str__(self) -> str:
+        return f"{self.email} ({'used' if self.used_at else 'pending'})"
+
+    def is_usable(self, *, now: datetime | None = None) -> bool:
+        return self.used_at is None and self.expires_at > (now or timezone.now())

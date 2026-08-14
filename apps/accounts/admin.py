@@ -1,1 +1,77 @@
-# Internal moderation/admin interfaces.
+"""Admin for accounts.
+
+The user form is Django's, minus ``username``: dropping the field from the
+model is not enough, the stock admin forms still reference it.
+"""
+
+from typing import Any
+
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
+from django.utils.translation import gettext_lazy as _
+
+from apps.accounts.models import EmailVerification, User
+
+
+class EmailUserCreationForm(UserCreationForm):  # type: ignore[type-arg]
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ("email",)
+
+
+class EmailUserChangeForm(UserChangeForm):  # type: ignore[type-arg]
+    class Meta(UserChangeForm.Meta):
+        model = User
+        fields = "__all__"
+
+
+@admin.register(User)
+class PlatformUserAdmin(UserAdmin):  # type: ignore[type-arg]
+    add_form = EmailUserCreationForm
+    form = EmailUserChangeForm
+    change_password_form = AdminPasswordChangeForm
+    model = User
+
+    list_display = ("email", "role", "is_email_verified", "is_active", "is_staff", "created_at")
+    list_filter = ("role", "is_active", "is_staff", "is_superuser")
+    search_fields = ("email", "phone")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at", "updated_at", "last_login", "email_verified_at")
+
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
+        (
+            _("Personal info"),
+            {"fields": ("first_name", "last_name", "phone", "preferred_language")},
+        ),
+        (_("Role"), {"fields": ("role",)}),
+        (
+            _("Permissions"),
+            {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
+        ),
+        (_("Dates"), {"fields": ("last_login", "email_verified_at", "created_at", "updated_at")}),
+    )
+    add_fieldsets = (
+        (None, {"classes": ("wide",), "fields": ("email", "password1", "password2", "role")}),
+    )
+
+    @admin.display(boolean=True, description=_("Email verified"))
+    def is_email_verified(self, obj: User) -> bool:
+        return obj.is_email_verified
+
+
+@admin.register(EmailVerification)
+class EmailVerificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    """Read-only: a token row is evidence of what was sent, not something to edit."""
+
+    list_display = ("email", "user", "expires_at", "used_at", "created_at")
+    list_filter = ("used_at",)
+    search_fields = ("email",)
+    readonly_fields = tuple(f.name for f in EmailVerification._meta.fields)
+
+    def has_add_permission(self, request: Any) -> bool:
+        return False
+
+    def has_change_permission(self, request: Any, obj: Any = None) -> bool:
+        return False

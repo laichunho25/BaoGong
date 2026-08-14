@@ -17,6 +17,7 @@ SITEMAPS = {"static": StaticViewSitemap, "providers": ProviderSitemap}
 
 urlpatterns = [
     path("", home, name="home"),
+    path("accounts/", include("apps.accounts.urls")),
     path("providers/", include("apps.providers.urls")),
     # Top level rather than under /providers/: the comparison is of providers
     # but it is its own shareable page, and the URL is short enough to retype.
