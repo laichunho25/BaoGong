@@ -131,7 +131,13 @@ envVarGroups:
       - key: S3_REGION
         value: apac
       # --- set these in the dashboard, they are never committed ---
+      # The console prefix is a secret in its own right (prod.py rejects
+      # "admin"), so it is set in the dashboard like any other.
+      - key: ADMIN_URL
+        sync: false
       - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: S3_PRIVATE_BUCKET
         sync: false
       - key: S3_ENDPOINT_URL
         sync: false

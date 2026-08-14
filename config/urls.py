@@ -37,9 +37,14 @@ urlpatterns = [
         TemplateView.as_view(template_name="robots.txt", content_type="text/plain"),
         name="robots",
     ),
-    path("admin/", admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
 ]
+
+# Mounted last and on a secret prefix (see apps/core/admin_site.py). When the
+# console is switched off the URLs are not registered at all, so there is
+# nothing behind the path even if the prefix leaks.
+if settings.ADMIN_ENABLED:
+    urlpatterns += [path(settings.ADMIN_URL, admin.site.urls)]
 
 if settings.DEBUG:
     urlpatterns += [path("__debug__/", include("debug_toolbar.urls"))]

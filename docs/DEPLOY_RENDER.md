@@ -41,7 +41,9 @@ Render **沒有香港 region**。可選：Oregon / Ohio / Virginia / Frankfurt /
 
 | 變數 | 從哪拿 | 沒填會怎樣 |
 |---|---|---|
+| `ADMIN_URL` | 自己生：`python -c "import secrets;print(secrets.token_urlsafe(12))"` | `prod.py` 直接 `ImproperlyConfigured`；填 `admin` 也會被拒（見 §8） |
 | `ANTHROPIC_API_KEY` | console.anthropic.com → Settings → API Keys | `prod.py` 直接 `ImproperlyConfigured`，服務起不來 |
+| `S3_PRIVATE_BUCKET` | 見 §3，**與公開 bucket 分開的私有 bucket** | 同上（認領證明檔無處可放） |
 | `S3_ENDPOINT_URL` | 見 §3 | 同上 |
 | `S3_BUCKET` | 見 §3 | 同上 |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | 見 §3 | 同上 |
@@ -137,7 +139,24 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- DATA_MODEL.md 的 GIN trigram index
 | qs-keyvalue | Starter | `maxmemoryPolicy: noeviction`——broker 不准丟任務 |
 | qs-postgres | Basic 256MB 起 | **Free Postgres 30 天後會被刪除**，不要用 |
 
-## 8. 尚未處理
+## 8. 內部控制台的位置（不是 `/admin/`）
+
+Django admin 是全站權限最高的介面，而 `/admin/` 是掃描器第一個試的路徑。因此：
+
+- 掛在 `ADMIN_URL` 指定的**秘密前綴**下（`config/urls.py`）。`prod.py` 缺值或填 `admin` 都拒絕啟動。
+- `/admin/` 因而不存在，回一般 404 —— 不是 403，403 等於承認「這裡有東西」。
+- 已登入但非 staff 的帳號打到正確前綴也只拿到 **404**（`apps/core/admin_site.py`）。
+  Django 預設會顯示「你是 X，但無權限」，等於替猜中路徑的人確認答案。
+- `ADMIN_IP_ALLOWLIST` 為第二道鎖：URL 秘密會從代理日誌、瀏覽器歷史、共享畫面外洩。
+  Render 有自己的代理，所以 prod 預設 `ADMIN_TRUST_PROXY_IP=true`，且只採信
+  `X-Forwarded-For` **最後一段**（左邊幾段是客戶端可偽造的）。
+- `robots.txt` **刻意不列**這個路徑（列了就等於公開它）；改由 `X-Robots-Tag: noindex` 擋索引。
+- `ADMIN_ENABLED=false` 可整個不掛載 URL，前綴外洩也沒有東西可打。
+
+> 秘密前綴不是存取控制，只是把噪音擋掉。真正的控制是 `is_staff` + 強密碼；
+> IP allowlist 是第二道。P8 再評估是否加 TOTP。
+
+## 9. 尚未處理
 
 - **備份**：Render Postgres 有自動 daily backup，但還原演練腳本是 P8 的事。
 - **Image 體積**：目前 `Dockerfile` 連 dev 依賴一起裝（單一 image，本機／CI／prod 一致）。

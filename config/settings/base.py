@@ -24,7 +24,10 @@ DEBUG = False
 ALLOWED_HOSTS: list[str] = env.list("ALLOWED_HOSTS", default=[])
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    # Not "django.contrib.admin": this config swaps in the hardened AdminSite
+    # (apps.core.admin_site) as the default site, so every @admin.register in
+    # the project lands on it without each app importing a custom site.
+    "apps.core.admin_site.HardenedAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -57,7 +60,23 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # After AuthenticationMiddleware: the gate reads request.user.
+    "apps.core.middleware.AdminAccessMiddleware",
 ]
+
+# ---------------------------------------------------------------- admin
+# The console is mounted on a secret prefix rather than /admin/ so that a
+# scanner probing the default path gets an ordinary 404. prod.py refuses to
+# boot while this is still the default. See apps/core/admin_site.py.
+ADMIN_ENABLED = env.bool("ADMIN_ENABLED", default=True)
+# Falls back rather than accepting "": an empty prefix would mount the console
+# at the site root and make the middleware gate every request.
+ADMIN_URL = (env("ADMIN_URL", default="admin/").strip("/") or "admin") + "/"
+# Optional second lock: when set, only these addresses may reach the console.
+ADMIN_IP_ALLOWLIST: list[str] = env.list("ADMIN_IP_ALLOWLIST", default=[])
+# Off by default: X-Forwarded-For is client-controlled unless a proxy we own
+# appends to it. prod.py turns it on because Render always fronts the app.
+ADMIN_TRUST_PROXY_IP = env.bool("ADMIN_TRUST_PROXY_IP", default=False)
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"

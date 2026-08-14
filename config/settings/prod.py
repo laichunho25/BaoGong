@@ -45,6 +45,18 @@ DATABASES["default"]["OPTIONS"]["sslmode"] = env("DATABASE_SSLMODE", default="re
 for _name in ("REDIS_URL", "ANTHROPIC_API_KEY", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"):
     _required(_name)
 
+# ---------------------------------------------------------------- admin
+
+# A production console on the default path is found by scanners within hours of
+# the first deploy, so the secret prefix is required rather than recommended.
+ADMIN_URL = _required("ADMIN_URL").strip("/") + "/"
+if ADMIN_URL == "admin/":
+    raise ImproperlyConfigured("ADMIN_URL must not be the default 'admin/' in production")
+
+# Render always fronts the app with its own proxy, so REMOTE_ADDR is the proxy
+# and the allowlist has to read the address the proxy appended.
+ADMIN_TRUST_PROXY_IP = env.bool("ADMIN_TRUST_PROXY_IP", default=True)
+
 # ---------------------------------------------------------------- security
 
 SECURE_SSL_REDIRECT = True

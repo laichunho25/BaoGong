@@ -5,6 +5,11 @@ Allow: /
 Disallow: /compare/
 # Operational endpoints, not content.
 Disallow: /healthz
-Disallow: /admin/
+# Account pages: nothing here is public, and the URLs are per-visitor.
+Disallow: /accounts/
+{% comment %} The internal console is deliberately absent: robots.txt is public,
+   so naming its path here would publish the secret it depends on. It is kept
+   out of indexes by the X-Robots-Tag header set in apps/core/middleware.py.
+{% endcomment %}
 
 Sitemap: {{ request.scheme }}://{{ request.get_host }}/sitemap.xml

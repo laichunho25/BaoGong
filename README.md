@@ -20,6 +20,9 @@ docker compose up --build
 - App: http://localhost:8000
 - Health: http://localhost:8000/healthz
 - MinIO console: http://localhost:9001 (`minioadmin` / `minioadmin`)
+- Internal console: `/$ADMIN_URL/` — **not** `/admin/`, which returns 404 on
+  purpose. Locally `ADMIN_URL` defaults to `admin`; production refuses to boot
+  on that value (docs/DEPLOY_RENDER.md section 8).
 
 ## Local (no Docker)
 
