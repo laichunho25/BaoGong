@@ -1,0 +1,112 @@
+{% load i18n %}
+
+{% comment %} The review section of a provider page.
+
+   Two rules from RATING_SYSTEM show up here rather than in the view:
+   * an unverified review is displayed but carries a visible "未验证" mark and
+     is stated not to count towards the score - showing it silently would make
+     the number look like it came from more evidence than it did;
+   * with no verified reviews there is no score anywhere on the page, so this
+     block leads with the empty state instead of a zero.
+{% endcomment %}
+
+<section id="reviews" class="mt-6">
+  <div class="flex flex-wrap items-baseline justify-between gap-2">
+    <h2 class="text-sm font-semibold text-slate-900">{% translate "用户评价" %}</h2>
+    {% if own_review %}
+      <a href="{% url 'reviews:my_reviews' %}" class="text-xs text-slate-500 underline">
+        {% translate "查看我的评价" %}
+      </a>
+    {% else %}
+      <a href="{% url 'reviews:create' provider.slug %}"
+         class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50">
+        {% translate "写评价" %}
+      </a>
+    {% endif %}
+  </div>
+
+  {% if provider.has_verified_reviews %}
+    <div class="mt-3 rounded-lg border border-slate-200 p-4">
+      <div class="flex items-baseline gap-2">
+        <span class="text-2xl font-semibold text-slate-900">{{ provider.rating_cached|floatformat:2 }}</span>
+        <span class="text-xs text-slate-500">
+          {% blocktranslate trimmed count counter=provider.verified_review_count %}
+            基于 {{ counter }} 条已验证评价
+          {% plural %}
+            基于 {{ counter }} 条已验证评价
+          {% endblocktranslate %}
+        </span>
+      </div>
+      <p class="mt-1 text-xs text-slate-400">
+        {% translate "本分数采用贝叶斯先验（10 条 5 分基准）计算，避免少量评价造成极端分数；未验证评价不计入。" %}
+      </p>
+
+      <dl class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+        {% for label, value in dimension_rows %}
+          <div class="flex justify-between gap-3 border-b border-slate-100 py-1">
+            <dt class="text-slate-600">{{ label }}</dt>
+            <dd class="text-slate-900">
+              {% if value is None %}
+                <span class="text-slate-400">{% translate "暂无" %}</span>
+              {% else %}{{ value|floatformat:2 }}{% endif %}
+            </dd>
+          </div>
+        {% endfor %}
+      </dl>
+    </div>
+  {% else %}
+    <p class="mt-3 rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+      {% translate "暂无已验证评价。已验证评价需上传 NNC1 文件证明确有合作关系。" %}
+    </p>
+  {% endif %}
+
+  <ul class="mt-4 space-y-4">
+    {% for review in reviews %}
+      <li class="rounded-lg border border-slate-200 p-4">
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="font-semibold text-slate-900">{{ review.overall|floatformat:1 }}</span>
+          {% if review.is_verified %}
+            <span class="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+              {% translate "已验证" %}
+            </span>
+          {% else %}
+            <span class="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
+                  title="{% translate '该评价未经 NNC1 核验，不计入公司评分。' %}">
+              {% translate "未验证 · 不计入评分" %}
+            </span>
+          {% endif %}
+          <span class="text-xs text-slate-400">{{ review.published_at|date:"Y-m-d" }}</span>
+          {% if review.engagement_year %}
+            <span class="text-xs text-slate-400">
+              {% blocktranslate with year=review.engagement_year %}{{ year }} 年合作{% endblocktranslate %}
+            </span>
+          {% endif %}
+        </div>
+
+        <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ review.body }}</p>
+
+        {% if review.reply.is_public %}
+          <div class="mt-3 rounded border-l-2 border-slate-300 bg-slate-50 p-3 text-sm">
+            <p class="text-xs font-medium text-slate-700">{% translate "公司回复" %}</p>
+            <p class="mt-1 whitespace-pre-line text-slate-700">{{ review.reply.body }}</p>
+          </div>
+        {% elif is_member %}
+          {% comment %} COMPLIANCE section 3 gives the company a right of reply, so the
+             box is offered to its members on the page itself. {% endcomment %}
+          <form method="post" action="{% url 'reviews:reply' review.pk %}" class="mt-3 space-y-2">
+            {% csrf_token %}
+            {{ reply_form.body }}
+            <button type="submit"
+                    class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">
+              {% translate "发布回复" %}
+            </button>
+          </form>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+        {% translate "该公司还没有公开的评价。" %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>

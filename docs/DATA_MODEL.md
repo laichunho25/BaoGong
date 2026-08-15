@@ -185,15 +185,30 @@ DB 約束 `providers_price_point_or_range`：必須是單點價或完整區間�
 ## reviews
 
 ### Review
-`provider(FK)`, `author(FK User)`, `overall(Decimal 2,1)`（由子分計算）
-`is_verified(bool)` ← 只有 NNC1 核驗通過才 true
-`status`: `pending_moderation | published | hidden | removed`
-`body(TextField)`, `service_used(ArrayField)`, `engagement_year(int)`
-`moderation(JSON)` ← Moderation Agent 輸出：`{labels, severity, reasons, model, run_id}`
-`helpful_count`, `published_at`
+**內容**：`body(TextField)`, `service_used(ArrayField[ServiceCategory])`, `engagement_year(int, null)`
+**分數**：`overall(Decimal 2,1)` — 由 `ReviewScore` 算出後存下來。列表頁要用它排序與篩選，
+逐列重算做不到，所以這是刻意的 denormalise。
+**狀態**：
+- `is_verified(bool, indexed)` ← **只有 NNC1 核驗會寫它**，作者寫不到，moderator 批准文字也寫不到。
+  RATING_SYSTEM §2 給未驗證評價權重 0，所以公開分數是由這個欄位構成的。
+- `status`: `pending_moderation | published | hidden | removed`，**預設是關著的那個**。
+  誹謗指控的答案是「它從來沒公開過」，而不是「我們下架得很快」。
+- `published_at` 一旦寫入就不再清掉：`hidden` 之後它仍然記得「曾經公開過」。
+
+**審核軌跡**：`moderation(JSON)` ← Moderation Agent 輸出 `{labels, severity, reasons, model, run_id}`，
+**是建議不是事實**（CLAUDE.md 規則 3），改變 `status` 的是 `moderated_by` 這個人；
+`moderation_note(Text)` 為必填理由，`moderated_by(FK, null)`, `moderated_at`。
+
+`helpful_count`。
+
+索引：`(provider, status, -published_at)`（詳情頁列表）、`(status, created_at)`（審核佇列）。
 
 ### ReviewScore（子分，1–5，step 0.5）
 `review(OneToOne)`, `price_transparency`, `responsiveness`, `bank_support`, `professionalism`, `after_sales`
+
+**`bank_support` 可為 null**，其餘四項必填：「我沒用過開戶服務」是真實答案，
+把它當 0 分計會讓沒賣過這項服務的公司平白被扣一整分（RATING_SYSTEM §3）。
+`services.score_overall` 對「實際評過的維度」取平均，null 直接不進分母。
 
 ### Nnc1Verification
 `review(OneToOne)`, `file_key`（加密 S3）, `uploaded_at`, `purge_at`（預設 +90d）
@@ -202,7 +217,12 @@ DB 約束 `providers_price_point_or_range`：必須是單點價或完整區間�
 `result(pass|fail|needs_human)`, `reviewed_by(FK, null)`, `agent_run(FK AgentRun)`
 
 ### ReviewReply
-`review(OneToOne)`, `provider(FK)`, `body`, `published_at`（每則評價只能回覆一次）
+`review(OneToOne)`, `provider(FK)`, `author(FK User, null)`, `body`, `published_at`（每則評價只能回覆一次）
+
+`provider` 與 `review` 並存而不是靠 `review.provider` 繞過去：回覆屬於公司，
+**離職成員刪帳號時不能把公司的公開聲明一起帶走**（`author` 因此是 `SET_NULL`）。
+回覆送出即公開，不排隊等審核——讓答辯跟它要回應的指控排同一條隊，
+等於讓答辯權比指控更不值錢（COMPLIANCE §3）。
 
 ### Dispute
 `review(FK)`, `raised_by(FK)`, `reason`, `evidence(JSON)`, `ai_arbitration_draft(TextField)`,
@@ -279,7 +299,8 @@ UNIQUE (providers_certification.provider_id, providers_certification.type)
 UNIQUE (reviews_review.provider_id, reviews_review.author_id)   -- 一人一公司一評
 UNIQUE (rfq_quote.rfq_id, rfq_quote.provider_id)                -- 一單一報價
 UNIQUE (rfq_quotaledger.provider_id, rfq_quotaledger.date)
-CHECK  (reviews_reviewscore.* BETWEEN 1 AND 5)
+CHECK  (reviews_review.overall BETWEEN 1 AND 5)
+CHECK  (reviews_reviewscore.* BETWEEN 1 AND 5)  -- bank_support 另允許 NULL
 CHECK  (amount_minor >= 0)
 INDEX  GIN on Licensee(name_en gin_trgm_ops), Licensee(name_zh gin_trgm_ops)
 INDEX  ivfflat on content_chunk(embedding vector_cosine_ops)

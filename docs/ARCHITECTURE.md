@@ -39,7 +39,7 @@ qs-platform/
 │   ├── accounts/      # User(AbstractUser), ProviderMember, EmailVerification, permissions.py
 │   ├── registry/      # Licensee, SyncRun, LicenseeChange
 │   ├── providers/     # Provider, ProviderClaim, ClaimEvidence, ServiceOffering, PriceItem, Certification
-│   ├── reviews/       # Review, ReviewScore, Nnc1Verification, ReviewReply, Dispute
+│   ├── reviews/       # Review, ReviewScore, ReviewReply（Nnc1Verification/Dispute 待 P4-2/P4-3）
 │   ├── rfq/           # Rfq, RfqRequirement, Quote, QuoteLineItem, QuotaLedger
 │   ├── agents/        # BaseAgent, registry, prompts/, tools/, AgentRun, evals/
 │   ├── billing/       # Plan, Subscription, CreditPack, Invoice, CommissionDisclosure

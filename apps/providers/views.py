@@ -16,7 +16,7 @@ from django.utils.safestring import SafeString, mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
-from apps.accounts.permissions import is_moderator, verified_email_required
+from apps.accounts.permissions import is_moderator, is_provider_member, verified_email_required
 from apps.core.storage import signed_url
 from apps.providers import selectors, services
 from apps.providers.forms import ClaimSubmissionForm
@@ -32,8 +32,17 @@ from apps.providers.tasks import scan_claim_evidence
 from apps.providers.verification import WELL_KNOWN_PATH
 from apps.registry.selectors import registry_last_synced_at
 
+# The detail page hosts the review list, so it needs the review layer's reads.
+# The dependency runs one way only: nothing in ``reviews`` imports this module.
+from apps.reviews import forms as review_forms
+from apps.reviews import selectors as review_selectors
+from apps.reviews import services as review_services
+from apps.reviews.forms import ReplyForm
+from apps.reviews.models import SCORE_FIELDS
+
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from decimal import Decimal
 
     from django.http import HttpRequest, HttpResponse
     from django.http.response import HttpResponseBase
@@ -124,11 +133,23 @@ def _organization_jsonld(request: HttpRequest, provider: Provider) -> SafeString
     return mark_safe(json.dumps(data, ensure_ascii=False).replace("<", "\\u003c"))
 
 
+def _review_dimensions(provider: Provider) -> list[tuple[Any, Decimal | None]]:
+    """Label/score pairs for the radar block, in the product's order.
+
+    Paired here rather than in the template: a dict lookup by variable key
+    needs a custom filter, and one more template tag is a worse trade than one
+    list comprehension.
+    """
+    ratings = review_services.dimension_ratings(provider)
+    return [(review_forms.SCORE_LABELS[field], ratings[field]) for field in SCORE_FIELDS]
+
+
 def provider_detail(request: HttpRequest, slug: str) -> HttpResponse:
     provider = selectors.get_provider_detail(slug)
     if provider is None:
         raise Http404("No such provider")
 
+    user = cast("User", request.user)
     return render(
         request,
         "providers/detail.html",
@@ -138,6 +159,14 @@ def provider_detail(request: HttpRequest, slug: str) -> HttpResponse:
             "offerings": provider.offerings.all(),
             "certifications": [cert for cert in provider.certifications.all() if cert.is_current],
             "jsonld": _organization_jsonld(request, provider),
+            "reviews": review_selectors.published_reviews(provider),
+            "dimension_rows": _review_dimensions(provider),
+            # Whether to offer the form at all. The unique constraint is what
+            # guarantees one review per account; this only avoids showing a
+            # button that would fail.
+            "own_review": review_selectors.review_by_author(provider=provider, author=user),
+            "is_member": is_provider_member(user, provider),
+            "reply_form": ReplyForm(),
             **_shared_context(request),
         },
     )

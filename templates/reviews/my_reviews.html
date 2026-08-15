@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "我的评价" %} - QS Matching{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "我的评价" %}</h1>
+
+  {% comment %} Authors see their own reviews in every status, including the ones
+     nobody else can see, with the moderator's reason attached. Someone who
+     wrote something and had it withheld is owed the reason. {% endcomment %}
+  <ul class="space-y-4">
+    {% for review in reviews %}
+      <li class="rounded-lg border border-slate-200 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <a class="text-sm font-medium text-slate-900 underline" href="{{ review.provider.get_absolute_url }}">
+            {{ review.provider.display_name }}
+          </a>
+          <span class="text-xs
+            {% if review.status == 'published' %}text-emerald-700{% else %}text-slate-500{% endif %}">
+            {{ review.get_status_display }}
+          </span>
+        </div>
+
+        <p class="mt-1 text-sm text-slate-500">
+          {{ review.overall|floatformat:1 }}
+          {% if review.is_verified %}
+            &middot; {% translate "已验证" %}
+          {% else %}
+            &middot; {% translate "未验证，不计入公司评分" %}
+          {% endif %}
+        </p>
+
+        <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ review.body }}</p>
+
+        {% if review.status == "pending_moderation" %}
+          <p class="mt-2 text-xs text-slate-500">{% translate "审核中，通过后会公开显示。" %}</p>
+        {% elif review.moderation_note and review.status != "published" %}
+          <p class="mt-2 rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
+            {% translate "审核说明：" %}{{ review.moderation_note }}
+          </p>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+        {% translate "你还没有写过评价。" %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

@@ -2,9 +2,10 @@
 {% load i18n %}
 
 {# Intermediate page for every action that must carry a reason: claim approval,
-   claim rejection and scan override. The list of what is about to be affected
-   is shown again here, because the selection was made on a different page and
-   an approval granted to the wrong company is not undoable. #}
+   claim rejection, scan override, and the review moderation decisions. The
+   list of what is about to be affected is shown again here, because the
+   selection was made on a different page and an approval granted to the wrong
+   company is not undoable. #}
 
 {% block content %}
 <h1>{{ title }}</h1>

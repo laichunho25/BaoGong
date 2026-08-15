@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "写评价" %} - {{ provider.display_name }} - QS Matching{% endblock %}
+{% comment %} A review page has nothing to offer a search engine and every reason not
+   to be indexed: it is a form, and the text it collects is about a named
+   company. {% endcomment %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <div>
+    <a href="{{ provider.get_absolute_url }}" class="text-sm text-slate-500 underline">
+      &larr; {{ provider.display_name }}
+    </a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      {% translate "评价这家公司" %}
+    </h1>
+    <p class="mt-1 text-sm text-slate-600">{{ licensee.name_zh|default:licensee.name_en }}</p>
+  </div>
+
+  {% comment %} Said before the form, not after it: what counts towards the public
+     score is the single thing people most often get wrong about this
+     platform. {% endcomment %}
+  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+    <p class="font-medium text-slate-900">{% translate "评价须知" %}</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li>{% translate "每个账号对同一家公司只能评价一次，提交后不可自行修改。" %}</li>
+      <li>{% translate "评价先由人工审核，通过后才会公开显示。" %}</li>
+      <li>{% translate "只有上传 NNC1 文件并核验通过的评价，才会计入公司评分并显示「已验证」标记。" %}</li>
+      <li>{% translate "请勿填写他人姓名、电话、邮箱等个人资料，也请避免未经证实的指控。" %}</li>
+    </ul>
+  </div>
+
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <fieldset class="space-y-4 rounded-lg border border-slate-200 p-4">
+      <legend class="px-1 text-sm font-medium text-slate-900">{% translate "各项评分" %}</legend>
+      {% for field in form %}
+        {% if field.name in score_field_names %}
+          <div>
+            <p class="text-sm text-slate-800">{{ field.label }}</p>
+            <div class="mt-1 flex flex-wrap gap-3 text-sm text-slate-700">
+              {% for choice in field %}
+                <label class="inline-flex items-center gap-1">
+                  {{ choice.tag }}<span>{{ choice.choice_label }}</span>
+                </label>
+              {% endfor %}
+            </div>
+            {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </fieldset>
+
+    {% for field in form %}
+      {% if field.name not in score_field_names %}
+        <div>
+          <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
+            {{ field.label }}
+          </label>
+          <div class="mt-1">{{ field }}</div>
+          {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+
+    {% if turnstile_enabled %}
+      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+    {% endif %}
+
+    <button type="submit"
+            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+      {% translate "提交评价" %}
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+  {% if turnstile_enabled %}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {% endif %}
+{% endblock %}

@@ -63,6 +63,15 @@ score = 0.45 * normalized_rating          # 0-1
 
 ## 7. 實作位置
 
-`apps/reviews/services.py::recompute_provider_rating(provider_id)`
-- 每次評價 publish / hide / dispute 決議後，用 Celery task 重算並寫 `Provider.rating_cached`。
-- 必須有 unit test 覆蓋：0 條、1 條 4.5 分（期望 4.95）、大量評價、全部未驗證的情況。
+`apps/reviews/services.py::recompute_provider_rating(provider_id)`（P4-1 已實作）
+- 每次評價 publish / hide / remove 決議後**同步**重算並寫 `Provider.rating_cached`、
+  `rating_count`、`verified_review_count`，接著呼叫 `providers.services.recompute_ranking_inputs`
+  （§5 的排序把評分和另外四個輸入混在一起，評分一動排序就過期）。
+  同步而非丟給 Celery：頁面上讀得到的評價和算不出來的分數對不上，是使用者看得見的自打嘴巴。
+- `reviews.recompute_provider_rating` / `reviews.recompute_all_ratings` 兩個 task 留給
+  做不到同步的路徑：批次修正，以及 P4-2 從 worker 回來的核驗結果。
+  後者**刻意不排進 beat**——它是改公式時的一次性遷移動作，不是每日雜務。
+- 重算是「從評價重新算一次」而不是「調整累計值」：某個狀態轉換寫錯時，
+  再跑一次就能修好，不會留下一個永遠錯下去的數字。
+- unit test 覆蓋（`apps/reviews/tests/test_rating.py`）：0 條、1 條 4.5 分（期望 4.95）、
+  1 條 1.0 分（期望 4.64，先驗的用處）、全部未驗證、全部未 published、公司已被刪除。

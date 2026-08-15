@@ -333,7 +333,7 @@ class ProviderClaimAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
 
         return render(
             request,
-            "admin/providers/decision_reason.html",
+            "admin/decision_reason.html",
             {
                 **self.admin_site.each_context(request),
                 "title": title,
@@ -432,7 +432,7 @@ class ClaimEvidenceAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
 
         return render(
             request,
-            "admin/providers/decision_reason.html",
+            "admin/decision_reason.html",
             {
                 **self.admin_site.each_context(request),
                 "title": _("Release files without a scan"),
