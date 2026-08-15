@@ -11,6 +11,9 @@ Two things here are load-bearing and easy to undo by accident:
 * a review starts in ``pending_moderation`` and nothing renders it until it is
   ``published``. The default is deliberately the closed one: a defamation claim
   is answered by "it was never public", not by how quickly it came down.
+
+``Nnc1Verification`` at the bottom is the thing that sets ``is_verified``, and
+it does not set it by itself either - see its docstring.
 """
 
 from __future__ import annotations
@@ -23,7 +26,10 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import BaseModel
+from apps.core.scanning import READABLE_STATUSES, ScanStatus
+from apps.core.storage import private_storage
 from apps.providers.models import ServiceCategory
+from apps.reviews.matching import MatchMethod
 
 #: RATING_SYSTEM section 3. Ordered, because the radar chart and the form both
 #: show them in this sequence and the order is part of the product definition.
@@ -209,3 +215,135 @@ class ReviewReply(BaseModel):
     @property
     def is_public(self) -> bool:
         return self.published_at is not None
+
+
+def nnc1_path(instance: Nnc1Verification, filename: str) -> str:
+    """Storage key: opaque, per review, with the sniffed extension only.
+
+    Same shape as ``providers.claim_evidence_path`` and for the same reason -
+    the uploader's filename is attacker-controlled text that usually carries a
+    person's name, and storage keys end up in logs.
+    """
+    return f"nnc1/{instance.review_id}/{instance.pk}.{instance.extension}"
+
+
+class VerificationResult(models.TextChoices):
+    NEEDS_HUMAN = "needs_human", _("Needs a reviewer")
+    PASSED = "passed", _("Verified")
+    FAILED = "failed", _("Not verified")
+
+
+class Nnc1Verification(BaseModel):
+    """The document behind a "已验证" badge, and what was decided about it.
+
+    An NNC1 (Incorporation Form) names the company's first secretary. If it
+    names the company under review, the reviewer was a client - which is the
+    single fact the badge asserts and the reason this platform is worth more
+    than an anonymous review site.
+
+    Three properties are load-bearing:
+
+    * **it never verifies itself.** ``result`` starts at ``needs_human`` and
+      only ``services.decide_verification`` moves it, with a named reviewer and
+      a written reason. The rule-based name match in ``matching.py`` is put in
+      front of that person as evidence; see the module docstring there for why
+      a match cannot be a gate.
+    * **the file is unreadable until scanned**, exactly like claim evidence: a
+      moderator's browser must not be what discovers a malicious PDF.
+    * **the bytes have a deadline.** COMPLIANCE section 4 gives uploaded
+      personal data 90 days from the decision. The row and its hash survive the
+      purge, because the record that a decision was made is what an audit
+      needs and the document is what the platform must not keep.
+
+    CLAUDE.md rule 5 is why the declared fields below are so few: an NNC1 also
+    carries directors' names, residential addresses and identity-document
+    numbers, and none of that is needed to answer "was this person a client".
+    Only the fields that answer that question are transcribed into columns.
+    """
+
+    review = models.OneToOneField(Review, on_delete=models.CASCADE, related_name="verification")
+
+    file = models.FileField(storage=private_storage, upload_to=nnc1_path)
+    original_filename = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=64)
+    extension = models.CharField(max_length=8)
+    size_bytes = models.PositiveIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, db_index=True)
+
+    scan_status = models.CharField(
+        max_length=16, choices=ScanStatus.choices, default=ScanStatus.PENDING, db_index=True
+    )
+    scan_detail = models.CharField(max_length=255, blank=True)
+    scanner = models.CharField(max_length=32, blank=True)
+    scanned_at = models.DateTimeField(null=True, blank=True)
+
+    # What the uploader says the document says. Kept apart from ``extracted``
+    # so that "the person typed this" and "a model read this" can never be
+    # confused for one another.
+    declared_company_name = models.CharField(max_length=255, blank=True)
+    declared_company_no = models.CharField(max_length=32, blank=True)
+    declared_secretary_name = models.CharField(max_length=255, blank=True)
+
+    # A3's structured output (P4-3), advice and not fact: CLAUDE.md rule 3.
+    extracted = models.JSONField(default=dict, blank=True)
+    extraction_confidence = models.DecimalField(
+        max_digits=3, decimal_places=2, null=True, blank=True
+    )
+    agent_run_id_ref = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="AgentRun that produced `extracted`. A plain UUID until P4-3 creates the table.",
+    )
+
+    # The rule-based comparison against the official register.
+    match_method = models.CharField(
+        max_length=16, choices=MatchMethod.choices, default=MatchMethod.NONE
+    )
+    match_score = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    matched_licence_no = models.CharField(max_length=32, blank=True)
+    match_detail = models.CharField(max_length=255, blank=True)
+
+    result = models.CharField(
+        max_length=16,
+        choices=VerificationResult.choices,
+        default=VerificationResult.NEEDS_HUMAN,
+        db_index=True,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, help_text="Why the reviewer passed or failed it.")
+
+    # COMPLIANCE section 4: set when the decision is made, not on upload - the
+    # clock starts once the document has done its job.
+    purge_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    purged_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("NNC1 verification")
+        verbose_name_plural = _("NNC1 verifications")
+        indexes = [
+            # The verification queue: undecided, oldest first.
+            models.Index(fields=["result", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"NNC1 for {self.review_id} ({self.result})"
+
+    @property
+    def is_readable(self) -> bool:
+        """Whether these bytes may be opened or served.
+
+        Pending counts as unscanned. The uploader does not get an exception:
+        their own file is no safer to open than anyone else's.
+        """
+        return bool(self.file) and self.purged_at is None and self.scan_status in READABLE_STATUSES
+
+    @property
+    def is_decided(self) -> bool:
+        return self.result != VerificationResult.NEEDS_HUMAN

@@ -18,6 +18,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from apps.core import turnstile
+from apps.core.uploads import MAX_UPLOAD_BYTES, InspectedUpload, inspect_upload
 from apps.providers.models import ServiceCategory
 from apps.reviews.models import SCORE_FIELDS
 
@@ -116,3 +117,59 @@ class ReplyForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 4}),
         help_text=_("回复将公开显示在该评价下方，且每条评价只能回复一次。"),
     )
+
+
+class Nnc1UploadForm(forms.Form):
+    """The document behind a "已验证" badge.
+
+    Three typed fields beside the file, and no more. An NNC1 also carries every
+    director's name, residential address and identity-document number; CLAUDE.md
+    rule 5 says take only what the question needs, and the question is "was this
+    reviewer a client of this company", which these three answer.
+
+    ``declared_secretary_name`` exists so a moderator can be shown a comparison
+    against the official register before opening anything. It is typed by the
+    person asking to be verified, so agreeing with the register proves nothing -
+    see ``matching.py``. Disagreeing is what it is for.
+    """
+
+    #: What ``clean_document`` sniffed, for the view to hand to the service.
+    inspected: InspectedUpload
+
+    document = forms.FileField(
+        label=_("NNC1 文件"),
+        help_text=_(
+            "支持 PDF、JPG、PNG，不超过 %(limit)s MB。文件存于私有存储，仅审核人员可查看，"
+            "核验结束 %(days)s 日后自动删除，我们只保留核验结论与文件指纹。"
+        )
+        % {"limit": MAX_UPLOAD_BYTES // (1024 * 1024), "days": 90},
+        widget=forms.ClearableFileInput(attrs={"class": "text-sm"}),
+    )
+    declared_company_name = forms.CharField(
+        label=_("你的公司名称（NNC1 上的名称）"),
+        max_length=255,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
+    )
+    declared_company_no = forms.CharField(
+        label=_("公司编号（选填）"),
+        max_length=32,
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
+    )
+    declared_secretary_name = forms.CharField(
+        label=_("文件上列明的公司秘书名称"),
+        max_length=255,
+        help_text=_("请照抄 NNC1 上的写法，我们会与公司注册处的持牌名单比对。"),
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
+    )
+
+    def clean_document(self) -> Any:
+        """Reject by real content type before anything is stored.
+
+        The check has to happen here as well as in ``core.uploads`` because the
+        form is what the person sees: an error next to the field beats a 500
+        from the service layer.
+        """
+        upload = self.cleaned_data["document"]
+        self.inspected = inspect_upload(upload)
+        return upload

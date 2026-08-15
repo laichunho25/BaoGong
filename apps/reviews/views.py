@@ -11,21 +11,25 @@ from typing import TYPE_CHECKING, cast
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.db import transaction
+from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
-from apps.accounts.permissions import verified_email_required
+from apps.accounts.permissions import is_moderator, verified_email_required
 from apps.core import turnstile
+from apps.core.storage import signed_url
 from apps.providers import selectors as provider_selectors
 from apps.registry.selectors import registry_last_synced_at
 from apps.reviews import selectors, services
-from apps.reviews.forms import ReplyForm, ReviewForm
-from apps.reviews.models import SCORE_FIELDS
+from apps.reviews.forms import Nnc1UploadForm, ReplyForm, ReviewForm
+from apps.reviews.models import SCORE_FIELDS, Nnc1Verification
+from apps.reviews.tasks import process_nnc1
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
+    from django.http.response import HttpResponseBase
 
     from apps.accounts.models import User
 
@@ -124,3 +128,87 @@ def review_reply(request: HttpRequest, review_id: str) -> HttpResponse:
             messages.success(request, _("回复已发布。"))
 
     return redirect(review.provider.get_absolute_url())
+
+
+@login_required
+@verified_email_required
+def nnc1_upload(request: HttpRequest, review_id: str) -> HttpResponse:
+    """Upload the NNC1 that turns a review into a verified one.
+
+    Only the review's author, because the badge asserts that *this reviewer*
+    was a client. Everything else the page has to say is about what happens to
+    the document afterwards: private storage, a moderator, 90 days, then the
+    bytes are gone and the conclusion stays.
+    """
+    author = cast("User", request.user)
+    review = selectors.get_review(review_id)
+    if review is None or review.author_id != author.pk:
+        # 404 rather than 403: whether a review exists is not something an
+        # unrelated account gets to learn by probing.
+        raise Http404("No such review")
+
+    existing = selectors.verification_for(review)
+    if existing is not None and existing.is_decided:
+        messages.info(request, _("该评价的核验已有结论。"))
+        return redirect("reviews:my_reviews")
+
+    if request.method == "POST":
+        form = Nnc1UploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                verification = services.submit_nnc1(
+                    review=review,
+                    uploader=author,
+                    upload=form.cleaned_data["document"],
+                    inspected=form.inspected,
+                    declared_company_name=form.cleaned_data["declared_company_name"],
+                    declared_company_no=form.cleaned_data["declared_company_no"],
+                    declared_secretary_name=form.cleaned_data["declared_secretary_name"],
+                )
+            except services.ReviewError as exc:
+                form.add_error(None, str(exc))
+            else:
+                # Scanning and matching happen in a worker; until the scan
+                # finishes the file is unreadable, including to its uploader.
+                transaction.on_commit(lambda: process_nnc1.delay(str(verification.pk)))
+                messages.success(request, _("文件已上传，审核人员核验后会更新评价状态。"))
+                return redirect("reviews:my_reviews")
+    else:
+        form = Nnc1UploadForm()
+
+    return render(
+        request,
+        "reviews/nnc1_form.html",
+        {"review": review, "provider": review.provider, "form": form, "verification": existing},
+    )
+
+
+@login_required
+def nnc1_download(request: HttpRequest, verification_id: str) -> HttpResponseBase:
+    """Hand out one NNC1, if it may be handed out at all.
+
+    Same three gates as claim evidence, in the same order: the requester is the
+    uploader or a moderator; the file has been scanned and not purged; and only
+    then a short-lived signed URL or a streamed response. The uploader gets no
+    exception on the scan - their own file is no safer to open than anyone
+    else's, and it is their browser that would open it.
+    """
+    verification = (
+        Nnc1Verification.objects.select_related("review").filter(pk=verification_id).first()
+    )
+    if verification is None:
+        raise Http404("No such file")
+    requester = cast("User", request.user)
+    if verification.review.author_id != requester.pk and not is_moderator(requester):
+        raise Http404("No such file")
+    if not verification.is_readable:
+        raise Http404("This file is not available")
+
+    url = signed_url(verification.file.name or "")
+    if url:
+        return redirect(url)
+    response = FileResponse(verification.file.open("rb"), content_type=verification.content_type)
+    response["Content-Disposition"] = f'attachment; filename="nnc1.{verification.extension}"'
+    # Personal data: no shared cache may keep a copy.
+    response["Cache-Control"] = "private, no-store"
+    return response

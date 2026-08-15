@@ -7,7 +7,13 @@ import logging
 from celery import shared_task
 
 from apps.providers.models import Provider
-from apps.reviews.services import recompute_provider_rating
+from apps.reviews.models import Nnc1Verification
+from apps.reviews.services import (
+    purge_expired_nnc1,
+    recompute_provider_rating,
+    run_name_match,
+    scan_nnc1,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +62,52 @@ def recompute_all_ratings() -> int:
         recomputed += 1
     logger.info("Recomputed %s provider rating(s)", recomputed)
     return recomputed
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="reviews.process_nnc1",
+    autoretry_for=(Exception,),
+    retry_backoff=30,
+    max_retries=3,
+    time_limit=300,
+)
+def process_nnc1(verification_id: str) -> str:
+    """Scan an uploaded NNC1, then compare its declared secretary to the register.
+
+    Queued rather than done in the request: a scan takes seconds, and an upload
+    that times out leaves someone re-submitting a document that is already in
+    the bucket. Until this runs the file is ``scan_pending``, which means
+    unreadable and unpassable.
+
+    The name match runs even when the scan fails. It reads columns the uploader
+    typed, not the file, so it costs nothing and gives a moderator looking at a
+    quarantined upload something to go on.
+    """
+    verification = Nnc1Verification.objects.filter(pk=verification_id).first()
+    if verification is None:
+        logger.warning("NNC1 %s vanished before it could be processed", verification_id)
+        return "missing"
+
+    scan_nnc1(verification)
+    run_name_match(verification)
+    return str(verification.scan_status)
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="reviews.purge_nnc1_documents",
+    autoretry_for=(Exception,),
+    retry_backoff=60,
+    max_retries=3,
+    time_limit=900,
+)
+def purge_nnc1_documents() -> int:
+    """Delete decided NNC1 documents past their retention window.
+
+    COMPLIANCE section 4. An NNC1 carries more personal data than anything else
+    the platform accepts - directors, addresses, identity numbers - so this is
+    the daily job whose silent failure would matter most.
+    """
+    purged = purge_expired_nnc1()
+    if purged:
+        logger.info("Purged %s expired NNC1 document(s)", purged)
+    return purged

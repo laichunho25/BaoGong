@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "上传 NNC1 核验" %} - {{ provider.display_name }} - QS Matching{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <div>
+    <a href="{% url 'reviews:my_reviews' %}" class="text-sm text-slate-500 underline">
+      &larr; {% translate "我的评价" %}
+    </a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      {% translate "上传 NNC1 核验合作关系" %}
+    </h1>
+    <p class="mt-1 text-sm text-slate-600">{{ provider.display_name }}</p>
+  </div>
+
+  {% comment %} What happens to the document is stated before the file input, not in
+     a policy page nobody opens. An NNC1 carries more personal data than
+     anything else the platform accepts (COMPLIANCE section 4), and someone
+     about to upload one is owed the retention rule up front. {% endcomment %}
+  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+    <p class="font-medium text-slate-900">{% translate "关于这份文件" %}</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li>{% translate "NNC1（法团成立表格）上列明公司秘书。若与被评价公司一致，即可证明确有合作。" %}</li>
+      <li>{% translate "文件存放于私有存储，只有审核人员可以查看，不会公开、不会展示给被评价公司。" %}</li>
+      <li>{% translate "核验有结论后 90 日，我们会自动删除文件本身，只保留核验结论与文件指纹。" %}</li>
+      <li>{% translate "文件上的董事姓名、住址、身份证明号码等资料，我们不会抄录到系统中。" %}</li>
+      <li>{% translate "核验由人工完成，通过后你的评价会显示「已验证」并计入公司评分。" %}</li>
+    </ul>
+  </div>
+
+  {% if verification %}
+    <div class="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
+      <p>{% translate "你已提交过文件，当前状态：" %}{{ verification.get_result_display }}</p>
+      <p class="mt-1 text-xs text-slate-500">
+        {% translate "重新上传会覆盖之前的文件。" %}
+      </p>
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="space-y-5">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    {% for field in form %}
+      <div>
+        <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
+          {{ field.label }}
+        </label>
+        <div class="mt-1">{{ field }}</div>
+        {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
+      </div>
+    {% endfor %}
+
+    <button type="submit"
+            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+      {% translate "提交核验" %}
+    </button>
+  </form>
+</div>
+{% endblock %}

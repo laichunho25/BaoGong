@@ -211,6 +211,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "providers.purge_claim_evidence",
         "schedule": crontab(hour=3, minute=30),
     },
+    # Same promise, different documents. An NNC1 carries more personal data
+    # than a BR certificate does, so if either purge is going to be forgotten
+    # it must not be this one.
+    "purge-nnc1-documents-daily": {
+        "task": "reviews.purge_nnc1_documents",
+        "schedule": crontab(hour=3, minute=45),
+    },
 }
 
 # ---------------------------------------------------------------- claims
@@ -219,6 +226,9 @@ CELERY_BEAT_SCHEDULE = {
 # days for NNC1 uploads; the same clock is applied here because the documents
 # are the same kind of data.
 CLAIM_EVIDENCE_RETENTION_DAYS = env.int("CLAIM_EVIDENCE_RETENTION_DAYS", default=90)
+# COMPLIANCE section 4 states 90 days for NNC1 uploads outright. Configurable
+# only downwards in practice: a longer window would need a reason in the PICS.
+NNC1_RETENTION_DAYS = env.int("NNC1_RETENTION_DAYS", default=90)
 # Prefix of the DNS TXT record / meta tag value a company publishes to prove it
 # controls the website it claims.
 CLAIM_SITE_VERIFICATION_KEY = "qs-site-verification"

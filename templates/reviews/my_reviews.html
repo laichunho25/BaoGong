@@ -35,6 +35,30 @@
 
         <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ review.body }}</p>
 
+        {% comment %} The verification prompt, in the one place the author will look.
+           An unverified review is published but weightless (RATING_SYSTEM
+           section 4), so saying "not counted" without saying what to do about
+           it would be half the message. {% endcomment %}
+        {% if not review.is_verified %}
+          <div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            {% with verification=review.verification %}
+              {% if verification.result == "passed" %}
+                {% translate "核验已通过。" %}
+              {% elif verification.result == "failed" %}
+                <p>{% translate "核验未通过：" %}{{ verification.review_note }}</p>
+                <a class="mt-1 inline-block underline"
+                   href="{% url 'reviews:nnc1_upload' review.id %}">{% translate "重新上传" %}</a>
+              {% elif verification %}
+                {% translate "核验文件已提交，审核人员处理中。" %}
+              {% else %}
+                <p>{% translate "上传 NNC1 文件核验合作关系后，这条评价才会计入公司评分。" %}</p>
+                <a class="mt-1 inline-block underline"
+                   href="{% url 'reviews:nnc1_upload' review.id %}">{% translate "上传 NNC1" %}</a>
+              {% endif %}
+            {% endwith %}
+          </div>
+        {% endif %}
+
         {% if review.status == "pending_moderation" %}
           <p class="mt-2 text-xs text-slate-500">{% translate "审核中，通过后会公开显示。" %}</p>
         {% elif review.moderation_note and review.status != "published" %}

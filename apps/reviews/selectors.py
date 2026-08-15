@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from apps.reviews.models import Review, ReviewStatus
+from apps.reviews.models import Nnc1Verification, Review, ReviewStatus, VerificationResult
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -45,7 +45,7 @@ def reviews_by_author(author: User) -> QuerySet[Review]:
     Authors see their own pending and hidden reviews: being told "this is not
     public and here is why" is the minimum owed to someone who wrote something.
     """
-    return Review.objects.filter(author=author).select_related("provider__licensee")
+    return Review.objects.filter(author=author).select_related("provider__licensee", "verification")
 
 
 def get_review(review_id: str) -> Review | None:
@@ -62,3 +62,21 @@ def moderation_queue() -> QuerySet[Review]:
         .select_related("provider__licensee", "author", "score")
         .order_by("created_at")
     )
+
+
+def verification_queue() -> QuerySet[Nnc1Verification]:
+    """Uploaded NNC1s waiting on a human, oldest first.
+
+    Unlike the review queue this one is not drainable by rule: every row here
+    needs somebody to open a document (``matching.py`` explains why a name
+    match cannot stand in for that), so its length is a staffing number.
+    """
+    return (
+        Nnc1Verification.objects.filter(result=VerificationResult.NEEDS_HUMAN)
+        .select_related("review__provider__licensee", "review__author")
+        .order_by("created_at")
+    )
+
+
+def verification_for(review: Review) -> Nnc1Verification | None:
+    return Nnc1Verification.objects.filter(review=review).first()

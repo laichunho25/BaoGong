@@ -8,7 +8,7 @@
 | **P1 registry** | `Licensee/SyncRun/LicenseeChange`、下載+sanity check+upsert+diff、Celery beat、admin、管理指令 `sync_tcsp` / `registry_health`、除名通知 | 名單入庫，可重跑冪等 | ✅ |
 | **P2 目錄前台** | `providers` app（Provider/ServiceOffering/PriceItem/Certification）、每日回填、列表頁（HTMX 搜尋/篩選/排序/分頁）、詳情頁、`/compare/`、來源與評分元件、sitemap/robots | 可公開瀏覽的 MVP | ✅ |
 | **P3 帳號 + 認領** | User/角色、郵箱註冊登入（手機為選填欄位）、`ProviderMember` 權限、`ProviderClaim` + `ClaimEvidence` 流程（私有儲存、MIME/大小驗證、可插拔病毒掃描、網站 TXT/meta 驗證、90 日保留期）、moderator 佇列（客製 admin，理由必填）、批准後發 `tcsp_licence` | 秘書公司可認領 | ✅ |
-| **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ⬜** NNC1 上傳與規則式核驗 · **P4-3 ⬜** Dispute、A3 + A4 agent | 已驗證評價可上線 | 🔵 |
+| **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ⬜** Dispute、A3 + A4 agent | 已驗證評價可上線 | 🔵 |
 | **P5 RFQ 撮合** | Rfq/Quote/QuoteLineItem/QuotaLedger、需求牆、報價表單、比較表、**A1 + A5 agent**、每日 3 單額度 | 撮合閉環 | ⬜ |
 | **P6 匹配 + 內容** | **A2 MatchingAgent**、pgvector + content app、**A6 AdvisorAgent**、教育文章 CMS、**A7 RegistryDiffAgent** | AI 完整上線 | ⬜ |
 | **P7 商業化** | Plan/Subscription/CreditPack、Stripe（或 Airwallex）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
@@ -50,7 +50,10 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P3] 網站驗證只是證據，不是放行條件` — token 證明申請人控制該網域，證明不了該網域屬於持牌人，因此仍靠人手核對 BR 與登記冊 — 維持現狀，量大時再考慮加自動風險評分（AI 產出仍不得直接落 DB，CLAUDE.md §4.3）。
 - `[P3] 認領審核沒有任何通知` — 批准／拒絕後申請人只有自己回 dashboard 才看得到結果 — P4 建郵件通知模板時一併補（決策理由要一併寄出）。
 - `[P3] 證明檔案清除任務未在真實 S3 上驗證` — `purge_expired_evidence` 只在本機 storage 測過，MinIO／S3 的刪除語意（版本控制、object lock）可能讓 bytes 留下 — 部署 P8 前用真實 bucket 跑一次並確認版本也被清掉。
-- `[P4] 沒有任何評價會被標成已驗證` — `Review.is_verified` 只由 NNC1 核驗寫入，而核驗是 P4-2，所以目前每則評價都掛「未驗證 · 不計入評分」，公開分數永遠是空狀態 — P4-2 落地即解除。
+- ~~`[P4] 沒有任何評價會被標成已驗證`~~ — P4-2 已上線：`reviews.services.decide_verification` 是 `Review.is_verified` 的唯一寫入者，通過後同一交易內重算公司分數。
+- `[P4] 核驗佇列的長度是人力問題，不是規則問題` — 名稱比對只是證據（`reviews/matching.py`），每一列都要有人打開文件才能結案，所以佇列不可能靠規則排空 — 上線後要盯 `verification_queue()` 的長度與最舊一列的年齡，超過就是要加人。
+- `[P4] 核驗結果不發通知` — 通過或不通過，評價者都要自己回「我的評價」才看得到，理由也只在那頁 — 與下面兩條通知債同一件事，一起做郵件模板。
+- `[P4] 本機沒有病毒掃描器，等於所有 NNC1 都不可讀` — 預設 `UnavailableScanner`（fail-closed），沒部署 ClamAV 前 moderator 打不開任何文件，也就通不過任何核驗 — 與 P3 的認領證明同一個阻塞點，部署時一起解。
 - `[P4] 評價提交與審核都不發通知` — 買家不知道自己的評價過了沒，公司不知道自己被評價了 — 與 `[P3] 認領審核沒有任何通知` 同一件事，一起做郵件模板（決策理由要寄出）。
 - `[P4] 審核佇列純人手，A4 尚未接上` — `Review.moderation` 恆為空 dict，admin 顯示「rule-based queue」 — P4-3；接上後仍是建議，改變 `status` 的必須是人（CLAUDE.md §4.3）。
 - `[P4] 時間衰減權重未實作` — RATING_SYSTEM §2 規劃「24 個月以上權重 0.5」，v1 沒做 — 它上線當天會改動全站每一個分數，而目前沒有足夠評價量支撐這個代價；有量之後再開，開的時候要跑 `reviews.recompute_all_ratings`。

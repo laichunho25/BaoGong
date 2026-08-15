@@ -35,7 +35,11 @@
 ## 4. 個人資料（PDPO, Cap. 486）
 
 - 收集目的須在 PICS（Personal Information Collection Statement）明示。
-- NNC1 上傳檔：加密存放、**只抽取必要欄位**、預設 90 日自動刪除（Celery beat purge task，必須有測試）。
+- NNC1 上傳檔（`reviews.Nnc1Verification`）：私有 bucket、**只抄三個自述欄位**
+  （公司名稱、公司編號、文件上列明的秘書名稱），董事姓名／住址／身份證明號碼一律不入庫；
+  只有上傳者本人與 moderator 可取用，未經掃描不可下載；核驗**決策後** 90 日由
+  `reviews.purge_nnc1_documents` 刪除 bytes（`NNC1_RETENTION_DAYS`，每日 beat，有測試），
+  **保留該列、sha256、比對結果與審核理由**。檔案被清除不會使核驗失效。
 - 認領證明檔案（`providers.ClaimEvidence`）同一規則：私有 bucket、只有申請人與 moderator 可取用、
   審核決定後 90 日由 `providers.purge_claim_evidence` 刪除 bytes；**保留該列與 sha256**，
   因為審核紀錄要留，個資不留。未經掃描的檔案一律不可預覽、不可下載。

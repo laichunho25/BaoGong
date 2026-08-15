@@ -211,10 +211,37 @@ DB 約束 `providers_price_point_or_range`：必須是單點價或完整區間�
 `services.score_overall` 對「實際評過的維度」取平均，null 直接不進分母。
 
 ### Nnc1Verification
-`review(OneToOne)`, `file_key`（加密 S3）, `uploaded_at`, `purge_at`（預設 +90d）
-`extracted(JSON)`: `{company_name, company_no, secretary_name, secretary_licence_no, incorporation_date}`
-`extraction_confidence(Decimal)`, `matched_licence_no`, `match_method(exact|fuzzy|manual)`,
-`result(pass|fail|needs_human)`, `reviewed_by(FK, null)`, `agent_run(FK AgentRun)`
+`review(OneToOne)`, `file(FileField, private storage)`, `original_filename`, `content_type`,
+`extension`, `size_bytes`, `sha256(indexed)`
+掃描：`scan_status(pending|clean|infected|error|skipped, indexed)`, `scan_detail`, `scanner`, `scanned_at`
+上傳者自述：`declared_company_name`, `declared_company_no`, `declared_secretary_name`
+AI 抽取（P4-3）：`extracted(JSON)`, `extraction_confidence(Decimal)`, `agent_run_id_ref(UUID)`
+規則式比對：`match_method(exact|fuzzy|none|manual)`, `match_score(Decimal 4,3)`,
+`matched_licence_no`, `match_detail`
+結論：`result(needs_human|passed|failed, indexed)`, `reviewed_by(FK User, SET_NULL)`,
+`reviewed_at`, `review_note(Text)`
+保留期：`purge_at(indexed)`, `purged_at`
+
+NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評價的公司，這位評價者確實是客戶——
+這是「已驗證」標記唯一主張的事，也是這個平台比匿名評價站值錢的原因。
+
+- **`decide_verification` 是 `Review.is_verified` 的唯一寫入者**。上傳只是請求，
+  規則式比對只是證據，標記與分數都要等一位具名審核員寫下理由才動（CLAUDE.md 規則 3）。
+- **名稱比對不能當放行條件**：`declared_secretary_name` 是「想被驗證的人」自己打的，
+  對得上只證明他會抄註冊處的名單；**對不上才是證據**。`reviews/matching.py` 的
+  module docstring 記了這個不對稱，與 P3「網站驗證只是證據」同一個形狀。
+  對不上時另外掃一次全冊：「這寫的是另一間持牌公司」與「這寫的人根本沒牌」，
+  對審核員是兩條完全不同的路。
+- **未掃描等同不可讀**，連上傳者本人也不例外——會被打開的是他自己的瀏覽器。
+  `decide_verification` 拒絕在不可讀的檔案上「通過」，但**永遠允許「不通過」**：
+  光看自述名稱就能結案的個案，不該卡在隔離區。
+- 上傳者可在未決前重傳（有人拍錯頁），**有結論後不行**：否則通過的核驗可以事後換一份檔案，
+  留檔的 sha256 就什麼都證明不了。
+- `purge_at = 決策時間 + 90 日`（COMPLIANCE §4），比 `ClaimEvidence` 更要緊：NNC1 上還有
+  董事姓名、住址、身份證明號碼。每日 beat 刪 bytes，**保留列、sha256、比對結果與審核理由**。
+  檔案被清除**不會**使核驗失效——每 90 日重驗一次所有評價者不是平台守得住的承諾。
+- 只抄三個自述欄位，不抄董事資料（CLAUDE.md 規則 5）：要回答的問題只有
+  「這個人是不是這間公司的客戶」。
 
 ### ReviewReply
 `review(OneToOne)`, `provider(FK)`, `author(FK User, null)`, `body`, `published_at`（每則評價只能回覆一次）
