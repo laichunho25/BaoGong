@@ -9,6 +9,11 @@ What is customised is what a moderator has to see before deciding: the full
 text, the sub-scores, whether NNC1 verification has happened, and the AI
 moderation labels - shown as *advice with its own confidence*, never as a
 verdict. CLAUDE.md rule 3: the agent's output is not what changes the row.
+
+``DisputeAdmin`` at the bottom adds one thing the other queues do not have: a
+deadline column. COMPLIANCE section 3 promises five working days, and a queue
+that hides its own lateness makes a published commitment unauditable from the
+inside.
 """
 
 from __future__ import annotations
@@ -19,11 +24,20 @@ from django import forms
 from django.contrib import admin, messages
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils.formats import date_format
 from django.utils.html import format_html, format_html_join
+from django.utils.timezone import localtime
 from django.utils.translation import gettext_lazy as _
 
 from apps.reviews import services
-from apps.reviews.models import Nnc1Verification, Review, ReviewReply, ReviewScore
+from apps.reviews.models import (
+    Dispute,
+    DisputeDecision,
+    Nnc1Verification,
+    Review,
+    ReviewReply,
+    ReviewScore,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -399,6 +413,191 @@ class Nnc1VerificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
             action="fail_verifications",
             title=_("Fail NNC1 verifications"),
             passed=False,
+        )
+
+
+class DisputeReasonForm(forms.Form):
+    """Why the dispute was decided this way.
+
+    Unlike the other reason boxes on this screen, what goes in here is read by
+    the company that filed the appeal. It is an answer, not a log line, and the
+    label says so.
+    """
+
+    reason = forms.CharField(
+        label=_("Reason (sent to the company that raised the dispute)"),
+        widget=forms.Textarea(attrs={"rows": 4, "cols": 80}),
+    )
+
+
+@admin.register(Dispute)
+class DisputeAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    """The dispute queue, sorted by what is closest to being late.
+
+    COMPLIANCE section 3 promises five working days, so the deadline is a
+    column rather than a detail: a queue that hides its own lateness turns a
+    published commitment into something nobody can check from the inside.
+    """
+
+    list_display = ("review", "provider", "ground", "deadline_state", "decision", "created_at")
+    list_filter = ("decision", "ground", "created_at")
+    search_fields = ("provider__slug", "reason", "review__body")
+    date_hierarchy = "created_at"
+    ordering = ("decision", "due_at")
+    actions = ("keep_reviews", "amend_reviews", "hide_disputed_reviews", "remove_disputed_reviews")
+
+    # The company's submission is its statement; a moderator editing it before
+    # ruling on it would destroy the only record of what was actually filed.
+    readonly_fields = (
+        "review",
+        "provider",
+        "raised_by",
+        "ground",
+        "reason",
+        "evidence",
+        "disputed_review",
+        "arbitration_draft",
+        "deadline_state",
+        "decision",
+        "decision_note",
+        "decided_by",
+        "decided_at",
+        "created_at",
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Disputes are filed by companies, through the appeal form."""
+        return False
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Dispute]:
+        queryset: QuerySet[Dispute] = super().get_queryset(request)
+        return queryset.select_related(
+            "review__provider__licensee", "review__author", "provider", "raised_by"
+        )
+
+    @admin.display(description=_("Deadline"), ordering="due_at")
+    def deadline_state(self, obj: Dispute) -> str:
+        if not obj.is_open:
+            return str(_("Closed"))
+        when = date_format(localtime(obj.due_at), "SHORT_DATETIME_FORMAT")
+        template = _("OVERDUE - was due %(when)s") if obj.is_overdue() else _("Due %(when)s")
+        return str(template) % {"when": when}
+
+    @admin.display(description=_("The review being disputed"))
+    def disputed_review(self, obj: Dispute) -> str:
+        """The text itself, so the decision is not made from the complaint alone."""
+        review = obj.review
+        return format_html(
+            "<p><strong>{}</strong> {} {}</p><p style='white-space:pre-line'>{}</p>",
+            review.overall,
+            _("verified") if review.is_verified else _("unverified"),
+            review.get_status_display(),
+            review.body,
+        )
+
+    @admin.display(description=_("AI arbitration draft (advice only)"))
+    def arbitration_draft(self, obj: Dispute) -> str:
+        if not obj.ai_arbitration_draft:
+            return str(_("No draft. Disputes are decided by a person reading both sides."))
+        return format_html(
+            "<p style='white-space:pre-line'>{}</p><p>{}</p>",
+            obj.ai_arbitration_draft,
+            _("Advisory only. The decision and its reason are yours."),
+        )
+
+    def _decide(
+        self,
+        request: HttpRequest,
+        queryset: QuerySet[Dispute],
+        *,
+        action: str,
+        title: Any,
+        decision: str,
+    ) -> HttpResponse | None:
+        form = DisputeReasonForm(request.POST if "apply_reason" in request.POST else None)
+        if form.is_valid():
+            reason = form.cleaned_data["reason"]
+            decided = 0
+            for dispute in queryset:
+                try:
+                    services.decide_dispute(
+                        dispute=dispute,
+                        moderator=cast("User", request.user),
+                        decision=decision,
+                        note=reason,
+                    )
+                except services.ReviewError as exc:
+                    self.message_user(request, f"{dispute.pk}: {exc}", messages.ERROR)
+                else:
+                    decided += 1
+            if decided:
+                self.message_user(
+                    request,
+                    _("%(count)s dispute(s) decided.") % {"count": decided},
+                    messages.SUCCESS,
+                )
+            return None
+
+        return render(
+            request,
+            "admin/decision_reason.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": title,
+                "objects": queryset,
+                "form": form,
+                "action": action,
+                "opts": self.model._meta,
+            },
+        )
+
+    @admin.action(description=_("Reject the dispute - the review stands (reason required)"))
+    def keep_reviews(
+        self, request: HttpRequest, queryset: QuerySet[Dispute]
+    ) -> HttpResponse | None:
+        return self._decide(
+            request,
+            queryset,
+            action="keep_reviews",
+            title=_("Reject disputes - reviews stand"),
+            decision=DisputeDecision.KEEP,
+        )
+
+    @admin.action(description=_("Hide pending amendment by the author (reason required)"))
+    def amend_reviews(
+        self, request: HttpRequest, queryset: QuerySet[Dispute]
+    ) -> HttpResponse | None:
+        return self._decide(
+            request,
+            queryset,
+            action="amend_reviews",
+            title=_("Hide pending amendment"),
+            decision=DisputeDecision.AMEND,
+        )
+
+    @admin.action(description=_("Uphold - hide the review (reason required)"))
+    def hide_disputed_reviews(
+        self, request: HttpRequest, queryset: QuerySet[Dispute]
+    ) -> HttpResponse | None:
+        return self._decide(
+            request,
+            queryset,
+            action="hide_disputed_reviews",
+            title=_("Uphold disputes - hide reviews"),
+            decision=DisputeDecision.HIDE,
+        )
+
+    @admin.action(description=_("Uphold - remove the review (reason required)"))
+    def remove_disputed_reviews(
+        self, request: HttpRequest, queryset: QuerySet[Dispute]
+    ) -> HttpResponse | None:
+        return self._decide(
+            request,
+            queryset,
+            action="remove_disputed_reviews",
+            title=_("Uphold disputes - remove reviews"),
+            decision=DisputeDecision.REMOVE,
         )
 
 

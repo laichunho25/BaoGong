@@ -15,12 +15,13 @@ from decimal import Decimal
 from typing import Any
 
 from django import forms
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.core import turnstile
 from apps.core.uploads import MAX_UPLOAD_BYTES, InspectedUpload, inspect_upload
 from apps.providers.models import ServiceCategory
-from apps.reviews.models import SCORE_FIELDS
+from apps.reviews.models import SCORE_FIELDS, DisputeGround
 
 INPUT_CLASSES = (
     "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
@@ -37,6 +38,10 @@ SCORE_CHOICES = [
 NOT_APPLICABLE = ""
 
 MIN_BODY_LENGTH = 30
+
+#: A dispute is read by a person on a five-working-day clock, so it has to say
+#: something. Longer than a review's floor: "this is false" is not a case.
+MIN_DISPUTE_REASON_LENGTH = 50
 
 SCORE_LABELS = {
     "price_transparency": _("报价透明度"),
@@ -117,6 +122,50 @@ class ReplyForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 4}),
         help_text=_("回复将公开显示在该评价下方，且每条评价只能回复一次。"),
     )
+
+
+class DisputeForm(forms.Form):
+    """A company's appeal against a review (COMPLIANCE section 3).
+
+    The help text states plainly that filing this does not take the review
+    down, because a form that looks like a takedown button will be used as one.
+    ``ground`` is a closed list so the queue can be sorted by how checkable the
+    complaint is - "was never our client" can be tested against the register,
+    "we disagree" cannot.
+    """
+
+    ground = forms.ChoiceField(
+        label=_("申诉理由类别"),
+        choices=DisputeGround.choices,
+        widget=forms.RadioSelect,
+    )
+    reason = forms.CharField(
+        label=_("详细说明"),
+        min_length=MIN_DISPUTE_REASON_LENGTH,
+        max_length=4000,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 6}),
+        help_text=_(
+            "请说明具体情况，并提供可核对的线索（如业务编号、往来日期）。"
+            "提交申诉不会立即隐藏该评价；审核人员会在 %(days)s 个工作日内处理并回复理由。"
+        )
+        % {"days": settings.DISPUTE_SLA_BUSINESS_DAYS},
+    )
+    engagement_ref = forms.CharField(
+        label=_("业务编号或往来凭证编号（选填）"),
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
+    )
+
+    def evidence(self) -> dict[str, str]:
+        """The structured half of the appeal, kept apart from the free text.
+
+        No file field: an uploaded document would need the same scanning,
+        private storage and retention clock as an NNC1, which is a feature and
+        not a widget (see ROADMAP).
+        """
+        ref = self.cleaned_data.get("engagement_ref", "").strip()
+        return {"engagement_ref": ref} if ref else {}
 
 
 class Nnc1UploadForm(forms.Form):

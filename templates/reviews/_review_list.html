@@ -102,6 +102,19 @@
             </button>
           </form>
         {% endif %}
+
+        {% if is_member %}
+          {% comment %} The same section's right of appeal. Kept visually quieter than the
+             reply box, and worded as "申诉" rather than "举报": answering in public is
+             the response the platform wants companies to reach for first, and the
+             appeal is for the cases where the review should not be there at all. {% endcomment %}
+          <p class="mt-2 text-xs text-slate-400">
+            <a href="{% url 'reviews:dispute' review.pk %}" class="underline hover:text-slate-600">
+              {% translate "对这条评价提出申诉" %}
+            </a>
+            <span class="ml-1">{% translate "（不会立即隐藏评价）" %}</span>
+          </p>
+        {% endif %}
       </li>
     {% empty %}
       <li class="rounded-lg border border-slate-200 p-4 text-sm text-slate-500">

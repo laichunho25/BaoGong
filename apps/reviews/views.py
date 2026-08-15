@@ -17,13 +17,13 @@ from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
-from apps.accounts.permissions import is_moderator, verified_email_required
+from apps.accounts.permissions import is_moderator, is_provider_member, verified_email_required
 from apps.core import turnstile
 from apps.core.storage import signed_url
 from apps.providers import selectors as provider_selectors
 from apps.registry.selectors import registry_last_synced_at
 from apps.reviews import selectors, services
-from apps.reviews.forms import Nnc1UploadForm, ReplyForm, ReviewForm
+from apps.reviews.forms import DisputeForm, Nnc1UploadForm, ReplyForm, ReviewForm
 from apps.reviews.models import SCORE_FIELDS, Nnc1Verification
 from apps.reviews.tasks import process_nnc1
 
@@ -128,6 +128,65 @@ def review_reply(request: HttpRequest, review_id: str) -> HttpResponse:
             messages.success(request, _("回复已发布。"))
 
     return redirect(review.provider.get_absolute_url())
+
+
+@login_required
+def dispute_create(request: HttpRequest, review_id: str) -> HttpResponse:
+    """The company's appeal against one published review.
+
+    Membership and the rest of the rules are checked in ``services``; this view
+    decides only what the person sees. The page is deliberately explicit that
+    filing changes nothing about the review yet, and that the answer comes with
+    a reason inside five working days - a right of appeal that arrives as
+    silence is not one.
+    """
+    member = cast("User", request.user)
+    review = selectors.get_review(review_id)
+    if review is None or not review.is_public:
+        raise Http404("No such review")
+    if not is_provider_member(member, review.provider):
+        # 404 rather than 403: which reviews a company has is not something an
+        # unrelated account learns by trying.
+        raise Http404("No such review")
+
+    existing = selectors.open_dispute_for(review)
+    if existing is not None:
+        messages.info(request, _("该评价已有一宗待处理的申诉，我们会尽快回复。"))
+        return redirect(review.provider.get_absolute_url())
+
+    if request.method == "POST":
+        form = DisputeForm(request.POST)
+        if form.is_valid():
+            try:
+                services.raise_dispute(
+                    review=review,
+                    raised_by=member,
+                    ground=form.cleaned_data["ground"],
+                    reason=form.cleaned_data["reason"],
+                    evidence=form.evidence(),
+                )
+            except services.ReviewError as exc:
+                form.add_error(None, str(exc))
+            else:
+                messages.success(
+                    request,
+                    _("申诉已提交。审核人员会在 %(days)s 个工作日内处理，并附上处理理由。")
+                    % {"days": settings.DISPUTE_SLA_BUSINESS_DAYS},
+                )
+                return redirect(review.provider.get_absolute_url())
+    else:
+        form = DisputeForm()
+
+    return render(
+        request,
+        "reviews/dispute_form.html",
+        {
+            "review": review,
+            "provider": review.provider,
+            "form": form,
+            "sla_days": settings.DISPUTE_SLA_BUSINESS_DAYS,
+        },
+    )
 
 
 @login_required

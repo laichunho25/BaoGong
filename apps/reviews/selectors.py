@@ -10,9 +10,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from apps.reviews.models import Nnc1Verification, Review, ReviewStatus, VerificationResult
+from django.utils import timezone
+
+from apps.reviews.models import Dispute, Nnc1Verification, Review, ReviewStatus, VerificationResult
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from django.db.models import QuerySet
 
     from apps.accounts.models import User
@@ -80,3 +84,35 @@ def verification_queue() -> QuerySet[Nnc1Verification]:
 
 def verification_for(review: Review) -> Nnc1Verification | None:
     return Nnc1Verification.objects.filter(review=review).first()
+
+
+def dispute_queue() -> QuerySet[Dispute]:
+    """Open disputes, soonest deadline first.
+
+    Ordered by ``due_at`` rather than by arrival, so the row closest to
+    breaking COMPLIANCE section 3's five-working-day promise is the one on top.
+    """
+    return (
+        Dispute.objects.filter(decision="")
+        .select_related("review__provider__licensee", "review__author", "provider")
+        .order_by("due_at")
+    )
+
+
+def overdue_disputes(*, now: datetime | None = None) -> QuerySet[Dispute]:
+    """Open disputes past their deadline - the promise already broken.
+
+    Separate from ``dispute_queue`` because the two answer different questions:
+    one is what to work on next, this one is what to explain.
+    """
+    return dispute_queue().filter(due_at__lt=now or timezone.now())
+
+
+def open_dispute_for(review: Review) -> Dispute | None:
+    return Dispute.objects.filter(review=review, decision="").first()
+
+
+def disputes_for_provider(provider: Provider) -> QuerySet[Dispute]:
+    """A company's own disputes, newest first, for its dashboard."""
+    qs = Dispute.objects.filter(provider=provider).select_related("review")
+    return qs.order_by("-created_at")

@@ -28,6 +28,13 @@
 
 - 評價須「基於事實、可查證的親身經歷」— 提交表單明示此要求。
 - 秘書公司有**回覆權**與**申訴權**（Dispute 流程），且申訴須在 5 個工作天內處理。
+  已落實：`reviews.services.raise_dispute` 依 `DISPUTE_SLA_BUSINESS_DAYS`（預設 5，只跳週末）
+  寫入 `due_at`，逾期在審核後台的 Deadline 欄印 `OVERDUE`——平台自己違約時，
+  違約要出現在做決定的那個畫面上，而不是只出現在給公司看的承諾裡。
+- **提出申訴不會隱藏或刪除評價**，這一點寫在申訴表單的第一行。若送出即隱藏，
+  這張表單等於一鍵下架任何不順眼的評價，答辯權就變成了審查權。
+  隱藏／移除只發生在 `decide_dispute`，並且繞回 `hide_review`／`remove_review`：
+  具名審核員與必填理由一樣都不能少，理由會給提出申訴的公司看。
 - 平台保留 notice-and-takedown 流程與紀錄。
 - 評價中的第三方個人姓名／電話／郵箱必須遮蔽（Moderation Agent 的 `suggested_redactions` + 人工確認）。
 - **AI 不得自動刪除評價**；最多 `hidden` 並通知雙方。
@@ -88,6 +95,8 @@
 - [ ] 贊助位有「贊助」標示
 - [ ] 無評價公司不顯示 5.00 分（見 RATING_SYSTEM §4）
 - [ ] 已離開官方名單的公司仍可瀏覽，且每處都渲染 `registry.notices.deregistration_notice()`；文案不含任何暗示執法行動的措辭，並已經律師覆核
+- [ ] 申訴佇列沒有逾期列（`reviews.selectors.overdue_disputes()` 回空），
+      且申訴表單上「提交申訴不會隱藏評價」那句仍在第一行（§3）
 - [ ] DSAR 後台流程可用
 - [ ] Agent kill switch 全部可用 — P4-3 已落地三段：`AGENTS_ENABLED`（全域）、
       `AGENT_ENABLED_{NAME}`（逐 agent，目前 `REVIEW_MODERATION` / `NNC1_EXTRACTION`）、

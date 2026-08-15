@@ -24,6 +24,10 @@ The NNC1 half at the bottom of the file is what puts weight behind any of it.
 uploaded document, a rule-based name match and a named moderator, in that
 order. Nothing automatic sets the flag, because a badge nobody stands behind is
 worth less than no badge.
+
+The dispute functions are the other side of that: a platform that publishes
+accusations about named businesses owes them a route of appeal with a deadline
+on it. Filing one changes nothing about the review - see ``raise_dispute``.
 """
 
 from __future__ import annotations
@@ -41,12 +45,16 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.permissions import is_moderator, is_provider_member
 from apps.agents import tasks as agent_tasks
+from apps.core.dates import business_days_from
 from apps.core.scanning import ScanStatus, get_scanner
 from apps.providers.models import Provider
 from apps.providers.services import recompute_ranking_inputs
 from apps.reviews import matching
 from apps.reviews.models import (
     SCORE_FIELDS,
+    Dispute,
+    DisputeDecision,
+    DisputeGround,
     Nnc1Verification,
     Review,
     ReviewReply,
@@ -220,6 +228,104 @@ def reply_to_review(*, review: Review, author: User, body: str) -> ReviewReply:
         body=body.strip(),
         published_at=timezone.now(),
     )
+
+
+# ------------------------------------------------------------------- disputes
+
+
+@transaction.atomic
+def raise_dispute(
+    *,
+    review: Review,
+    raised_by: User,
+    ground: str,
+    reason: str,
+    evidence: Mapping[str, Any] | None = None,
+) -> Dispute:
+    """A company's appeal against one published review (COMPLIANCE section 3).
+
+    **The review is not touched.** It stays as public as it was until a
+    moderator decides, and that is the point: if filing a dispute hid the
+    review, the form would be a one-click takedown of anything inconvenient and
+    the company with the most staff would end up with the cleanest page. What
+    filing buys is a deadline - five working days - not an outcome.
+
+    Only a published review can be disputed, because there is nothing to appeal
+    against otherwise, and only one dispute may be open at a time: re-filing is
+    not more evidence, it is the same complaint twice.
+    """
+    if not is_provider_member(raised_by, review.provider):
+        raise ReviewError(_("只有该公司的成员可以提出申诉。"))
+    if not review.is_public:
+        raise ReviewError(_("该评价当前未公开，无需申诉。"))
+    if ground not in DisputeGround.values:
+        raise ReviewError(_("请选择申诉理由类别。"))
+    if not reason.strip():
+        raise ReviewError(_("请说明申诉理由。"))
+    if Dispute.objects.filter(review=review, decision="").exists():
+        raise ReviewError(_("该评价已有一宗待处理的申诉。"))
+
+    return Dispute.objects.create(
+        review=review,
+        provider=review.provider,
+        raised_by=raised_by,
+        ground=ground,
+        reason=reason.strip(),
+        evidence=dict(evidence or {}),
+        due_at=business_days_from(timezone.now(), settings.DISPUTE_SLA_BUSINESS_DAYS),
+    )
+
+
+@transaction.atomic
+def decide_dispute(
+    *,
+    dispute: Dispute,
+    moderator: User,
+    decision: str,
+    note: str,
+) -> Dispute:
+    """Close one dispute, and apply whatever it decided about the review.
+
+    The review-side effect goes through ``hide_review`` / ``remove_review``
+    rather than assigning ``status`` here, so a review hidden by a dispute
+    carries the same attribution and the same reason as one hidden from the
+    moderation queue - there is no second, quieter way to unpublish something.
+
+    ``AMEND`` hides the review and asks the author to rewrite it. That is not
+    quite what the word promises: reviews cannot be edited yet (ROADMAP has the
+    debt), so today "amend" means "hidden, and the author may submit a new one
+    once the old is removed". It is kept as a separate decision anyway, because
+    a moderator's finding of "mostly fair, one bad sentence" is different from
+    "should not be here", and flattening the two would lose the distinction the
+    day the edit flow does arrive.
+    """
+    if not is_moderator(moderator):
+        raise ReviewError(_("只有审核人员可以处理申诉。"))
+    if not dispute.is_open:
+        raise ReviewError(_("该申诉已有结论。"))
+    if decision not in DisputeDecision.values:
+        raise ReviewError(_("请选择处理结果。"))
+    if not note.strip():
+        # Read by the company that filed it, so it is an answer, not a log line.
+        raise ReviewError(_("请填写处理理由。"))
+
+    outcome = note.strip()
+    if decision in (DisputeDecision.HIDE, DisputeDecision.AMEND):
+        hide_review(review=dispute.review, moderator=moderator, note=outcome)
+    elif decision == DisputeDecision.REMOVE:
+        remove_review(review=dispute.review, moderator=moderator, note=outcome)
+    # KEEP deliberately does nothing to the review: the finding is that it
+    # stands, and re-saving it would only put a moderator's name on a row that
+    # did not change.
+
+    dispute.decision = decision
+    dispute.decision_note = outcome
+    dispute.decided_by = moderator
+    dispute.decided_at = timezone.now()
+    dispute.save(
+        update_fields=["decision", "decision_note", "decided_by", "decided_at", "updated_at"]
+    )
+    return dispute
 
 
 def bayesian_rating(*, weighted_sum: Decimal, weight_total: Decimal) -> Decimal | None:

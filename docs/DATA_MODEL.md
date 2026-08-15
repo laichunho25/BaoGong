@@ -252,8 +252,34 @@ NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評�
 等於讓答辯權比指控更不值錢（COMPLIANCE §3）。
 
 ### Dispute
-`review(FK)`, `raised_by(FK)`, `reason`, `evidence(JSON)`, `ai_arbitration_draft(TextField)`,
-`decision(keep|hide|amend|remove)`, `decided_by(FK)`, `decided_at`
+`review(FK)`, `provider(FK)`, `raised_by(FK User, SET_NULL)`,
+`ground(not_a_customer|factually_wrong|personal_data|defamatory|competitor|other)`,
+`reason`, `evidence(JSON)`, `ai_arbitration_draft(TextField)`,
+`decision(keep|amend|hide|remove，空字串＝未決)`, `decision_note`, `decided_by(FK)`, `decided_at`,
+`due_at`
+約束：`UNIQUE(review) WHERE decision = ''`、`INDEX(decision, due_at)`
+
+- **提出申訴不改動評價的任何一個欄位**。這條寫在 `raise_dispute` 的 docstring 裡，
+  也寫在申訴表單的第一行給公司看：若送出申訴就先隱藏，這張表單等於「一鍵下架任何
+  不順眼的評價」，而評價站最不能給的就是這個按鈕。隱藏只會發生在
+  `decide_dispute` 裡，並且是繞回 `hide_review` / `remove_review`——
+  申訴不是第二條、比較安靜的下架路徑，具名審核員與必填理由一樣都不能少。
+- **`due_at` 是這個 model 存在的另一半理由**。COMPLIANCE §3 承諾 5 個工作天內處理，
+  所以那句承諾要在資料庫裡有一個欄位對應，而不是只寫在頁面上。
+  `business_days_from()`（`core/dates.py`）只跳週末、**不跳香港公眾假期**——
+  農曆年期間會算得緊一天，那是這個誤差該倒向的一邊。逾期在審核後台的
+  Deadline 欄直接印 `OVERDUE`：平台自己違約的時候，違約要出現在做決定的那個畫面上。
+- `decision` 用空字串代表未決，配上 partial unique constraint，於是「一則評價同時只有
+  一宗未決申訴」由 Postgres 保證，而不是靠 service 先查再寫（併發下那是會漏的）。
+  結案後可以再提一宗——新的事實、新的申訴。
+- **`ai_arbitration_draft` 目前沒有任何程式碼寫入**。欄位先留著，agent 沒有做：
+  仲裁草稿會是這個系統裡風險最高的一段 agent 產出，而 A3／A4 現在連真實 eval 資料
+  都還沒有。ROADMAP 有這筆債。
+- `evidence` 是 JSON 不是檔案。公司要上傳合約或往來紀錄的話，需要跟 NNC1 同一套
+  掃毒、私有儲存與 90 日保留時鐘——那是一個功能，不是一個 widget。ROADMAP 有這筆債。
+- `amend` 今天的行為等同 `hide`（評價尚不可編輯），但保留成獨立決定：
+  「大致公道，只有一句過分」跟「根本不該在這裡」是兩個結論，合併就會在編輯流程
+  做出來的那天丟失這個區別。
 
 ---
 

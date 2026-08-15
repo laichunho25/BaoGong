@@ -19,10 +19,12 @@ it does not set it by itself either - see its docstring.
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import BaseModel
@@ -30,6 +32,9 @@ from apps.core.scanning import READABLE_STATUSES, ScanStatus
 from apps.core.storage import private_storage
 from apps.providers.models import ServiceCategory
 from apps.reviews.matching import MatchMethod
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 #: RATING_SYSTEM section 3. Ordered, because the radar chart and the form both
 #: show them in this sequence and the order is part of the product definition.
@@ -215,6 +220,129 @@ class ReviewReply(BaseModel):
     @property
     def is_public(self) -> bool:
         return self.published_at is not None
+
+
+class DisputeGround(models.TextChoices):
+    """Why the company says the review should not stand.
+
+    Asked as a closed list because the grounds are not equally serious and the
+    queue has to be sortable: "this person was never our client" is checkable
+    against the register and the NNC1, while "we disagree with their opinion" is
+    not a ground at all. ``OTHER`` exists so the list does not silently push a
+    real complaint into the nearest wrong box.
+    """
+
+    NOT_A_CUSTOMER = "not_a_customer", _("The reviewer was never our client")
+    FACTUALLY_WRONG = "factually_wrong", _("Contains a factual error")
+    PERSONAL_DATA = "personal_data", _("Discloses personal data")
+    DEFAMATORY = "defamatory", _("Defamatory or abusive")
+    COMPETITOR = "competitor", _("Posted by a competitor")
+    OTHER = "other", _("Other")
+
+
+class DisputeDecision(models.TextChoices):
+    KEEP = "keep", _("Keep the review as it is")
+    AMEND = "amend", _("Hidden pending amendment by the author")
+    HIDE = "hide", _("Hide the review")
+    REMOVE = "remove", _("Remove the review")
+
+
+class Dispute(BaseModel):
+    """A company's appeal against a published review (COMPLIANCE section 3).
+
+    The right of reply answers a review in public; this answers it in private,
+    to a moderator, when the company's case is that the review should not be
+    there at all. Both exist because a platform that publishes accusations
+    about named businesses and offers them no route of appeal is not neutral.
+
+    Two properties are the whole design:
+
+    * **raising one changes nothing.** The review stays exactly as public as it
+      was until a moderator decides. If filing a dispute hid the review, the
+      button would be a one-click takedown of any inconvenient review, and the
+      company with the most staff would have the cleanest page.
+    * **it has a clock.** ``due_at`` is five working days out, per COMPLIANCE
+      section 3. An appeal route with no deadline is a way of saying no slowly,
+      so the queue is sorted by it and lateness is visible on the row.
+
+    ``provider`` is stored beside ``review`` for the same reason it is on
+    ``ReviewReply``: the dispute is the company's, and the member who filed it
+    may have left by the time it is decided (``raised_by`` is SET_NULL).
+    """
+
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name="disputes")
+    provider = models.ForeignKey(
+        "providers.Provider", on_delete=models.CASCADE, related_name="disputes"
+    )
+    raised_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    ground = models.CharField(max_length=24, choices=DisputeGround.choices)
+    reason = models.TextField(help_text="The company's case, in its own words.")
+    # Structured references the company offers - an engagement number, a date,
+    # a case reference. Not files: a document uploaded here would need the same
+    # scanning, private storage and retention clock as an NNC1, and that is a
+    # feature rather than a field (see ROADMAP).
+    evidence = models.JSONField(default=dict, blank=True)
+
+    # CLAUDE.md rule 3: a draft for the moderator to accept, edit or discard.
+    # Nothing writes it yet - see docs/AI_AGENTS.md on why arbitration is not
+    # the third agent to ship.
+    ai_arbitration_draft = models.TextField(blank=True)
+
+    # Empty means open. A separate status field would let "decided" and "has a
+    # decision" disagree, and there is no third state.
+    decision = models.CharField(
+        max_length=16, choices=DisputeDecision.choices, blank=True, default="", db_index=True
+    )
+    decision_note = models.TextField(
+        blank=True, help_text="Why the moderator decided this. Shown to the company."
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    due_at = models.DateTimeField(db_index=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("dispute")
+        verbose_name_plural = _("disputes")
+        constraints = [
+            # One open dispute per review. Re-filing while the first is pending
+            # is not more evidence, it is a second row for the same complaint,
+            # and a company could otherwise flood the queue for one review.
+            models.UniqueConstraint(
+                fields=["review"],
+                condition=models.Q(decision=""),
+                name="reviews_one_open_dispute_per_review",
+            ),
+        ]
+        indexes = [
+            # The queue: open, most overdue first.
+            models.Index(fields=["decision", "due_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"dispute on {self.review_id} ({self.decision or 'open'})"
+
+    @property
+    def is_open(self) -> bool:
+        return not self.decision
+
+    def is_overdue(self, *, now: datetime | None = None) -> bool:
+        """Past its COMPLIANCE section 3 deadline and still undecided."""
+        if not self.is_open:
+            return False
+        return (now or timezone.now()) > self.due_at
 
 
 def nnc1_path(instance: Nnc1Verification, filename: str) -> str:

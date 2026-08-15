@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "对评价提出申诉" %} - {{ provider.display_name }} - QS Matching{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <div>
+    <a href="{{ provider.get_absolute_url }}" class="text-sm text-slate-500 underline">
+      &larr; {{ provider.display_name }}
+    </a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      {% translate "对这条评价提出申诉" %}
+    </h1>
+  </div>
+
+  {% comment %} What filing does and does not do, stated before the form rather than
+     after it. A company arriving here wants the review gone; if the page does
+     not say plainly that submitting is not a takedown, the form gets used as
+     one and the answer feels like a broken promise. {% endcomment %}
+  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+    <p class="font-medium text-slate-900">{% translate "关于申诉" %}</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li>{% translate "提交申诉不会隐藏或删除该评价。评价在审核人员作出结论前维持原状。" %}</li>
+      <li>
+        {% blocktranslate trimmed with days=sla_days %}
+          我们会在 {{ days }} 个工作日内处理，并把处理结果与理由回复给你。
+        {% endblocktranslate %}
+      </li>
+      <li>{% translate "可能的结果：维持原状、要求作者修改、隐藏、删除。" %}</li>
+      <li>{% translate "你也可以直接在评价下方公开回复——回复即时生效，不需要等待审核。" %}</li>
+      <li>{% translate "申诉内容只有审核人员可见，不会公开显示，也不会展示给评价作者。" %}</li>
+    </ul>
+  </div>
+
+  <div class="rounded-lg border border-slate-200 p-4">
+    <div class="flex items-baseline gap-2 text-sm">
+      <span class="font-semibold text-slate-900">{{ review.overall|floatformat:1 }}</span>
+      {% if review.is_verified %}
+        <span class="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+          {% translate "已验证" %}
+        </span>
+      {% endif %}
+      <span class="text-xs text-slate-400">{{ review.published_at|date:"Y-m-d" }}</span>
+    </div>
+    <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ review.body }}</p>
+  </div>
+
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    {% for field in form %}
+      <div>
+        <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
+          {{ field.label }}
+        </label>
+        <div class="mt-1 text-sm text-slate-700">{{ field }}</div>
+        {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
+      </div>
+    {% endfor %}
+
+    <button type="submit"
+            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+      {% translate "提交申诉" %}
+    </button>
+  </form>
+</div>
+{% endblock %}

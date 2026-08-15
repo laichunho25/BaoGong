@@ -229,6 +229,10 @@ CLAIM_EVIDENCE_RETENTION_DAYS = env.int("CLAIM_EVIDENCE_RETENTION_DAYS", default
 # COMPLIANCE section 4 states 90 days for NNC1 uploads outright. Configurable
 # only downwards in practice: a longer window would need a reason in the PICS.
 NNC1_RETENTION_DAYS = env.int("NNC1_RETENTION_DAYS", default=90)
+# COMPLIANCE section 3: a company's dispute against a review is handled within
+# five working days. Settable so the promise and the queue's deadline can never
+# drift apart - if the published commitment changes, this is the one place.
+DISPUTE_SLA_BUSINESS_DAYS = env.int("DISPUTE_SLA_BUSINESS_DAYS", default=5)
 # Prefix of the DNS TXT record / meta tag value a company publishes to prove it
 # controls the website it claims.
 CLAIM_SITE_VERIFICATION_KEY = "qs-site-verification"
