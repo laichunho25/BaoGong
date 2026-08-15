@@ -40,6 +40,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.permissions import is_moderator, is_provider_member
+from apps.agents import tasks as agent_tasks
 from apps.core.scanning import ScanStatus, get_scanner
 from apps.providers.models import Provider
 from apps.providers.services import recompute_ranking_inputs
@@ -137,6 +138,14 @@ def submit_review(
     ReviewScore.objects.create(
         review=review, **{field: scores.get(field) for field in SCORE_FIELDS}
     )
+
+    # A4 reads the review and files its opinion beside it (P4-3). Dispatched
+    # here rather than from the view so that every path which creates a review
+    # gets the same treatment, and after commit so the worker cannot arrive
+    # before the row it is meant to read. The review is already in the human
+    # queue; nothing waits on this, and if it never runs the queue just loses
+    # its sort order.
+    transaction.on_commit(lambda: agent_tasks.moderate_review.delay(str(review.pk)))
     return review
 
 

@@ -252,6 +252,13 @@ ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 # decimal caster, so parse it explicitly.
 AGENT_BUDGET_DAILY_USD = Decimal(env("AGENT_BUDGET_DAILY_USD", default="20"))
 
+# COMPLIANCE section 8 requires every agent to be switchable off. The global
+# one first, then one per agent; a switched-off agent runs its rule-based
+# fallback, so turning one off degrades the platform rather than breaking it.
+AGENTS_ENABLED = env.bool("AGENTS_ENABLED", default=True)
+AGENT_ENABLED_REVIEW_MODERATION = env.bool("AGENT_ENABLED_REVIEW_MODERATION", default=True)
+AGENT_ENABLED_NNC1_EXTRACTION = env.bool("AGENT_ENABLED_NNC1_EXTRACTION", default=True)
+
 TCSP_CSV_URL = env(
     "TCSP_CSV_URL",
     default="https://www.tcsp.cr.gov.hk/open-data/licensees.csv",

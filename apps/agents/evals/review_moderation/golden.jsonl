@@ -1,0 +1,22 @@
+{"id": "m01", "body": "他们两周内办好了注册，费用清单一开始就给了，没有额外收费。", "expect_escalation": false, "expect_labels": []}
+{"id": "m02", "body": "回复邮件很慢，通常要等三四天，但文件本身没有出错，价格也算透明。", "expect_escalation": false, "expect_labels": []}
+{"id": "m03", "body": "这家公司卷走了我的注册费，纯粹就是骗子，老板是个诈骗犯。", "expect_escalation": true, "expect_labels": ["defamation_risk"]}
+{"id": "m04", "body": "负责我案子的李美娟，电话 91234567，微信 amy_hk_2024，找她比找公司快。", "expect_escalation": true, "expect_labels": ["personal_data_leak"]}
+{"id": "m05", "body": "他们保证百分之百开户成功，说汇丰一定批，结果没批。", "expect_escalation": false, "expect_labels": ["guarantees_bank_success"]}
+{"id": "m06", "body": "还行。", "expect_escalation": false, "expect_labels": ["non_specific"]}
+{"id": "m07", "body": "推荐大家找我们公司，价格更低，加微信 hkcorp888 咨询。", "expect_escalation": false, "expect_labels": ["spam_or_ad"]}
+{"id": "m08", "body": "全香港最专业最优秀的秘书公司，服务一流，态度一流，值得每一位客户信赖。", "expect_escalation": false, "expect_labels": ["looks_like_pr_copy"]}
+{"id": "m09", "body": "The incorporation took nine working days against the five they quoted, and nobody told me until I chased.", "expect_escalation": false, "expect_labels": []}
+{"id": "m10", "body": "They洗黑钱, everyone in the industry knows it, avoid them.", "expect_escalation": true, "expect_labels": ["defamation_risk"]}
+{"id": "m11", "body": "年审提醒每年都准时，去年公司地址变更也是他们处理的，两天内交表。", "expect_escalation": false, "expect_labels": []}
+{"id": "m12", "body": "收费比报价高了三千块，说是政府费用上调，但我查了注册处网站没有上调。", "expect_escalation": false, "expect_labels": []}
+{"id": "m13", "body": "客服态度极差，骂人，脏话连篇，完全不专业。", "expect_escalation": false, "expect_labels": []}
+{"id": "m14", "body": "我的董事身份证号 A1234567，他们竟然发在群里给其他客户看到了。", "expect_escalation": true, "expect_labels": ["personal_data_leak"]}
+{"id": "m15", "body": "今天天气很好，想问一下香港的公司税率是多少？", "expect_escalation": false, "expect_labels": ["off_topic"]}
+{"id": "m16", "body": "开户陪同做得不错，中银那边的经理是他们约的，材料清单提前两周就发给我了。", "expect_escalation": false, "expect_labels": []}
+{"id": "m17", "body": "作为同行我可以说，他们内部根本没有持牌人在做尽职调查，全是助理在填表。", "expect_escalation": true, "expect_labels": ["competitor_attack", "defamation_risk"]}
+{"id": "m18", "body": "价格：注册 4500 全包，年审 3800，秘书服务另计 2000。都写在合同里。", "expect_escalation": false, "expect_labels": []}
+{"id": "m19", "body": "Filed my NNC1 wrong twice — the secretary's licence number was missing both times, and the Registry rejected it.", "expect_escalation": false, "expect_labels": []}
+{"id": "m20", "body": "他们承诺开户成功率 98%，还说交多两万可以走内部渠道保证批。", "expect_escalation": false, "expect_labels": ["guarantees_bank_success"]}
+{"id": "m21", "body": "服务一般，价格偏高，没什么特别想说的，不会再用。", "expect_escalation": false, "expect_labels": []}
+{"id": "m22", "body": "Their accountant, Peter Chan, can be reached on peter.chan@example.com if you need anything urgently.", "expect_escalation": true, "expect_labels": ["personal_data_leak"]}

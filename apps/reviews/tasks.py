@@ -6,6 +6,7 @@ import logging
 
 from celery import shared_task
 
+from apps.agents.tasks import extract_nnc1
 from apps.providers.models import Provider
 from apps.reviews.models import Nnc1Verification
 from apps.reviews.services import (
@@ -90,6 +91,13 @@ def process_nnc1(verification_id: str) -> str:
 
     scan_nnc1(verification)
     run_name_match(verification)
+
+    # A3 reads the document only once it is known to be safe to open (P4-3).
+    # A separate task so that a failing vision call cannot cause the scan and
+    # the name match - the two things a moderator actually needs - to be run
+    # again from the top.
+    if verification.is_readable:
+        extract_nnc1.delay(str(verification.pk))
     return str(verification.scan_status)
 
 

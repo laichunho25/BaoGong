@@ -8,7 +8,7 @@
 | **P1 registry** | `Licensee/SyncRun/LicenseeChange`、下載+sanity check+upsert+diff、Celery beat、admin、管理指令 `sync_tcsp` / `registry_health`、除名通知 | 名單入庫，可重跑冪等 | ✅ |
 | **P2 目錄前台** | `providers` app（Provider/ServiceOffering/PriceItem/Certification）、每日回填、列表頁（HTMX 搜尋/篩選/排序/分頁）、詳情頁、`/compare/`、來源與評分元件、sitemap/robots | 可公開瀏覽的 MVP | ✅ |
 | **P3 帳號 + 認領** | User/角色、郵箱註冊登入（手機為選填欄位）、`ProviderMember` 權限、`ProviderClaim` + `ClaimEvidence` 流程（私有儲存、MIME/大小驗證、可插拔病毒掃描、網站 TXT/meta 驗證、90 日保留期）、moderator 佇列（客製 admin，理由必填）、批准後發 `tcsp_licence` | 秘書公司可認領 | ✅ |
-| **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ⬜** Dispute、A3 + A4 agent | 已驗證評價可上線 | 🔵 |
+| **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ✅** `agents.BaseAgent` + `AgentRun`/`AgentFeedback` + 三段 kill switch + Decimal 成本記帳、A4 評價審核（建議而非放行，排序人工佇列）、A3 NNC1 抽取（讀數擺在規則比對旁邊，不碰 `result`）、唯讀 run log admin、22 筆合成 golden set · **Dispute ⬜**（順延） | 已驗證評價可上線 | 🔵 |
 | **P5 RFQ 撮合** | Rfq/Quote/QuoteLineItem/QuotaLedger、需求牆、報價表單、比較表、**A1 + A5 agent**、每日 3 單額度 | 撮合閉環 | ⬜ |
 | **P6 匹配 + 內容** | **A2 MatchingAgent**、pgvector + content app、**A6 AdvisorAgent**、教育文章 CMS、**A7 RegistryDiffAgent** | AI 完整上線 | ⬜ |
 | **P7 商業化** | Plan/Subscription/CreditPack、Stripe（或 Airwallex）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
@@ -55,7 +55,11 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P4] 核驗結果不發通知` — 通過或不通過，評價者都要自己回「我的評價」才看得到，理由也只在那頁 — 與下面兩條通知債同一件事，一起做郵件模板。
 - `[P4] 本機沒有病毒掃描器，等於所有 NNC1 都不可讀` — 預設 `UnavailableScanner`（fail-closed），沒部署 ClamAV 前 moderator 打不開任何文件，也就通不過任何核驗 — 與 P3 的認領證明同一個阻塞點，部署時一起解。
 - `[P4] 評價提交與審核都不發通知` — 買家不知道自己的評價過了沒，公司不知道自己被評價了 — 與 `[P3] 認領審核沒有任何通知` 同一件事，一起做郵件模板（決策理由要寄出）。
-- `[P4] 審核佇列純人手，A4 尚未接上` — `Review.moderation` 恆為空 dict，admin 顯示「rule-based queue」 — P4-3；接上後仍是建議，改變 `status` 的必須是人（CLAUDE.md §4.3）。
+- ~~`[P4] 審核佇列純人手，A4 尚未接上`~~ — P4-3 已接上：`submit_review` 於 `on_commit` 派發 A4，結果寫進 `Review.moderation`。**改變 `status` 的仍然只有人**，A4 只決定佇列順序（`escalation_reason`）。
+- `[P4] A4 不會 auto-publish，與 AI_AGENTS §A4 原規劃不同` — 原文允許 `severity=none` + `confidence ≥ 0.8` + 已驗證用戶自動發佈；實作沒做，因為那與 CLAUDE.md 規則 3 及 `publish_review` 的具名審核員＋必填理由衝突 — **這是政策決定不是技術債**，要開的話是一個開關加一句「誰為 agent 放行的評價負責」，跟我說即可。
+- `[P4] A4 / A3 都還沒有真實 eval 資料` — A4 只有 22 筆合成 golden（量的是規則有沒有壞，不是模型準不準），A3 完全沒有；AI_AGENTS 要求的是 50 筆標註評價與 20 份去識別化 NNC1 — **在補齊之前不要把 `AGENT_ENABLED_*` 打開到生產**，否則等於把沒量過準確率的讀數擺到審核員眼前，而他們會相信它。
+- `[P4] 沒有人在看 fallback 率` — `selectors.health(days=7)` 寫好了但沒有人／沒有告警去讀它，所以 agent 可以連續一個月完全沒被呼叫而畫面一切正常 — 與 `[P1] sanity check 告警只寫 logger.critical` 同一件事，P8 接告警通道時一起做。
+- `[P4] 每日預算是全域而非逐 agent` — `AGENT_BUDGET_DAILY_USD` 用完是所有 agent 一起走 fallback，所以一個跑掉的高頻 agent 會餓死審核 — 有第三個 agent（P5）之後再拆成逐 agent 額度。
 - `[P4] 時間衰減權重未實作` — RATING_SYSTEM §2 規劃「24 個月以上權重 0.5」，v1 沒做 — 它上線當天會改動全站每一個分數，而目前沒有足夠評價量支撐這個代價；有量之後再開，開的時候要跑 `reviews.recompute_all_ratings`。
 - `[P4] 評價不能修改，只能重寫一則` — 一人一公司一則是硬約束，作者寫錯了只能請 moderator 下架 — 編輯流程要有自己的版本軌跡（誰在什麼時候改了什麼），是一個獨立功能，P7 再評估。
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。

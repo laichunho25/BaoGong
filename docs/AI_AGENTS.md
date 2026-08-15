@@ -12,6 +12,36 @@
 5. **每個 agent 必須有 eval**：`apps/agents/evals/{name}/golden.jsonl` ≥ 20 筆，附通過門檻。
 6. **PII 最小化**：送進 LLM 前先 redact 身分證號、護照號、電話、完整地址（除非該 agent 必需）。
 
+## 實作進度（截至 P4-3）
+
+| Agent | 狀態 | Prompt | Eval |
+|---|---|---|---|
+| A1 RfqIntake | 未做（P5） | — | — |
+| A2 Matching | 未做（P5） | — | — |
+| A3 Nnc1Extraction | ✅ 已實作 | `nnc1_extract_v1.md` | ❌ 欠 20 份去識別化樣本 |
+| A4 ReviewModeration | ✅ 已實作（**有偏離，見該節**） | `moderation_v1.md` | ⚠️ 22 筆合成 golden，欠 50 筆真實標註 |
+| A5 QuoteAnalysis | 未做（P5） | — | — |
+| A6 / A7 | 未做 | — | — |
+
+共用基礎設施已完成：`base.py::BaseAgent`（強制 tool use、指數退避、逐條路徑 fallback）、
+`pricing.py`（Decimal 價目表）、`redaction.py`、`schemas.py`、`registry.py`、
+`selectors.health()`、`AgentRun` / `AgentFeedback` 與其唯讀 admin。
+
+### fallback 是正常結果，不是錯誤
+
+kill switch 關掉、沒 API key、當日預算用完、API 連續失敗、回傳不合 schema——
+五條路全部收斂到同一個 `fallback()`，寫 `status=fallback` + `fallback_reason`。
+系統因此永遠答得出東西。**真正的失敗模式是沒有人在看 fallback 率**：
+agent 可以連續一個月完全沒被呼叫過，而畫面上看起來一切正常。
+`selectors.health(days=7)` 就是為了讓那件事被問出來而存在的。
+
+### 三段 kill switch（COMPLIANCE §8）
+
+`AGENTS_ENABLED`（全域）→ `AGENT_ENABLED_{NAME}`（單一 agent）→ `ANTHROPIC_API_KEY`（沒有就等於關）。
+出事時要能只關掉出事的那一個，而不是為了關掉一個 agent 把整個平台的 AI 停掉。
+`config/settings/test.py` 預設 `AGENTS_ENABLED = False`：測試忘了 patch 時會走規則，
+而不是靜靜地開一個 socket 出去。
+
 ---
 
 ## A1. RfqIntakeAgent — 需求解析
@@ -83,6 +113,20 @@ class MatchingOut(BaseModel):
 
 **用途**：從用戶上傳的 NNC1（法團成立表格）抽出公司秘書資料，用來核驗評價真實性。
 
+> **實作狀態（P4-3）**：`apps/agents/nnc1_extraction.py`，prompt `prompts/nnc1_extract_v1.md`。
+> 由 `reviews.tasks.process_nnc1` 在病毒掃描與規則式姓名比對之後才派發，只寫
+> `Nnc1Verification.extracted / extraction_confidence / agent_run_id_ref` 三欄。
+> **比對邏輯與 `result` 仍然 100% 由規則寫**（P4-2 的 `run_name_match` / `decide_verification`），
+> agent 的讀數只是擺在旁邊給審核員對照的第二意見。
+> 已決案（`is_decided`）不會再讀一次——重讀一份已經有人做過判斷的文件，只會製造推翻它的誘因。
+>
+> **刻意不告訴模型答案**：prompt 裡不含上傳者填的 `declared_secretary_name`。
+> 給了就不是抽取而是確認，那一欄的價值正正在於它獨立於待驗證的宣稱
+> （`test_the_declared_name_is_never_shown_to_the_model`）。
+>
+> **Fallback 的讀數是空的**（全 `None`、`confidence=0.0`、`quality_issues=["not_read"]`），
+> 且 `document_looks_authentic=True`——沒讀到的文件是沒讀到，不是偽造。
+
 - Model: `claude-haiku-4-5-20251001`（vision，直接吃 PDF/圖片）
 - 前置：檔案 ≤ 10MB，PDF/JPG/PNG；先做病毒掃描；存 S3 加密；`purge_at = +90d`。
 - Output schema:
@@ -107,12 +151,39 @@ class Nnc1Out(BaseModel):
 - **紅線**：AI **不判斷文件真偽作為最終結論**；`document_looks_authentic=false` 只會把案件轉 `needs_human`。
 - Fallback: 直接轉 `needs_human`，通知審核員。
 - Eval：20 份去識別化樣本，licence_no 抽取準確率 ≥ 0.95；false-pass rate = 0（寧可 needs_human）。
+  **⚠️ 這 20 份樣本尚未取得**，所以 A3 目前只有單元測試沒有 eval。
+  上線前必須補齊——現在把 `AGENT_ENABLED_NNC1_EXTRACTION` 打開，等於在沒有量過準確率的情況下
+  把讀數擺到審核員眼前，而審核員會相信它。
 
 ---
 
 ## A4. ReviewModerationAgent — 評價審核
 
-**用途**：新評價進來時做風險分類，決定 auto-publish / 轉人工 / 直接擋。
+**用途**：新評價進來時做風險分類，**排序人工佇列**。
+
+> ### ⚠️ 實作偏離本文件（P4-3，刻意的）
+>
+> 本節原本寫「`severity=none` 且 `confidence ≥ 0.8` 且該用戶已驗證 → auto-publish」。
+> **實作沒有做這件事：A4 永遠不會發佈任何評價。** 原因有兩層，兩層都比省下人力重要：
+>
+> 1. CLAUDE.md 規則 3——AI 產出永不直接落 DB 成為事實。「這則評價是安全的」正是一個事實宣稱。
+> 2. P4-1 的 `reviews.services.publish_review` 要求**具名審核員 + 必填理由**。那個簽名不是裝飾：
+>    一則評價會永久掛在一間持牌公司的頁面上，出事時平台要答得出「是誰放行的、憑什麼」。
+>    讓 agent 繞過它，等於讓最有法律風險的一類內容走最沒有人負責的一條路。
+>
+> 所以實作把 `recommended_action` 降格為**建議**，只寫進 `Review.moderation`（JSON），
+> 評價維持 `pending_moderation`，`moderated_by` 維持 `None`。
+> 實際被用到的是 `escalation_reason()`：
+> `high_severity` > `defamation_risk` / `personal_data_leak` > `no_agent_reading` > `routine`，
+> 用來**排序**審核員的佇列（`URGENT_REASONS` 是要先看的那批）。A4 決定的是**看的順序**，不是結果。
+>
+> 這個取捨是可以改的：日後若你要開 auto-publish，那是一個開關 + 一條政策決定
+> （誰在法律上為 agent 放行的評價負責），不是重寫。要開再跟我說。
+>
+> **實作狀態**：`apps/agents/review_moderation.py`，prompt `prompts/moderation_v1.md`，
+> 由 `reviews.services.submit_review` 的 `transaction.on_commit` 派發。
+> 送進模型的 body 是 `redaction.redact()` 之後的版本——A4 不是 COMPLIANCE §4 的例外，
+> 而且遮蔽用的是 `[PHONE]` 這類佔位符而非刪除，模型才看得出「這裡本來有個電話」。
 
 - Model: `claude-sonnet-5`
 - Output schema:
@@ -143,8 +214,16 @@ class ModerationOut(BaseModel):
   - `severity=none` 且 `confidence ≥ 0.8` 且該用戶已驗證 → auto-publish。
   - 其餘 → 人工佇列。
 - **絕不自動刪除**評價；最嚴重也只是 `hidden` + 通知作者。
-- Fallback: 全部進人工佇列。
+- Fallback: 全部進人工佇列。規則式 fallback 抓得到的只有三類——
+  `redact()` 前後不相等 → `personal_data_leak`；命中 banned phrase → `guarantees_bank_success` /
+  `unsubstantiated_claim`；過短 → `non_specific`。`confidence` 固定 0.3，
+  審核員一眼看得出這是關鍵字比對而不是誰讀過。
 - Eval：對 50 條標註樣本，high-severity recall ≥ 0.95（漏放誹謗最貴）。
+  **目前只有 `evals/review_moderation/golden.jsonl` 22 筆合成樣本**（簡中／英文混合，6 筆應升級），
+  門檻寫在 `evals/runner.py`：`ESCALATION_RECALL_THRESHOLD = 0.95`、
+  `MAX_FALSE_ESCALATION_RATE = 0.35`（誤升級只是浪費審核時間，漏升級是上法庭）。
+  合成樣本量的是「規則有沒有壞」，不是「模型準不準」——50 筆真實標註仍然欠著。
+  eval 測試掛 `@pytest.mark.eval`，沒有真 API key 時 skip，所以 CI 不會因為沒 key 而紅。
 
 ---
 

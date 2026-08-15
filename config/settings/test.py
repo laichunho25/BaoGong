@@ -27,8 +27,12 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# Agents must never reach the real API from a test run.
+# Agents must never reach the real API from a test run. The key is a decoy: it
+# is the switch below that stops the call, so that a test which forgets to
+# patch the client falls back to rules instead of opening a socket. Tests that
+# exercise the model path turn AGENTS_ENABLED on and patch `_client`.
 ANTHROPIC_API_KEY = "test-key-not-real"
+AGENTS_ENABLED = False
 
 # The gate is off by default so the suite does not depend on whether the
 # developer's .env happens to carry a Cloudflare key; the tests that exercise

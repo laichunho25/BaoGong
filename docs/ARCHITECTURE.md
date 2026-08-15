@@ -80,46 +80,67 @@ moderator」——都由 `apps/accounts/permissions.py` 從 `ProviderMember` / `
 
 ```
 apps/agents/
-├── base.py            # BaseAgent: run(), _call_llm(), retry, timeout, fallback, logging
-├── registry.py        # AGENTS = {"matching": MatchingAgent, ...} 供 task/view 取用
-├── schemas.py         # pydantic models = LLM structured output 契約
+├── base.py            # BaseAgent: run(), retry, timeout, fallback, AgentRun logging  ✅
+├── registry.py        # AGENTS = {"review_moderation": ..., ...} 供 task/admin 取用    ✅
+├── schemas.py         # pydantic models = LLM structured output 契約                    ✅
+├── pricing.py         # Decimal 價目表 → cost_usd（CLAUDE.md 規則 6）                   ✅
+├── redaction.py       # redact() / hash_input() / summarise_for_log()                   ✅
+├── review_moderation.py   # A4                                                          ✅
+├── nnc1_extraction.py     # A3                                                          ✅
 ├── prompts/
-│   ├── matching_v1.md
-│   ├── rfq_intake_v1.md
-│   ├── moderation_v1.md
-│   ├── nnc1_extract_v1.md
-│   ├── quote_analysis_v1.md
-│   ├── advisor_v1.md
-│   └── registry_diff_v1.md
-├── tools/             # 給 agent 用的 tool functions（查 DB、算分、查牌照）
-├── models.py          # AgentRun, AgentFeedback
-├── evals/             # golden set + pytest-based eval，見 ai-agent-builder skill
-└── tasks.py
+│   ├── moderation_v1.md    ✅
+│   ├── nnc1_extract_v1.md  ✅
+│   └── （matching / rfq_intake / quote_analysis / advisor / registry_diff 待 P5）
+├── tools/             # 給 agent 用的 tool functions（查 DB、算分、查牌照）— 待 A2
+├── models.py          # AgentRun, AgentFeedback                                         ✅
+├── selectors.py       # runs_for(), spend_today(), health()                             ✅
+├── services.py        # 唯一寫入者：moderate_review(), extract_nnc1(), record_feedback() ✅
+├── admin.py           # 唯讀 run log + 三個 verdict action                              ✅
+├── evals/             # golden set + pytest-based eval（`@pytest.mark.eval`）           ✅
+└── tasks.py           # 只做編排                                                        ✅
 ```
 
-`BaseAgent` 契約：
+`BaseAgent` 契約（P4-3 實作後的真實簽名）：
 
 ```python
 class BaseAgent(ABC):
     name: str
     model: str
-    prompt_file: str  # e.g. "matching_v1.md"
+    prompt_file: str  # e.g. "moderation_v1.md"；stem 的 "_v1" 就是 prompt_version
     output_schema: type[BaseModel]
     max_tokens: int = 2048
     timeout_s: int = 30
     max_retries: int = 2
+    backoff_base_s: float = 0.5
+    object_type: str = ""  # e.g. "reviews.Review"，AgentRun 的 generic link
 
     def run(self, ctx: dict) -> AgentResult:
-        """Render prompt -> call LLM with tool-use schema -> validate ->
-        log AgentRun -> return AgentResult(data, confidence, run_id).
-        On failure after retries -> self.fallback(ctx)."""
+        """Hash input -> check kill switches & daily budget -> call LLM with a
+        forced single tool -> validate against output_schema -> log AgentRun ->
+        AgentResult(data, confidence, used_fallback, run_id, fallback_reason).
+        Every failure path routes to self.fallback(ctx, reason); run() never raises."""
 
     @abstractmethod
-    def fallback(self, ctx: dict) -> AgentResult:
-        """Deterministic non-LLM path. MUST be implemented."""
+    def build_user_prompt(self, ctx: dict) -> str | list[dict]:
+        """Text, or content blocks for vision (A3 sends a document/image block)."""
+
+    @abstractmethod
+    def fallback(self, ctx: dict, reason: str) -> BaseModel:
+        """Deterministic non-LLM path. MUST be implemented. Returns the same
+        schema, so callers never branch on whether a model was involved."""
 ```
 
+三點值得知道的實作決定：
+
+- `fallback()` 回傳的是 **`output_schema` 本身**而不是 `AgentResult`。呼叫端因此不必寫
+  「如果有模型就這樣、沒有就那樣」——那種分支正是規則路徑日後腐爛而沒人發現的地方。
+  是不是模型答的，記在 `AgentResult.used_fallback` 與 `AgentRun` 裡，給人看，不給程式分支。
+- `run()` **不會拋例外**。一個評價不該因為 Anthropic 掛了而卡在無人知曉的狀態。
+- `_log()` 自己包在 try/except 裡：稽核寫入失敗不可以把已經拿到的答案弄丟。
+
 **所有 agent 輸出都是「建議」**，寫入時一律進 `status=pending_review` 或 `is_ai_suggested=True`。
+A4 的實作把這條推得更遠——它連 `recommended_action` 都不執行，只用來排序人工佇列，
+理由見 `docs/AI_AGENTS.md` A4 節的偏離說明。
 
 ## 5. 資料流：每日 TCSP 同步
 

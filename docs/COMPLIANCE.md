@@ -89,4 +89,13 @@
 - [ ] 無評價公司不顯示 5.00 分（見 RATING_SYSTEM §4）
 - [ ] 已離開官方名單的公司仍可瀏覽，且每處都渲染 `registry.notices.deregistration_notice()`；文案不含任何暗示執法行動的措辭，並已經律師覆核
 - [ ] DSAR 後台流程可用
-- [ ] Agent kill switch 全部可用
+- [ ] Agent kill switch 全部可用 — P4-3 已落地三段：`AGENTS_ENABLED`（全域）、
+      `AGENT_ENABLED_{NAME}`（逐 agent，目前 `REVIEW_MODERATION` / `NNC1_EXTRACTION`）、
+      沒有 `ANTHROPIC_API_KEY` 即視為關閉。三者都只從環境變數讀，見 `.env.example`。
+      **驗收方式不是「設定存在」而是「關掉之後平台照常運作」**：關掉時 agent 走規則式 fallback，
+      評價照樣進審核佇列、NNC1 照樣可被人手核驗，`AgentRun` 照樣寫一列 `status=fallback`。
+- [ ] 送進 LLM 的評價正文已 redact（A4 不是 §4 的例外；用 `[PHONE]` 這類佔位符而非刪除）
+- [ ] `AgentRun.input_ref` 只存形狀摘要（`body_chars=412`），畫面上看不到評價原文或 NNC1 內容
+- [ ] `AgentRun` 在 admin 不可新增／不可修改／不可刪除（可被改寫的稽核紀錄等於沒有稽核紀錄）
+- [ ] 每個已啟用的 agent 都有跑過 eval 且分數記錄在 `apps/agents/evals/RESULTS.md`
+      （**目前 A3 無 eval、A4 只有合成樣本，兩者都不得在生產啟用**）

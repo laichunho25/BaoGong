@@ -285,14 +285,33 @@ NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評�
 
 ## agents
 
-### AgentRun
+### AgentRun（P4-3 已實作）
 `agent_name`, `model`, `prompt_version`, `input_hash(sha256)`, `input_ref(JSON, 去識別化)`,
-`output(JSON)`, `status(ok|invalid_schema|timeout|error|fallback)`, `confidence(Decimal, null)`,
-`input_tokens`, `output_tokens`, `cost_usd(Decimal 10,6)`, `latency_ms`, `error`,
-`object_type / object_id`（generic link 到觸發對象）
+`output(JSON)`, `status(ok|invalid_schema|timeout|error|fallback)`,
+`fallback_reason(disabled|no_api_key|budget|api_error|invalid_schema|timeout)`,
+`confidence(Decimal 4,3, null)`, `input_tokens`, `output_tokens`, `cost_usd(Decimal 10,6)`,
+`latency_ms`, `attempts`, `error`, `object_type / object_id`（generic link 到觸發對象）
 
-### AgentFeedback
+- **每次呼叫都寫一列，包括根本沒送出去的那些。** kill switch 關掉、沒 API key、預算用完、
+  API 連續失敗——全部走 fallback 並記 `status=fallback` + `fallback_reason`。
+  `fallback` 不是錯誤狀態，是正常結果；真正的失敗是**沒有人在看 fallback 率**
+  （`selectors.health()` 就是為此存在）。
+- `input_ref` **不是** input，是 `redaction.summarise_for_log()` 產出的形狀摘要
+  （`body_chars=412` 而非 body 本身）。這張表是拿來看成本與延遲的，評價原文與 NNC1 內容不該
+  出現在那個畫面上（COMPLIANCE §4）。
+- `input_hash` 對 payload 做 `sort_keys` 後 sha256：同一輸入永遠同一 hash，重複呼叫看得出來，
+  golden set 也對得回它產生的那一列。
+- `cost_usd` 由 `pricing.py` 的 Decimal 價目表算出（CLAUDE.md 規則 6）。價目表沒有的 model
+  記 0 並把名字丟進 `UNPRICED_MODELS`——不是拋錯，因為「因為缺價格所以不審核評價」是錯的失敗方式。
+- **不可編輯、不可刪除**（admin 三個權限全關）：可以被改寫的稽核紀錄等於沒有稽核紀錄。
+
+### AgentFeedback（P4-3 已實作）
 `agent_run(FK)`, `reviewer(FK)`, `verdict(correct|partially|wrong)`, `notes` ← 餵回 eval set
+
+- `UNIQUE(agent_run, reviewer)`：一個審核員對一次 run 只有一個判斷，改變心意是修正而不是新增一列，
+  否則「這個 agent 準不準」問不出答案。
+- 掛在 run 上而不是被審對象上：日後那則評價被改動，也不會改寫「當時 agent 說了什麼」的歷史。
+- 這是平台唯一非合成的 eval 資料來源。
 
 ---
 
