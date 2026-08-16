@@ -27,6 +27,12 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 NOTIFICATIONS_ENABLED = True
 SITE_URL = "https://testserver.example"
 
+# Pinned: the free allowance is the product's pricing, and the tests that prove
+# the fourth quote of the day is refused would otherwise pass or fail depending
+# on a developer's .env.
+RFQ_FREE_QUOTES_PER_DAY = 3
+RFQ_OPEN_DAYS = 14
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
     "private": {"BACKEND": "django.core.files.storage.InMemoryStorage"},

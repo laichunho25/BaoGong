@@ -227,6 +227,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "reviews.purge_nnc1_documents",
         "schedule": crontab(hour=3, minute=45),
     },
+    # Hourly, not daily: companies pay for the right to answer requests, so a
+    # request that died at 09:00 must not still be costing anybody a quote at
+    # 23:00. The sweep is a bulk update over an indexed column.
+    "expire-open-rfqs-hourly": {
+        "task": "rfq.expire_open_rfqs",
+        "schedule": crontab(minute=5),
+    },
 }
 
 # ---------------------------------------------------------------- claims
@@ -242,6 +249,13 @@ NNC1_RETENTION_DAYS = env.int("NNC1_RETENTION_DAYS", default=90)
 # five working days. Settable so the promise and the queue's deadline can never
 # drift apart - if the published commitment changes, this is the one place.
 DISPUTE_SLA_BUSINESS_DAYS = env.int("DISPUTE_SLA_BUSINESS_DAYS", default=5)
+# PRD section 3.4: a company may answer three requests a day for free, and buy
+# quotes beyond that. The number is the product's pricing, so it lives in one
+# place rather than in the service that spends it.
+RFQ_FREE_QUOTES_PER_DAY = env.int("RFQ_FREE_QUOTES_PER_DAY", default=3)
+# How long a request stays on the wall. Companies spend a scarce daily quota to
+# answer, so a request nobody is waiting on any more has to stop costing them.
+RFQ_OPEN_DAYS = env.int("RFQ_OPEN_DAYS", default=14)
 # Prefix of the DNS TXT record / meta tag value a company publishes to prove it
 # controls the website it claims.
 CLAIM_SITE_VERIFICATION_KEY = "qs-site-verification"

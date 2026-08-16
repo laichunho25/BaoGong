@@ -285,27 +285,53 @@ NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評�
 
 ## rfq
 
-### Rfq
+### Rfq（P5-1 已實作）
 `buyer(FK User)`, `title`, `raw_input(TextField)`（用戶原話）
-`structured(JSON)` ← RFQ Intake Agent 輸出，經用戶確認後鎖定
+`structured(JSON)` ← RFQ Intake Agent 輸出，`is_ai_assisted(bool)`
 `company_type`, `shareholder_nationalities(Array)`, `business_nature`, `services_needed(Array)`,
 `budget_min_minor / budget_max_minor`, `currency`, `timeline`, `needs_bank_account(bool)`, `preferred_banks(Array)`
 `status`: `draft | open | closed | awarded | expired`
-`visibility(public|invited_only)`, `expires_at`
+`visibility(public|invited_only)`, `published_at`, `expires_at`, `closed_at`, `close_reason`
 
-### Quote
-`rfq(FK)`, `provider(FK)`, `first_year_total_minor`, `renewal_total_minor`, `currency`,
-`includes_govt_fee(bool)`, `delivery_days(int)`, `validity_days`, `message`,
+- **需求單上沒有買家。** 沒有姓名、電話、公司名欄位。需求牆上每一家已認領公司都看得到，
+  一面會公佈聯絡方式的牆不是撮合平台，是一份等著被抄走的名單；聯絡一律經平台的 `Quote`。
+- **`structured` 是 A1 的草稿，不是需求本身。** 撮合、篩選、比較表全部只讀旁邊那些有型別的欄位，
+  而那些欄位是買家確認過預填表單之後才寫進去的（CLAUDE.md 規則 3）。
+- `expires_at` 由 `publish_rfq` 依 `RFQ_OPEN_DAYS`（預設 14）寫入，**不可為空**：
+  公司要花每日額度才能報價，一則沒人在等的需求繼續掛在牆上，等於持續在扣別人的錢。
+  過期由 `rfq.expire_open_rfqs` 每小時掃一次，需求牆本身也再過濾一次時間
+  （兩次掃描之間那面牆也必須是對的）。
+
+### Quote（P5-1 已實作）
+`rfq(FK)`, `provider(FK)`, `submitted_by(FK User)`, `first_year_total_minor`,
+`renewal_total_minor(null=續約無此項)`, `currency`, `includes_govt_fee(bool)`, `delivery_days(int)`,
+`validity_days`, `message`, `submitted_at`, `withdrawn_at`, `decided_at`,
 `analysis(JSON)` ← Quote Analysis Agent：`{hidden_fee_risks[], completeness_score, price_percentile, flags[]}`
-`status(submitted|shortlisted|accepted|withdrawn|expired)`
+`status(submitted|shortlisted|accepted|declined|withdrawn|expired)`
 
-### QuoteLineItem
-`quote(FK)`, `label`, `amount_minor`, `unit`, `is_optional`, `note`
-（標準化 label 用 enum，讓比較表同口徑）
+- `UNIQUE(rfq, provider) WHERE status != 'withdrawn'`：一家公司對一則需求只有一個活報價。
+  改價＝撤回再報，否則同一家公司的兩個「首年總價」會同時出現在買家畫面上。
+- 總價與逐項明細**同時存**，不由明細即時加總：報價是公司要負責的一份要約，
+  日後標準項目清單改了，不該回頭改寫一份舊要約的金額。
+- 只有 `claim_status=claimed` 且仍在官方名單上的公司可以報價（`services._check_may_quote`）。
 
-### QuotaLedger
+### QuoteLineItem（P5-1 已實作）
+`quote(FK)`, `label(enum)`, `custom_label`, `amount_minor`, `unit`, `is_optional`, `note`, `ordinal`
+`UNIQUE(quote, label) WHERE label != 'other'`
+
+標準化 label 是**封閉 enum**，比較表才有同口徑；`other` 是逃生口，可重複，
+且不算進「這份報價漏了什麼」的檢查（`selectors.missing_standard_items`，也就是 A5 的規則式 fallback）。
+
+### QuotaLedger（P5-1 已實作）
 `provider(FK)`, `date`, `free_used(int)`, `paid_used(int)`, `paid_balance(int)`
-規則：每日 `free_allowance = 3`；先扣免費再扣付費；`unique(provider, date)`
+規則：每日 `RFQ_FREE_QUOTES_PER_DAY = 3`；先扣免費再扣付費；`unique(provider, date)`
+
+- 是**流水帳**不是計數器：`paid_balance` 為當日結餘，新的一天由 `services._ledger_for`
+  從最近一列結轉。「我公司那天為什麼不能報價」因此有一個帶日期的答案。
+- 只有花掉或買入才會產生一列。讀取（`selectors.quota_state`）**永不寫入**，
+  否則每一家開過需求牆的公司，每一天都會多一列。
+- 額度在**送出**時扣，**撤回不退**（`services.withdraw_quote`）：退了的話，
+  「送出→撤回→送出」就是無限額度，而買家其實每一次都已經收到那份報價了。
 
 ---
 

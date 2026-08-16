@@ -9,7 +9,7 @@
 | **P2 目錄前台** | `providers` app（Provider/ServiceOffering/PriceItem/Certification）、每日回填、列表頁（HTMX 搜尋/篩選/排序/分頁）、詳情頁、`/compare/`、來源與評分元件、sitemap/robots | 可公開瀏覽的 MVP | ✅ |
 | **P3 帳號 + 認領** | User/角色、郵箱註冊登入（手機為選填欄位）、`ProviderMember` 權限、`ProviderClaim` + `ClaimEvidence` 流程（私有儲存、MIME/大小驗證、可插拔病毒掃描、網站 TXT/meta 驗證、90 日保留期）、moderator 佇列（客製 admin，理由必填）、批准後發 `tcsp_licence` | 秘書公司可認領 | ✅ |
 | **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ✅** `agents.BaseAgent` + `AgentRun`/`AgentFeedback` + 三段 kill switch + Decimal 成本記帳、A4 評價審核（建議而非放行，排序人工佇列）、A3 NNC1 抽取（讀數擺在規則比對旁邊，不碰 `result`）、唯讀 run log admin、22 筆合成 golden set · **P4-4 ✅** Dispute（申訴不改動評價任何欄位、`due_at` 以工作天落實 COMPLIANCE §3 的 5 天承諾、逾期在後台印 `OVERDUE`、一則評價同時只有一宗未決申訴由 partial unique constraint 保證、隱藏／移除一律繞回 `hide_review`／`remove_review`；仲裁 agent 未做） | 已驗證評價可上線 | ✅ |
-| **P5 RFQ 撮合** | Rfq/Quote/QuoteLineItem/QuotaLedger、需求牆、報價表單、比較表、**A1 + A5 agent**、每日 3 單額度 | 撮合閉環 | ⬜ |
+| **P5 RFQ 撮合** | **P5-1 ✅** Rfq/Quote/QuoteLineItem/QuotaLedger 資料層與 services／selectors：需求單不帶買家身分、`structured` 只是 A1 草稿、報價以封閉 enum 的逐項明細存放（比較表同口徑）、只有已認領且仍在名單上的公司可報價、每日 3 單額度以流水帳實作（送出即扣、撤回不退、付費結餘跨日結轉）、需求 14 日到期（每小時 beat + 牆上再過濾一次） · **P5-2 ⬜** 需求牆／RFQ 表單／報價表單／比較表 UI 與通知 · **P5-3 ⬜** A1 RfqIntake + A5 QuoteAnalysis | 撮合閉環 | 🟨 |
 | **P6 匹配 + 內容** | **A2 MatchingAgent**、pgvector + content app、**A6 AdvisorAgent**、教育文章 CMS、**A7 RegistryDiffAgent** | AI 完整上線 | ⬜ |
 | **P7 商業化** | Plan/Subscription/CreditPack、Stripe（或 Airwallex）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
 | **P8 上線** | `compliance-review` 全綠、Sentry、備份、負載測試、法律覆核 | Production | ⬜ |
@@ -71,6 +71,12 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P4] 沒有投遞紀錄，也沒有退信處理` — 寄出即忘：`send_notification` 重試三次之後就沒有任何痕跡說某人從來沒收到過申訴結論 — 要真的守住 COMPLIANCE §3，得存一列投遞紀錄並接供應商的 bounce webhook；P8 接郵件供應商時一起做。
 - `[P4] 通知沒有退訂，也沒有寄信頻率上限` — 目前每封都是交易性通知（都是對方等著的答覆），所以沒有退訂是合理的；但 P7 一旦有行銷類郵件，兩者必須分開，且行銷類要有退訂 — 做行銷郵件的那天一起處理。
 - `[P4] 郵件語言是 worker 當下的語言，不是收件人的語言` — 用戶偏好語言沒有存在 `User` 上，所以全部落回 `LANGUAGE_CODE`（簡中） — 與 `[P2] locale/ 仍空` 同一件事，補翻譯時一併加 `User.preferred_language` 並在 `deliver` 裡 `translation.override`。
+- `[P5] 報價與撮合完全沒有通知` — 買家不知道有報價進來、公司不知道自己被選上或被淘汰，全靠自己回來看 — 郵件模板與 `notify` 都已就緒，缺的是可以連過去的頁面，所以跟 P5-2 的 UI 同一批做；那之前 `accept_quote` 對落選的公司是靜默的。
+- `[P5] 額度是每日流水帳，不是可稽核的購買紀錄` — `grant_quote_credits` 直接加 `paid_balance`，沒有「誰在什麼時候付了多少錢買了幾單」 — P7 的 `billing.CreditPack` 落地時，購買要先寫一列付款紀錄再呼叫這個 service，這個 service 本身不改。
+- `[P5] 報價沒有有效期的執行者` — `validity_days` 存了、`valid_until` 算得出來，但沒有任務把過期報價標成 `expired` — 買家畫面上因此會出現一份早就過期的價格；跟需求到期同一個 beat 一起補，P5-2。
+- `[P5] 需求牆對所有已認領公司一視同仁` — 沒有邀請制、沒有排除機制，`invited_only` 有欄位無流程 — A2 匹配（P6）落地前不必做，屆時「誰看得到這則需求」才有依據。
+- `[P5] 買家聯絡方式完全不在系統內` — 這是刻意的（COMPLIANCE §4），代價是報價之後雙方要怎麼繼續談，目前平台沒有答案 — 站內訊息是 P7 的事；在那之前，成交後的聯絡方式交換要有一個明確、買家按過同意的動作。
+- `[P5] responsiveness_score 仍然沒有寫入者` — P5-1 存了 `submitted_at`，但沒有人拿它去算「這家公司多久回一則需求」 — 排序權重 §5 那 0.08 依舊對所有公司同值，P5-2 有真實報價流量後補。
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。
 
 ---

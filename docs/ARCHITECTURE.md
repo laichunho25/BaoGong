@@ -40,7 +40,7 @@ qs-platform/
 │   ├── registry/      # Licensee, SyncRun, LicenseeChange
 │   ├── providers/     # Provider, ProviderClaim, ClaimEvidence, ServiceOffering, PriceItem, Certification
 │   ├── reviews/       # Review, ReviewScore, ReviewReply, Nnc1Verification, Dispute
-│   ├── rfq/           # Rfq, RfqRequirement, Quote, QuoteLineItem, QuotaLedger
+│   ├── rfq/           # Rfq, Quote, QuoteLineItem, QuotaLedger
 │   ├── agents/        # BaseAgent, registry, prompts/, tools/, AgentRun, evals/
 │   ├── billing/       # Plan, Subscription, CreditPack, Invoice, CommissionDisclosure
 │   └── content/       # Article, Faq, Embedding(pgvector), SeoMeta
@@ -188,6 +188,7 @@ CLAMAV_HOST=clamav CLAMAV_PORT=3310
 CLAIM_SITE_VERIFICATION_KEY=qs-site-verification
 SITE_URL=http://localhost:8000 DEFAULT_FROM_EMAIL= NOTIFICATIONS_ENABLED=true
 DISPUTE_SLA_BUSINESS_DAYS=5
+RFQ_FREE_QUOTES_PER_DAY=3 RFQ_OPEN_DAYS=14
 ```
 
 以 `.env.example` 為準，上表只是導覽。證明檔案存**私有 bucket**，只透過會過權限檢查的
