@@ -1,0 +1,19 @@
+{% load i18n %}{% if approved %}{% blocktranslate %}您好，
+
+您对「{{ provider_name }}」的认领申请已通过审核，您现在可以管理该公司的页面。
+
+审核理由：
+{{ reason }}
+
+进入公司管理页：
+{{ url }}{% endblocktranslate %}{% else %}{% blocktranslate %}您好，
+
+您对「{{ provider_name }}」的认领申请未获通过。
+
+审核理由：
+{{ reason }}
+
+补充材料后可以重新提交申请：
+{{ url }}{% endblocktranslate %}{% endif %}
+
+{% include "emails/_footer.txt" %}

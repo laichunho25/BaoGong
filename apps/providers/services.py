@@ -29,6 +29,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.accounts.models import MemberRole, ProviderMember, Role
+from apps.core.notifications import absolute_url, notify
 from apps.core.scanning import READABLE_STATUSES, ScanStatus, get_scanner
 from apps.providers.models import (
     Certification,
@@ -478,7 +479,27 @@ def approve_claim(*, claim: ProviderClaim, reviewer: User, reason: str) -> Provi
     # The claim fills in profile fields that feed the ranking.
     recompute_ranking_inputs(provider_ids=[str(provider.pk)])
     schedule_evidence_purge(claim)
+    _announce_claim_decision(claim, approved=True)
     return claim
+
+
+def _announce_claim_decision(claim: ProviderClaim, *, approved: bool) -> None:
+    """Send the applicant the decision and the reason behind it.
+
+    Only the applicant: a rejected claim proves nothing about who the person
+    is, so telling the company's other members that someone tried to claim
+    their page would leak a stranger's application to them.
+    """
+    notify(
+        template="claim_decided",
+        recipients=[claim.submitted_by.email],
+        context={
+            "provider_name": claim.provider.display_name,
+            "approved": approved,
+            "reason": claim.decision_reason,
+            "url": absolute_url(claim.provider.get_absolute_url()),
+        },
+    )
 
 
 @transaction.atomic
@@ -499,6 +520,7 @@ def reject_claim(*, claim: ProviderClaim, reviewer: User, reason: str) -> Provid
 
     _reset_provider_claim_status(claim.provider, ClaimStatus.REJECTED)
     schedule_evidence_purge(claim)
+    _announce_claim_decision(claim, approved=False)
     return claim
 
 

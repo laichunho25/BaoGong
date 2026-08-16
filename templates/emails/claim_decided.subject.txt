@@ -1,0 +1,1 @@
+{% load i18n %}{% if approved %}{% blocktranslate %}您对 {{ provider_name }} 的认领申请已通过{% endblocktranslate %}{% else %}{% blocktranslate %}您对 {{ provider_name }} 的认领申请未通过{% endblocktranslate %}{% endif %}

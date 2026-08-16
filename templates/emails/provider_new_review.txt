@@ -1,0 +1,12 @@
+{% load i18n %}{% blocktranslate %}您好，
+
+「{{ provider_name }}」的页面上发布了一条新的评价。
+
+查看并回复：
+{{ url }}{% endblocktranslate %}
+
+{% blocktranslate %}您可以在评价下方公开回复，回复立即生效、不需要审核。
+如果您认为这条评价不应存在（例如对方从来不是您的客户），可以提出申诉——
+提出申诉不会隐藏评价，我们会在 {{ sla_days }} 个工作日内处理并附上理由。{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}

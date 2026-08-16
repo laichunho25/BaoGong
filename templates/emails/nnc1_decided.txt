@@ -1,0 +1,21 @@
+{% load i18n %}{% if passed %}{% blocktranslate %}您好，
+
+您为「{{ provider_name }}」评价上传的 NNC1 文件已通过核验，该评价现已标记为「已验证」，并计入公司评分。
+
+核验理由：
+{{ reason }}
+
+查看我的评价：
+{{ url }}{% endblocktranslate %}{% else %}{% blocktranslate %}您好，
+
+您为「{{ provider_name }}」评价上传的 NNC1 文件未通过核验。评价仍然公开，但不会标记为「已验证」，也不计入公司评分。
+
+核验理由：
+{{ reason }}
+
+您可以重新上传文件：
+{{ url }}{% endblocktranslate %}{% endif %}
+
+{% blocktranslate %}按照个人资料条例，该文件将在决定后 {{ retention_days }} 天内删除，我们只保留核验结论与理由。{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}

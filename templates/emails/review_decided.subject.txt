@@ -1,0 +1,1 @@
+{% load i18n %}{% if status == "published" %}{% blocktranslate %}您对 {{ provider_name }} 的评价已发布{% endblocktranslate %}{% elif status == "hidden" %}{% blocktranslate %}您对 {{ provider_name }} 的评价已被隐藏{% endblocktranslate %}{% else %}{% blocktranslate %}您对 {{ provider_name }} 的评价已被移除{% endblocktranslate %}{% endif %}

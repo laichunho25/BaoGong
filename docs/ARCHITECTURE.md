@@ -76,6 +76,20 @@ moderator」——都由 `apps/accounts/permissions.py` 從 `ProviderMember` / `
 審核佇列。規則（moderator 身分、檔案須經掃描、理由不得為空）一律寫在 `services.py`，admin
 只是眾多呼叫者之一，因此換介面時規則不會跟著消失。
 
+**通知**：`apps/core/notifications.py` + `core.send_notification` task，模板在 `templates/emails/`
+（`<name>.subject.txt` 與 `<name>.txt` 分開，翻譯者不必猜哪一行是主旨）。三條規則：
+
+1. **通知永遠不能推翻決定**。一律 `transaction.on_commit` 丟給 worker，SMTP 連不上不會
+   把審核員的決定 rollback，也不會在資料落地前先寄出去。
+2. **只帶結論與連結，不帶證據**。郵件會經過我們控制不了的中繼站，所以評價正文、NNC1 欄位、
+   上傳檔名一律不進郵件（CLAUDE.md 規則 5）；要看內容請登入。
+3. **理由一定跟著結論走**。每一處決定都強制填理由，就是因為有人在等這個理由；
+   把它留在一個對方要自己想到才會回來看的頁面上，等於沒有寄。
+
+呼叫方式是 service 呼叫 `notify(template=..., recipients=..., context=...)`，
+context 必須可 JSON 序列化（會在呼叫端就檢查，傳 model instance 要當場失敗，而不是四小時後
+在 retry loop 裡失敗）。`NOTIFICATIONS_ENABLED` 只為資料回填而存在，不是生產開關。
+
 ## 4. AI Agent 架構
 
 ```
@@ -172,6 +186,8 @@ S3_PRIVATE_BUCKET= PRIVATE_FILE_URL_TTL=300
 FILE_SCANNER_BACKEND=apps.core.scanning.UnavailableScanner
 CLAMAV_HOST=clamav CLAMAV_PORT=3310
 CLAIM_SITE_VERIFICATION_KEY=qs-site-verification
+SITE_URL=http://localhost:8000 DEFAULT_FROM_EMAIL= NOTIFICATIONS_ENABLED=true
+DISPUTE_SLA_BUSINESS_DAYS=5
 ```
 
 以 `.env.example` 為準，上表只是導覽。證明檔案存**私有 bucket**，只透過會過權限檢查的

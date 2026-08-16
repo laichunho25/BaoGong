@@ -134,6 +134,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="QS Matching <no-reply@example.com>")
 
+# Notification mail is sent from workers, which have no request to build links
+# from. A relative link in a mail is a dead link.
+SITE_URL = env("SITE_URL", default="http://localhost:8000")
+
+# The switch is for data work, not for production: a backfill that re-decides
+# a thousand rows should not mail a thousand people about decisions that were
+# already communicated months ago.
+NOTIFICATIONS_ENABLED = env.bool("NOTIFICATIONS_ENABLED", default=True)
+
 # ---------------------------------------------------------------- i18n
 # UI copy targets mainland-China buyers -> Simplified Chinese is the default.
 # See CLAUDE.md section 6.

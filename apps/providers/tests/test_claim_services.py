@@ -10,9 +10,10 @@ register).
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
+from django.core import mail
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -369,6 +370,51 @@ class TestDecisions:
         assert provider.claim_status == ClaimStatus.REJECTED
         # COMPLIANCE section 4: the clock starts at the decision, not at upload.
         assert evidence.purge_at is not None
+
+    def test_the_applicant_is_told_the_decision_and_the_reason(
+        self,
+        django_capture_on_commit_callbacks: Callable[..., Any],
+        make_provider: Callable[..., Provider],
+        make_user: Callable[..., User],
+        make_upload: Callable[..., SimpleUploadedFile],
+        moderator: User,
+    ) -> None:
+        """The reason is mandatory precisely because someone is owed it. Leaving
+        it on a dashboard page the applicant has to think to revisit makes the
+        requirement decorative."""
+        applicant = make_user(email="applicant@example.com")
+        claim = _submit(make_provider(), applicant)
+        _attach(claim, make_upload(), clean=True)
+
+        with django_capture_on_commit_callbacks(execute=True):
+            services.approve_claim(
+                claim=claim, reviewer=moderator, reason="BR matches the register"
+            )
+
+        [message] = mail.outbox
+        assert message.to == ["applicant@example.com"]
+        assert "BR matches the register" in message.body
+
+    def test_a_refused_applicant_is_told_why_and_nobody_else_is_told_at_all(
+        self,
+        django_capture_on_commit_callbacks: Callable[..., Any],
+        make_provider: Callable[..., Provider],
+        make_user: Callable[..., User],
+        moderator: User,
+    ) -> None:
+        """A refused claim proves nothing about who the applicant is, so the
+        company's real members must not learn that a stranger applied."""
+        provider = make_provider()
+        member = make_user(email="owner@example.com")
+        ProviderMember.objects.create(user=member, provider=provider)
+        claim = _submit(provider, make_user(email="stranger@example.com"))
+
+        with django_capture_on_commit_callbacks(execute=True):
+            services.reject_claim(claim=claim, reviewer=moderator, reason="Name does not match")
+
+        [message] = mail.outbox
+        assert message.to == ["stranger@example.com"]
+        assert "Name does not match" in message.body
 
     def test_only_the_applicant_may_withdraw(
         self,

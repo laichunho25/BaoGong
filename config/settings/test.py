@@ -21,6 +21,12 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
+# Left on: the point of most notification tests is that a decision produces a
+# mail with the moderator's reason in it, and a suite that ships with them
+# muted would pass on the day someone deletes the dispatch.
+NOTIFICATIONS_ENABLED = True
+SITE_URL = "https://testserver.example"
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
     "private": {"BACKEND": "django.core.files.storage.InMemoryStorage"},

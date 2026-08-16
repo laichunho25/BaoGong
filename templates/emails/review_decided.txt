@@ -1,0 +1,27 @@
+{% load i18n %}{% if status == "published" %}{% blocktranslate %}您好，
+
+您对「{{ provider_name }}」的评价已通过审核并发布。
+
+审核理由：
+{{ reason }}
+
+上传 NNC1 文件可让这条评价被标记为「已验证」并计入公司评分：
+{{ url }}{% endblocktranslate %}{% elif status == "hidden" %}{% blocktranslate %}您好，
+
+您对「{{ provider_name }}」的评价已被隐藏，目前不在公司页面上显示。评价内容并未删除。
+
+审核理由：
+{{ reason }}
+
+如果您认为这个处理有误，可以在「我的评价」页面回复我们：
+{{ url }}{% endblocktranslate %}{% else %}{% blocktranslate %}您好，
+
+您对「{{ provider_name }}」的评价已被移除。
+
+审核理由：
+{{ reason }}
+
+如果您认为这个处理有误，可以在「我的评价」页面回复我们：
+{{ url }}{% endblocktranslate %}{% endif %}
+
+{% include "emails/_footer.txt" %}

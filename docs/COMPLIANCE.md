@@ -31,6 +31,8 @@
   已落實：`reviews.services.raise_dispute` 依 `DISPUTE_SLA_BUSINESS_DAYS`（預設 5，只跳週末）
   寫入 `due_at`，逾期在審核後台的 Deadline 欄印 `OVERDUE`——平台自己違約時，
   違約要出現在做決定的那個畫面上，而不是只出現在給公司看的承諾裡。
+  結案後**主動寄出結論與理由**給該公司全體在職成員（`dispute_decided` 模板）：
+  「處理」指的是給對方一個答覆，一個對方要自己回來查才看得到的結論不算答覆。
 - **提出申訴不會隱藏或刪除評價**，這一點寫在申訴表單的第一行。若送出即隱藏，
   這張表單等於一鍵下架任何不順眼的評價，答辯權就變成了審查權。
   隱藏／移除只發生在 `decide_dispute`，並且繞回 `hide_review`／`remove_review`：
@@ -50,6 +52,9 @@
 - 認領證明檔案（`providers.ClaimEvidence`）同一規則：私有 bucket、只有申請人與 moderator 可取用、
   審核決定後 90 日由 `providers.purge_claim_evidence` 刪除 bytes；**保留該列與 sha256**，
   因為審核紀錄要留，個資不留。未經掃描的檔案一律不可預覽、不可下載。
+- **通知郵件只帶結論、理由與連結，不帶證據**：評價正文、NNC1 自述欄位、上傳檔名一律不進郵件
+  （`apps/core/notifications.py`，有測試）。郵件會經過我們控制不了的中繼站與信箱，
+  把私有 bucket 守得再緊，也擋不住一封把內容抄進去的通知。
 - 用戶可要求查閱／更正／刪除其個資 → 後台必須有 DSAR 處理介面。
 - **不得**把用戶個資或 NNC1 原文送給 LLM 供應商以外的第三方；送 LLM 前做 PII redaction（除 NNC1 抽取這個必要用途）。
 - Anthropic API 用量不做 training（確認 commercial terms）。
@@ -97,6 +102,8 @@
 - [ ] 已離開官方名單的公司仍可瀏覽，且每處都渲染 `registry.notices.deregistration_notice()`；文案不含任何暗示執法行動的措辭，並已經律師覆核
 - [ ] 申訴佇列沒有逾期列（`reviews.selectors.overdue_disputes()` 回空），
       且申訴表單上「提交申訴不會隱藏評價」那句仍在第一行（§3）
+- [ ] 每一處「理由必填」的決定都真的把理由寄了出去（認領、評價、NNC1 核驗、申訴四處），
+      而寄出去的郵件裡沒有評價正文、NNC1 欄位或檔名（§4）
 - [ ] DSAR 後台流程可用
 - [ ] Agent kill switch 全部可用 — P4-3 已落地三段：`AGENTS_ENABLED`（全域）、
       `AGENT_ENABLED_{NAME}`（逐 agent，目前 `REVIEW_MODERATION` / `NNC1_EXTRACTION`）、

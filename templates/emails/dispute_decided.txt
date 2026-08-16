@@ -1,0 +1,15 @@
+{% load i18n %}{% blocktranslate %}您好，
+
+「{{ provider_name }}」就一条评价提出的申诉已经处理完毕。{% endblocktranslate %}
+
+{% if decision == "keep" %}{% translate "处理结果：维持原评价" %}{% elif decision == "amend" %}{% translate "处理结果：暂时隐藏，待作者修改" %}{% elif decision == "hide" %}{% translate "处理结果：隐藏该评价" %}{% else %}{% translate "处理结果：移除该评价" %}{% endif %}
+
+{% blocktranslate %}处理理由：
+{{ note }}{% endblocktranslate %}
+
+{% if decision == "keep" %}{% blocktranslate %}这条评价将继续公开显示。您仍然可以在评价下方公开回复——回复不需要审核，立即生效。{% endblocktranslate %}{% else %}{% blocktranslate %}这条评价已不再公开显示。评价内容并未销毁，处理记录会保留。{% endblocktranslate %}{% endif %}
+
+{% blocktranslate %}查看公司页面：
+{{ url }}{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}

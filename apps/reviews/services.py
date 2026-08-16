@@ -44,8 +44,10 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.permissions import is_moderator, is_provider_member
+from apps.accounts.selectors import provider_member_emails
 from apps.agents import tasks as agent_tasks
 from apps.core.dates import business_days_from
+from apps.core.notifications import absolute_url, notify
 from apps.core.scanning import ScanStatus, get_scanner
 from apps.providers.models import Provider
 from apps.providers.services import recompute_ranking_inputs
@@ -169,7 +171,8 @@ def _decide(*, review: Review, moderator: User, status: str, note: str) -> Revie
     review.moderation_note = note.strip()
     review.moderated_by = moderator
     review.moderated_at = timezone.now()
-    if status == ReviewStatus.PUBLISHED and review.published_at is None:
+    first_publication = status == ReviewStatus.PUBLISHED and review.published_at is None
+    if first_publication:
         review.published_at = timezone.now()
     review.save(
         update_fields=[
@@ -182,7 +185,45 @@ def _decide(*, review: Review, moderator: User, status: str, note: str) -> Revie
         ]
     )
     recompute_provider_rating(str(review.provider_id))
+    _announce_review_decision(review, first_publication=first_publication)
     return review
+
+
+def _announce_review_decision(review: Review, *, first_publication: bool) -> None:
+    """Tell the author what was decided, and the company only once it is public.
+
+    The company hears about a review when it is published, never when it is
+    submitted. A mail at submission time would hand a named business the
+    identity of a customer who has complained about them, days before anyone
+    has checked whether the complaint is fair - and the pressure that invites
+    would arrive before the platform had formed a view.
+
+    ``first_publication`` keeps a review that is hidden and later restored from
+    being announced twice as new.
+    """
+    from django.urls import reverse
+
+    provider_name = review.provider.display_name
+    notify(
+        template="review_decided",
+        recipients=[review.author.email],
+        context={
+            "provider_name": provider_name,
+            "status": str(review.status),
+            "reason": review.moderation_note,
+            "url": absolute_url(reverse("reviews:my_reviews")),
+        },
+    )
+    if first_publication:
+        notify(
+            template="provider_new_review",
+            recipients=provider_member_emails(review.provider),
+            context={
+                "provider_name": provider_name,
+                "url": absolute_url(review.provider.get_absolute_url()),
+                "sla_days": settings.DISPUTE_SLA_BUSINESS_DAYS,
+            },
+        )
 
 
 def publish_review(*, review: Review, moderator: User, note: str) -> Review:
@@ -324,6 +365,22 @@ def decide_dispute(
     dispute.decided_at = timezone.now()
     dispute.save(
         update_fields=["decision", "decision_note", "decided_by", "decided_at", "updated_at"]
+    )
+
+    # Everyone who can act for the company, not only whoever clicked the
+    # button: staff leave, and COMPLIANCE section 3's promise is made to the
+    # company. The author was already told by hide_review / remove_review;
+    # nothing extra is sent for KEEP, which would only inform them that
+    # somebody complained about their review and lost.
+    notify(
+        template="dispute_decided",
+        recipients=provider_member_emails(dispute.provider),
+        context={
+            "provider_name": dispute.provider.display_name,
+            "decision": str(decision),
+            "note": outcome,
+            "url": absolute_url(dispute.provider.get_absolute_url()),
+        },
     )
     return dispute
 
@@ -583,6 +640,23 @@ def decide_verification(
     review.is_verified = passed
     review.save(update_fields=["is_verified", "updated_at"])
     recompute_provider_rating(str(review.provider_id))
+
+    from django.urls import reverse
+
+    # The uploader is told the outcome and the reason, and nothing that was in
+    # the document: the mail says whether the badge was granted, not what the
+    # moderator read on page 3 (CLAUDE.md rule 5).
+    notify(
+        template="nnc1_decided",
+        recipients=[review.author.email],
+        context={
+            "provider_name": review.provider.display_name,
+            "passed": passed,
+            "reason": verification.review_note,
+            "url": absolute_url(reverse("reviews:my_reviews")),
+            "retention_days": settings.NNC1_RETENTION_DAYS,
+        },
+    )
     return verification
 
 

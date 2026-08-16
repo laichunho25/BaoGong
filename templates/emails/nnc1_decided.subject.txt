@@ -1,0 +1,1 @@
+{% load i18n %}{% if passed %}{% blocktranslate %}您对 {{ provider_name }} 的评价已通过 NNC1 核验{% endblocktranslate %}{% else %}{% blocktranslate %}您对 {{ provider_name }} 的 NNC1 核验未通过{% endblocktranslate %}{% endif %}
