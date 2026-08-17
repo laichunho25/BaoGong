@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "向客户报价" %} - QS Matching{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <div>
+    <a href="{% url 'rfq:detail' rfq.id %}" class="text-sm text-slate-500 underline">&larr; {{ rfq.title }}</a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{% translate "向客户报价" %}</h1>
+    <p class="mt-1 text-sm text-slate-600">
+      {{ provider.display_name }} &middot;
+      {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+    </p>
+  </div>
+
+  {% comment %} Both facts a company needs before it presses Submit: the credit is
+     spent on submission and never comes back, and the price breakdown is what
+     the buyer's comparison table reads. {% endcomment %}
+  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+    <ul class="list-disc space-y-1 pl-5">
+      <li>{% translate "提交即扣除一次报价额度，撤回不退回。" %}</li>
+      <li>{% translate "填写费用明细后，客户才能把贵公司与其他报价按同一口径比较；漏填的项目会显示为空白。" %}</li>
+      <li>{% translate "请勿承诺开户成功率，或使用「保证」「包过」「官方认证」等字眼。" %}</li>
+      <li>{% translate "每个需求每家公司只能有一份有效报价，改价请先撤回再重新报价。" %}</li>
+    </ul>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <div class="space-y-5">
+      {% for field in form %}
+        <div>
+          <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
+            {{ field.label }}
+          </label>
+          <div class="mt-1">{{ field }}</div>
+          {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <fieldset class="space-y-4 rounded-lg border border-slate-200 p-4">
+      <legend class="px-1 text-sm font-medium text-slate-900">{% translate "费用明细" %}</legend>
+      {{ formset.management_form }}
+      {% if formset.non_form_errors %}
+        <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          {{ formset.non_form_errors }}
+        </div>
+      {% endif %}
+      {% for line in formset %}
+        <div class="grid gap-2 border-b border-slate-100 pb-3 sm:grid-cols-4">
+          {% if line.non_field_errors %}
+            <p class="sm:col-span-4 text-xs text-red-600">{{ line.non_field_errors|striptags }}</p>
+          {% endif %}
+          <div class="sm:col-span-2">{{ line.label }}</div>
+          <div>{{ line.amount }}</div>
+          <div>{{ line.unit }}</div>
+          <div class="sm:col-span-2">{{ line.custom_label }}</div>
+          <div class="sm:col-span-2">{{ line.note }}</div>
+          <label class="sm:col-span-4 inline-flex items-center gap-2 text-xs text-slate-600">
+            {{ line.is_optional }}{% translate "可选项，不计入首年总额" %}
+          </label>
+        </div>
+      {% endfor %}
+    </fieldset>
+
+    <button type="submit"
+            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+      {% translate "提交报价（扣除一次额度）" %}
+    </button>
+  </form>
+</div>
+{% endblock %}

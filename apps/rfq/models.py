@@ -341,6 +341,16 @@ class QuoteLineItem(BaseModel):
         return f"{self.label} {self.amount_minor}"
 
     @property
+    def amount(self) -> Money:
+        """The amount in its quote's currency.
+
+        Reads ``quote.currency`` rather than carrying a currency column: a line
+        item priced in a different currency from its own quote is not a case
+        worth supporting, it is a bug worth making impossible.
+        """
+        return Money(self.amount_minor, self.quote.currency)
+
+    @property
     def display_label(self) -> str:
         if self.label == LineItemLabel.OTHER and self.custom_label:
             return self.custom_label

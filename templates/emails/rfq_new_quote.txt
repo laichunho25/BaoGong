@@ -1,0 +1,11 @@
+{% load i18n %}{% blocktranslate %}您好，
+
+「{{ provider_name }}」就您的需求「{{ rfq_title }}」提交了一份报价。
+
+登录查看并与其他报价比较：
+{{ url }}{% endblocktranslate %}
+
+{% blocktranslate %}报价金额与费用明细不随邮件发送，请登录后查看。
+平台会把各家报价按同一口径列出，没有列明的项目会显示为空白——空白不代表免费。{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}

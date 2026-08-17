@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, NamedTuple
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from apps.core.money import Money
+from apps.providers.models import ClaimStatus, Provider
 from apps.rfq.models import (
     LineItemLabel,
     QuotaLedger,
@@ -35,7 +37,6 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
     from apps.accounts.models import User
-    from apps.providers.models import Provider
 
 #: Everything a first-year comparison is expected to price. ``OTHER`` is not
 #: here: an item only one company invented is not a gap in anyone else's quote.
@@ -60,6 +61,33 @@ def open_rfqs() -> QuerySet[Rfq]:
         .annotate(quote_count=Count("quotes", filter=Q(quotes__status__in=LIVE_QUOTE_STATUSES)))
         .order_by("-published_at")
     )
+
+
+def get_rfq(rfq_id: str) -> Rfq | None:
+    return Rfq.objects.filter(pk=rfq_id).select_related("buyer").first()
+
+
+def quotable_providers(user: User) -> list[Provider]:
+    """The companies this user may answer a request for, right now.
+
+    Same three conditions ``services._check_may_quote`` enforces - member,
+    claimed, still on the register - asked ahead of time so a page can decline
+    to show a button rather than show one that always fails. The service keeps
+    checking anyway: this is what to render, not what is allowed.
+    """
+    from apps.accounts.permissions import member_providers
+
+    ids = member_providers(user)
+    if not ids:
+        return []
+    claimed = (
+        Provider.objects.filter(pk__in=ids, claim_status=ClaimStatus.CLAIMED)
+        .select_related("licensee")
+        .order_by("slug")
+    )
+    # ``is_on_register`` follows the licensee row and is not a column, so the
+    # last condition is filtered here rather than in SQL.
+    return [provider for provider in claimed if provider.is_on_register]
 
 
 def rfqs_for_buyer(buyer: User) -> QuerySet[Rfq]:
@@ -133,6 +161,16 @@ class ComparisonCell(NamedTuple):
     amount_minor: int | None
     is_optional: bool
     note: str
+    #: Carried on the cell so a template can render the amount without knowing
+    #: which quote the column belongs to.
+    currency: str = "HKD"
+
+    @property
+    def display(self) -> str:
+        """The amount as text, or empty for "this company did not price it"."""
+        if self.amount_minor is None:
+            return ""
+        return Money(self.amount_minor, self.currency).format()
 
 
 class ComparisonRow(NamedTuple):
@@ -178,6 +216,7 @@ def comparison_rows(quotes: list[Quote]) -> list[ComparisonRow]:
                     amount_minor=found[0] if found else None,
                     is_optional=bool(found[1]) if found else False,
                     note=found[2] if found else "",
+                    currency=quote.currency,
                 )
             )
         rows.append(ComparisonRow(label=label, display_label=str(labels[label]), cells=cells))

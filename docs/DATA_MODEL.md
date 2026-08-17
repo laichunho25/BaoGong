@@ -314,6 +314,9 @@ NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評�
 - 總價與逐項明細**同時存**，不由明細即時加總：報價是公司要負責的一份要約，
   日後標準項目清單改了，不該回頭改寫一份舊要約的金額。
 - 只有 `claim_status=claimed` 且仍在官方名單上的公司可以報價（`services._check_may_quote`）。
+- `expired` 由 `rfq.expire_stale_quotes` 每小時依 `submitted_at + validity_days` 寫入（P5-2），
+  `accepted` 不動：公司寫「有效期 14 日」是它自己的承諾，繼續把它當成有效選項顯示在買家畫面上，
+  就成了平台的不實陳述；但已成交的事不會因為日子到了而失效。
 
 ### QuoteLineItem（P5-1 已實作）
 `quote(FK)`, `label(enum)`, `custom_label`, `amount_minor`, `unit`, `is_optional`, `note`, `ordinal`

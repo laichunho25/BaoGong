@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "发布需求" %} - QS Matching{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "发布需求" %}</h1>
+    <p class="mt-1 text-sm text-slate-600">
+      {% translate "填一次，多家持牌公司按同一口径向您报价。" %}
+    </p>
+  </div>
+
+  {% comment %} The privacy promise is stated before the form, because it is what
+     the buyer is deciding when they decide whether to type. {% endcomment %}
+  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+    <p class="font-medium text-slate-900">{% translate "关于您的隐私" %}</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li>{% translate "需求墙上只显示需求内容，不显示您的姓名、电话或邮箱。" %}</li>
+      <li>{% translate "秘书公司通过平台报价，不会直接拿到您的联系方式。" %}</li>
+      <li>{% translate "需求先保存为草稿，您确认后才会公开。" %}</li>
+      <li>{% translate "本平台不代收代付服务费，选择哪一家、如何签约由您与该公司自行决定。" %}</li>
+    </ul>
+  </div>
+
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    {% for field in form %}
+      <div>
+        <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
+          {{ field.label }}
+        </label>
+        <div class="mt-1 {% if field.field.widget.input_type == 'checkbox' %}text-sm text-slate-700{% endif %}">
+          {{ field }}
+        </div>
+        {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
+      </div>
+    {% endfor %}
+
+    <button type="submit"
+            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+      {% translate "保存草稿" %}
+    </button>
+  </form>
+</div>
+{% endblock %}

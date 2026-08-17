@@ -1,0 +1,1 @@
+{% load i18n %}{% if chosen %}{% blocktranslate %}客户选择了贵公司的报价：{{ rfq_title }}{% endblocktranslate %}{% else %}{% blocktranslate %}需求「{{ rfq_title }}」已有结果{% endblocktranslate %}{% endif %}

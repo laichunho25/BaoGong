@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "需求墙" %} - QS Matching{% endblock %}
+{% comment %} Behind a login and out of the index: the wall is where buyers'
+   requirements sit, and a requirement wall that search engines can read is a
+   requirement wall that gets scraped (COMPLIANCE section 4). {% endcomment %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "需求墙" %}</h1>
+      <p class="mt-1 text-sm text-slate-600">
+        {% translate "客户发布的需求，持牌并已认领的公司可以报价。" %}
+      </p>
+    </div>
+    <a href="{% url 'rfq:create' %}"
+       class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+      {% translate "我要发布需求" %}
+    </a>
+  </div>
+
+  {% comment %} Shown before anything is spent, not after: "还剩 1 次" is a different
+     decision from "刚才那次是最后一次"。 {% endcomment %}
+  {% for provider, quota in quotas %}
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+      <span class="font-medium text-slate-900">{{ provider.display_name }}</span>
+      &middot;
+      {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+      {% if not quota.can_quote %}
+        <span class="text-amber-700">{% translate "（额度已用完，明日恢复或购买额度）" %}</span>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  {% if not can_quote %}
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+      {% translate "只有完成认领、且仍在官方持牌名单上的公司可以报价。" %}
+      <a class="underline" href="{% url 'providers:list' %}">{% translate "查看公司目录" %}</a>
+    </div>
+  {% endif %}
+
+  <ul class="space-y-3">
+    {% for rfq in rfqs %}
+      <li class="rounded-lg border border-slate-200 p-4">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <a class="text-base font-medium text-slate-900 underline"
+             href="{% url 'rfq:detail' rfq.id %}">{{ rfq.title }}</a>
+          <span class="text-xs text-slate-500">
+            {% blocktranslate with n=rfq.quote_count %}已有 {{ n }} 家报价{% endblocktranslate %}
+          </span>
+        </div>
+
+        <p class="mt-2 text-sm text-slate-600">
+          {{ rfq.get_company_type_display }}
+          {% if rfq.business_nature %}&middot; {{ rfq.business_nature }}{% endif %}
+          &middot; {{ rfq.get_timeline_display }}
+        </p>
+
+        <p class="mt-1 text-xs text-slate-500">
+          {% for label in rfq.service_labels %}{{ label }}{% if not forloop.last %} / {% endif %}{% endfor %}
+          {% if rfq.needs_bank_account %} &middot; {% translate "需要开户协助" %}{% endif %}
+        </p>
+
+        <p class="mt-1 text-xs text-slate-400">
+          {% blocktranslate with published=rfq.published_at|date:"Y-m-d" expires=rfq.expires_at|date:"Y-m-d" %}发布于 {{ published }}，{{ expires }} 截止{% endblocktranslate %}
+        </p>
+      </li>
+    {% empty %}
+      <li class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+        {% translate "目前没有开放中的需求。" %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

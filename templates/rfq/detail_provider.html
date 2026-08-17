@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ rfq.title }} - QS Matching{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <div>
+    <a href="{% url 'rfq:wall' %}" class="text-sm text-slate-500 underline">&larr; {% translate "需求墙" %}</a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ rfq.title }}</h1>
+    <p class="mt-1 text-sm text-slate-500">
+      {% blocktranslate with published=rfq.published_at|date:"Y-m-d" expires=rfq.expires_at|date:"Y-m-d" %}发布于 {{ published }}，{{ expires }} 截止{% endblocktranslate %}
+    </p>
+  </div>
+
+  {% comment %} Everything on this page is the requirement. There is no buyer name,
+     phone or company name to render, because those columns do not exist
+     (COMPLIANCE section 4). {% endcomment %}
+  <section class="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
+    <p class="whitespace-pre-line">{{ rfq.raw_input }}</p>
+    <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+      <div><dt class="inline text-slate-500">{% translate "公司类型：" %}</dt><dd class="inline">{{ rfq.get_company_type_display }}</dd></div>
+      <div><dt class="inline text-slate-500">{% translate "时间要求：" %}</dt><dd class="inline">{{ rfq.get_timeline_display }}</dd></div>
+      {% if rfq.business_nature %}
+        <div><dt class="inline text-slate-500">{% translate "业务性质：" %}</dt><dd class="inline">{{ rfq.business_nature }}</dd></div>
+      {% endif %}
+      {% if rfq.shareholder_nationalities %}
+        <div><dt class="inline text-slate-500">{% translate "股东国籍或地区：" %}</dt><dd class="inline">{{ rfq.shareholder_nationalities|join:", " }}</dd></div>
+      {% endif %}
+      <div><dt class="inline text-slate-500">{% translate "需要的服务：" %}</dt><dd class="inline">{% for label in rfq.service_labels %}{{ label }}{% if not forloop.last %} / {% endif %}{% endfor %}</dd></div>
+      {% if rfq.needs_bank_account %}
+        <div><dt class="inline text-slate-500">{% translate "开户：" %}</dt><dd class="inline">{% translate "需要协助" %}{% if rfq.preferred_banks %}（{{ rfq.preferred_banks|join:", " }}）{% endif %}</dd></div>
+      {% endif %}
+      {% if rfq.budget_min or rfq.budget_max %}
+        <div><dt class="inline text-slate-500">{% translate "预算：" %}</dt><dd class="inline">{{ rfq.budget_min|default_if_none:"—" }} ~ {{ rfq.budget_max|default_if_none:"—" }}</dd></div>
+      {% endif %}
+    </dl>
+  </section>
+
+  {% for entry in entries %}
+    <section class="rounded-lg border border-slate-200 p-4 text-sm">
+      <p class="font-medium text-slate-900">{{ entry.provider.display_name }}</p>
+      {% if entry.quote %}
+        <p class="mt-1 text-slate-700">
+          {% translate "贵公司已报价：" %}{{ entry.quote.first_year_total }}
+          &middot; {{ entry.quote.get_status_display }}
+        </p>
+        {% if entry.quote.is_live %}
+          <form method="post" action="{% url 'rfq:quote_withdraw' entry.quote.id %}" class="mt-3">
+            {% csrf_token %}
+            <button type="submit" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700">
+              {% translate "撤回报价" %}
+            </button>
+          </form>
+          <p class="mt-1 text-xs text-slate-500">{% translate "撤回不会退回已用掉的报价额度。" %}</p>
+        {% endif %}
+      {% elif entry.quota.can_quote %}
+        <p class="mt-1 text-slate-600">
+          {% blocktranslate with free=entry.quota.free_remaining paid=entry.quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+        </p>
+        <a href="{% url 'rfq:quote' rfq.id entry.provider.slug %}"
+           class="mt-3 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+          {% translate "向客户报价" %}
+        </a>
+      {% else %}
+        <p class="mt-1 text-amber-700">{% translate "今日报价额度已用完，明日恢复或购买额度后可继续报价。" %}</p>
+      {% endif %}
+    </section>
+  {% empty %}
+    <p class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+      {% translate "只有完成认领、且仍在官方持牌名单上的公司可以报价。" %}
+    </p>
+  {% endfor %}
+</div>
+{% endblock %}

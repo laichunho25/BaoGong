@@ -17,10 +17,12 @@ The quota itself is a running-balance ledger rather than a counter, so the
 question "why could my company not answer that request" has an answer with a
 date on it - see ``_ledger_for``.
 
-Notifications are deliberately absent from this module: the mails that belong
-here (a buyer told a quote arrived, a company told it was chosen) need links to
-pages that do not exist until the RFQ UI lands, and a mail with a dead link in
-it is worse than no mail. Tracked in ROADMAP as P5-2.
+Two things are mailed from here, both for the same reason the moderation
+decisions are: nobody sits refreshing a page waiting to be answered. A buyer is
+told a quote arrived, and every company that spent one of its three daily
+quotes on this request is told whether it was chosen - **including the ones
+that were not**. A marketplace that only mails the winner leaves everyone else
+paying to wait for silence.
 """
 
 from __future__ import annotations
@@ -29,12 +31,15 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.permissions import is_provider_member
+from apps.accounts.selectors import provider_member_emails
 from apps.core.money import Money, MoneyError
+from apps.core.notifications import absolute_url, notify
 from apps.providers.models import ClaimStatus
 from apps.rfq.models import (
     QUOTABLE_STATUSES,
@@ -324,6 +329,19 @@ def submit_quote(
         **fields,
     )
     _write_line_items(quote, line_items)
+
+    # The company's name and a link, and no prices: the buyer reads the offer
+    # signed in, where the comparison table can put it beside the others
+    # (ARCHITECTURE section 3, notification rule 2).
+    notify(
+        template="rfq_new_quote",
+        recipients=[rfq.buyer.email],
+        context={
+            "rfq_title": rfq.title,
+            "provider_name": provider.display_name,
+            "url": absolute_url(reverse("rfq:detail", args=[str(rfq.pk)])),
+        },
+    )
     return quote
 
 
@@ -378,12 +396,58 @@ def accept_quote(*, quote: Quote, buyer: User) -> Quote:
     quote.decided_at = now
     quote.save(update_fields=["status", "decided_at", "updated_at"])
 
-    Quote.objects.filter(rfq=quote.rfq).exclude(pk=quote.pk).filter(
-        status__in=(QuoteStatus.SUBMITTED, QuoteStatus.SHORTLISTED)
-    ).update(status=QuoteStatus.DECLINED, decided_at=now, updated_at=now)
+    # Read before the update, because after it they are no longer "the ones
+    # still waiting" and there would be nobody left to tell.
+    losing = list(
+        Quote.objects.filter(rfq=quote.rfq)
+        .exclude(pk=quote.pk)
+        .filter(status__in=(QuoteStatus.SUBMITTED, QuoteStatus.SHORTLISTED))
+        .select_related("provider")
+    )
+    Quote.objects.filter(pk__in=[other.pk for other in losing]).update(
+        status=QuoteStatus.DECLINED, decided_at=now, updated_at=now
+    )
 
     rfq = quote.rfq
     rfq.status = RfqStatus.AWARDED
     rfq.closed_at = now
     rfq.save(update_fields=["status", "closed_at", "updated_at"])
+
+    url = absolute_url(reverse("rfq:detail", args=[str(rfq.pk)]))
+    for other in (quote, *losing):
+        notify(
+            template="quote_decided",
+            recipients=provider_member_emails(other.provider),
+            context={
+                "chosen": other.pk == quote.pk,
+                "rfq_title": rfq.title,
+                "provider_name": other.provider.display_name,
+                "url": url,
+            },
+        )
     return quote
+
+
+def expire_stale_quotes(*, now: Any = None) -> int:
+    """Retire offers whose own validity period has run out.
+
+    A company writes "valid for 14 days" and means it; leaving the quote on the
+    buyer's screen as a live option after that turns the company's own promise
+    into the platform's misrepresentation. Accepted quotes are left alone - a
+    deal already struck does not lapse because a date passed.
+    """
+    moment = now or timezone.now()
+    deadline = models.ExpressionWrapper(
+        models.F("submitted_at") + models.F("validity_days") * timedelta(days=1),
+        output_field=models.DateTimeField(),
+    )
+    stale = (
+        Quote.objects.filter(status__in=(QuoteStatus.SUBMITTED, QuoteStatus.SHORTLISTED))
+        .annotate(expires_at=deadline)
+        .filter(expires_at__lte=moment)
+    )
+    return int(
+        Quote.objects.filter(pk__in=stale.values("pk")).update(
+            status=QuoteStatus.EXPIRED, updated_at=moment
+        )
+    )

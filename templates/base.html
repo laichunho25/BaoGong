@@ -23,6 +23,7 @@
 
       <div class="flex items-center gap-4 text-sm">
         {% if user.is_authenticated %}
+          <a href="{% url 'rfq:wall' %}" class="text-slate-700 hover:text-slate-900">{% translate "需求墙" %}</a>
           <a href="{% url 'accounts:dashboard' %}" class="text-slate-700 hover:text-slate-900">{% translate "我的账号" %}</a>
           <form action="{% url 'accounts:logout' %}" method="post">
             {% csrf_token %}

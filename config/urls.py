@@ -20,6 +20,7 @@ urlpatterns = [
     path("accounts/", include("apps.accounts.urls")),
     path("providers/", include("apps.providers.urls")),
     path("reviews/", include("apps.reviews.urls")),
+    path("rfq/", include("apps.rfq.urls")),
     # Top level rather than under /providers/: the comparison is of providers
     # but it is its own shareable page, and the URL is short enough to retype.
     path("compare/", provider_compare, name="compare"),

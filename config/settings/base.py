@@ -234,6 +234,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "rfq.expire_open_rfqs",
         "schedule": crontab(minute=5),
     },
+    # A quote states its own validity period. Once it passes, leaving the offer
+    # on the buyer's screen as a live option misrepresents the company that
+    # made it.
+    "expire-stale-quotes-hourly": {
+        "task": "rfq.expire_stale_quotes",
+        "schedule": crontab(minute=10),
+    },
 }
 
 # ---------------------------------------------------------------- claims

@@ -86,6 +86,10 @@ moderator」——都由 `apps/accounts/permissions.py` 從 `ProviderMember` / `
 3. **理由一定跟著結論走**。每一處決定都強制填理由，就是因為有人在等這個理由；
    把它留在一個對方要自己想到才會回來看的頁面上，等於沒有寄。
 
+撮合層加了第四條，只適用於這裡：**沒被選上的一方也要收到信**。`accept_quote` 對得標與落選的
+公司寄同一個模板（`quote_decided`，靠 `chosen` 分岔），因為每一家都為這則需求付出了一次每日額度；
+只寄給贏家的市集，等於讓其餘所有人付錢換沉默。
+
 呼叫方式是 service 呼叫 `notify(template=..., recipients=..., context=...)`，
 context 必須可 JSON 序列化（會在呼叫端就檢查，傳 model instance 要當場失敗，而不是四小時後
 在 retry loop 裡失敗）。`NOTIFICATIONS_ENABLED` 只為資料回填而存在，不是生產開關。

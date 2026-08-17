@@ -1,0 +1,16 @@
+{% load i18n %}{% blocktranslate %}您好，
+
+需求「{{ rfq_title }}」的客户已经作出选择。{% endblocktranslate %}
+
+{% if chosen %}{% blocktranslate %}结果：客户选择了「{{ provider_name }}」的报价。{% endblocktranslate %}
+
+{% blocktranslate %}请尽快通过平台跟进。请注意：本平台只记录客户的选择，不代收费用，
+也不构成贵公司与客户之间的委任或合同——服务条款、收费与签约由双方自行确定。{% endblocktranslate %}{% else %}{% blocktranslate %}结果：这次客户选择了其他公司，贵公司的报价未获选。{% endblocktranslate %}
+
+{% blocktranslate %}这封邮件是特意寄出的：贵公司为这个需求用掉了一次报价额度，
+就应该知道结果，而不是自己回来查才发现需求已经结束。已用掉的额度不会退回。{% endblocktranslate %}{% endif %}
+
+{% blocktranslate %}查看该需求：
+{{ url }}{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}
