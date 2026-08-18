@@ -4,7 +4,7 @@
 // A template that writes `bg-blue-500` has decided a colour; one that writes
 // `bg-brand-600` has named a role, and the role can be repainted in one place.
 //
-// The palette is deliberately narrow: one brand hue (harbour teal), one accent
+// The palette is deliberately narrow: one brand hue (indigo), one accent
 // used only for money and quotes (amber), and four state hues. Anything the
 // register publishes is rendered in `official` grey and never in brand colour,
 // so that "this came from the government" and "this is our own product" can
@@ -19,17 +19,17 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          50: "#eff9f8",
-          100: "#d6efec",
-          200: "#aedfda",
-          300: "#7ac7c1",
-          400: "#46a8a2",
-          500: "#2a8c87",
-          600: "#1f706e",
-          700: "#1c5a59",
-          800: "#1a4849",
-          900: "#183d3e",
-          950: "#0a2223",
+          50: "#eef2ff",
+          100: "#e0e7ff",
+          200: "#c7d2fe",
+          300: "#a5b4fc",
+          400: "#818cf8",
+          500: "#6366f1",
+          600: "#4f46e5",
+          700: "#4338ca",
+          800: "#3730a3",
+          900: "#312e81",
+          950: "#1e1b4b",
         },
         accent: {
           50: "#fff8eb",
@@ -111,7 +111,7 @@ module.exports = {
         // Used by the home hero only. A flat colour there made the page read as
         // a form; this is the one place the site is allowed to be loud.
         "brand-wash":
-          "radial-gradient(1200px 400px at 15% -10%, #2a8c87 0%, transparent 60%), linear-gradient(160deg, #0a2223 0%, #1a4849 55%, #1f706e 100%)",
+          "radial-gradient(1200px 400px at 15% -10%, #6366f1 0%, transparent 60%), linear-gradient(160deg, #1e1b4b 0%, #312e81 55%, #4338ca 100%)",
       },
       keyframes: {
         "rise-in": {
