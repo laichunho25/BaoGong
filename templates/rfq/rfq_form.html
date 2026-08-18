@@ -47,6 +47,48 @@
     </ul>
   </div>
 
+  {% comment %} The shortcut, above the long form: paste what you would have written
+     to a friend and the boxes below fill in. It creates nothing — the buyer
+     still reads, corrects and submits the form themselves (CLAUDE.md rule 3),
+     and the button says so. {% endcomment %}
+  <form method="post" action="{% url 'rfq:intake' %}"
+        class="space-y-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
+    {% csrf_token %}
+    <div>
+      <h2 class="flex items-center gap-1.5 text-sm font-semibold text-ink">
+        {% include "components/icon.html" with name="spark" class="h-4 w-4" %}
+        {% translate "不知道怎么填？先用一段话说清楚" %}
+      </h2>
+      <p class="mt-1 text-xs leading-relaxed text-ink-muted">
+        {% translate "我们会读这段话，帮您把下面的表单填好。填好的内容由您逐项确认后才会保存，秘书公司在您发布之前看不到任何内容。" %}
+      </p>
+    </div>
+    {% include "components/form_fields.html" with form=intake_form %}
+    <button type="submit"
+            class="rounded-lg border border-brand-300 bg-white px-4 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100">
+      {% translate "帮我填写下面的表单" %}
+    </button>
+  </form>
+
+  {% if intake %}
+    {% comment %} Who filled the boxes in, and how much to trust it. A prefill the
+       buyer thinks they typed is a prefill nobody checks. {% endcomment %}
+    <div class="rounded-2xl border border-warning-200 bg-warning-50 p-4 text-sm text-warning-900">
+      <p class="font-medium">
+        {% if intake.used_fallback %}
+          {% translate "已按关键词帮您预填，准确度有限，请逐项检查。" %}
+        {% else %}
+          {% translate "已按您的描述预填，请逐项检查后再保存。" %}
+        {% endif %}
+      </p>
+      {% if intake.questions %}
+        <ul class="mt-2 space-y-1 text-xs leading-relaxed">
+          {% for question in intake.questions %}<li>· {{ question }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  {% endif %}
+
   <form method="post" class="space-y-5 rounded-2xl border border-line bg-white p-6 shadow-sm">
     {% csrf_token %}
     {% include "components/form_fields.html" %}

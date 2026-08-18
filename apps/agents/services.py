@@ -19,13 +19,17 @@ from django.utils.translation import gettext_lazy as _
 from apps.agents import review_moderation
 from apps.agents.models import AgentFeedback, AgentRun, FeedbackVerdict
 from apps.agents.nnc1_extraction import Nnc1ExtractionAgent
+from apps.agents.quote_analysis import QuoteAnalysisAgent
 from apps.agents.review_moderation import ReviewModerationAgent
-from apps.agents.schemas import ModerationOut, Nnc1Out
+from apps.agents.rfq_intake import RfqIntakeAgent
+from apps.agents.schemas import ModerationOut, Nnc1Out, QuoteAnalysisOut, RfqIntakeOut
+from apps.core.money import Money
 
 if TYPE_CHECKING:
     from apps.accounts.models import User
     from apps.agents.base import AgentResult
     from apps.reviews.models import Nnc1Verification, Review
+    from apps.rfq.models import Quote
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +125,108 @@ def extract_nnc1(verification: Nnc1Verification) -> AgentResult | None:
         ]
     )
     return result
+
+
+def draft_rfq_prefill(*, raw_input: str) -> AgentResult:
+    """Read a buyer's paragraph with A1 and hand back form values.
+
+    **Writes nothing but the ``AgentRun``.** The result of this call is a
+    pre-filled form; the buyer corrects it and presses Submit, and only then
+    does ``rfq.services.create_rfq`` write an ``Rfq`` with ``structured`` set to
+    what the model produced (CLAUDE.md rule 3, AI_AGENTS A1). Nothing here can
+    put a requirement in front of a licensed company.
+
+    Called synchronously, from the request the buyer is waiting on: the whole
+    feature is "press this and the form fills in", and a queued version of that
+    is a page that does nothing.
+    """
+    result = RfqIntakeAgent().run({"raw_input": raw_input})
+    if not isinstance(result.data, RfqIntakeOut):  # pragma: no cover - schema is fixed
+        raise AgentServiceError("intake agent returned the wrong schema")
+    return result
+
+
+@transaction.atomic
+def analyse_quote(quote: Quote) -> AgentResult | None:
+    """Attach A5's read to ``quote.analysis``. Advice beside the price.
+
+    Returns ``None`` for a quote that is not in Hong Kong dollars: every figure
+    in the schema is HKD, the market percentiles are HKD, and converting would
+    need an exchange rate the platform neither has nor should invent. Those
+    quotes still appear in the comparison table - they just carry no analysis.
+
+    The percentiles come from SQL and exclude this quote, so a quote is never
+    measured against itself (AI_AGENTS A5).
+    """
+    from apps.rfq import selectors as rfq_selectors
+
+    if quote.currency != "HKD":
+        logger.info("skipping analysis for %s: quote is in %s", quote.pk, quote.currency)
+        return None
+
+    percentiles = {
+        key: {
+            "p10": _to_major(values.p10),
+            "p50": _to_major(values.p50),
+            "p90": _to_major(values.p90),
+            "sample_size": values.sample_size,
+        }
+        for key, values in rfq_selectors.market_percentiles(exclude_quote=quote).items()
+    }
+    rfq = quote.rfq
+    result = QuoteAnalysisAgent().run(
+        {
+            "object_id": str(quote.pk),
+            "services_needed": list(rfq.services_needed),
+            "needs_bank_account": rfq.needs_bank_account,
+            "budget_min_hkd": _to_major(rfq.budget_min_minor) if rfq.currency == "HKD" else None,
+            "budget_max_hkd": _to_major(rfq.budget_max_minor) if rfq.currency == "HKD" else None,
+            "total_first_year_hkd": _to_major(quote.first_year_total_minor),
+            "total_renewal_hkd": _to_major(quote.renewal_total_minor),
+            "includes_govt_fee": quote.includes_govt_fee,
+            "validity_days": quote.validity_days,
+            "delivery_days": quote.delivery_days,
+            "message": quote.message,
+            "line_items": [
+                {
+                    "label": item.label,
+                    "source_label": item.custom_label or item.display_label,
+                    "amount_hkd": _to_major(item.amount_minor),
+                    "unit": item.unit,
+                    "is_optional": item.is_optional,
+                    "note": item.note,
+                }
+                for item in quote.line_items.all()
+            ],
+            "percentiles": percentiles,
+        }
+    )
+    data = result.data
+    if not isinstance(data, QuoteAnalysisOut):  # pragma: no cover - schema is fixed
+        raise AgentServiceError("quote analysis agent returned the wrong schema")
+
+    quote.analysis = {
+        **data.model_dump(mode="json"),
+        "model": QuoteAnalysisAgent.model,
+        "prompt_version": QuoteAnalysisAgent().prompt_version,
+        "run_id": result.run_id,
+        "used_fallback": result.used_fallback,
+        "fallback_reason": result.fallback_reason,
+        "percentile_sample": {key: values["sample_size"] for key, values in percentiles.items()},
+    }
+    quote.save(update_fields=["analysis", "updated_at"])
+    return result
+
+
+def _to_major(amount_minor: int | None) -> int | None:
+    """Whole HKD from minor units, for the agent layer's ``_hkd`` fields.
+
+    Truncating rather than rounding: the cents on a HKD 6,800.00 quote are
+    always zero, and a figure that rounded up would be a price nobody quoted.
+    """
+    if amount_minor is None:
+        return None
+    return int(Money(amount_minor, "HKD").to_decimal())
 
 
 def record_feedback(

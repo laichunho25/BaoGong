@@ -151,6 +151,114 @@ def test_one_buyer_cannot_open_another_buyers_request(
     assert response.status_code == 404
 
 
+# ------------------------------------------------------------------- the prefill
+
+
+def test_reading_a_buyers_paragraph_creates_nothing(
+    client: Client, buyer: User, settings: Any
+) -> None:
+    """A1's red line, at the layer a buyer can actually reach: pressing "fill
+    the form in for me" puts nothing on the wall and nothing in the database
+    (AI_AGENTS A1, CLAUDE.md rule 3)."""
+    settings.AGENTS_ENABLED = False
+    client.force_login(buyer)
+
+    response = client.post(
+        reverse("rfq:intake"),
+        {"raw_input": "我想在香港注册公司做电商，需要注册地址和公司秘书，还想开个银行账户。"},
+    )
+
+    assert response.status_code == 200
+    assert Rfq.objects.count() == 0
+
+
+def test_the_prefill_fills_the_form_and_says_who_filled_it(
+    client: Client, buyer: User, settings: Any
+) -> None:
+    settings.AGENTS_ENABLED = False
+    client.force_login(buyer)
+
+    response = client.post(
+        reverse("rfq:intake"),
+        {"raw_input": "想注册一家香港公司，需要注册地址和公司秘书，另外想开一个银行账户。"},
+    )
+
+    form = response.context["form"]
+    assert "incorporation" in form.initial["services_needed"]
+    assert response.context["intake"]["used_fallback"] is True
+    # The buyer is told a machine did this, not left to assume they typed it.
+    assert "关键词" in response.content.decode()
+
+
+def test_the_confirmed_form_is_what_gets_saved_not_the_prefill(
+    client: Client, buyer: User, settings: Any
+) -> None:
+    """The prefill is a suggestion. What reaches the wall is whatever the buyer
+    left in the boxes after correcting it."""
+    settings.AGENTS_ENABLED = False
+    client.force_login(buyer)
+    client.post(
+        reverse("rfq:intake"),
+        {"raw_input": "我在深圳做外贸，想注册一家香港公司，另外每年的做账报税也要一起做。"},
+    )
+
+    client.post(reverse("rfq:create"), RFQ_FORM)
+
+    rfq = Rfq.objects.get()
+    assert rfq.services_needed == ["incorporation", "company_secretary"]
+    assert rfq.is_ai_assisted is True
+    # What the model said is kept beside the buyer's answer, not merged into it.
+    assert "accounting" in rfq.structured["services_needed"]
+
+
+def test_a_form_submitted_without_the_prefill_is_not_marked_as_assisted(
+    client: Client, buyer: User
+) -> None:
+    client.force_login(buyer)
+
+    client.post(reverse("rfq:create"), RFQ_FORM)
+
+    rfq = Rfq.objects.get()
+    assert rfq.is_ai_assisted is False
+    assert rfq.structured == {}
+
+
+def test_an_abandoned_prefill_does_not_attach_to_the_next_requirement(
+    client: Client, buyer: User, settings: Any
+) -> None:
+    settings.AGENTS_ENABLED = False
+    client.force_login(buyer)
+    client.post(
+        reverse("rfq:intake"),
+        {"raw_input": "我想注册一家香港公司做电商，后面每年的做账和报税也要一起做。"},
+    )
+
+    # The buyer walks away, comes back, and starts again from a blank form.
+    client.get(reverse("rfq:create"))
+    client.post(reverse("rfq:create"), RFQ_FORM)
+
+    rfq = Rfq.objects.get()
+    assert rfq.is_ai_assisted is False
+
+
+def test_a_paragraph_too_short_to_read_is_refused(client: Client, buyer: User) -> None:
+    client.force_login(buyer)
+
+    response = client.post(reverse("rfq:intake"), {"raw_input": "开公司"})
+
+    assert response.status_code == 422
+    assert Rfq.objects.count() == 0
+
+
+def test_an_anonymous_visitor_cannot_use_the_prefill(client: Client) -> None:
+    """It costs money per call, and it is not a service the platform offers to
+    the open internet."""
+    response = client.post(reverse("rfq:intake"), {"raw_input": "想注册香港公司做电商。"})
+
+    assert response.status_code == 302
+    assert "/accounts/login" in response.url
+
+
 # ------------------------------------------------------------------- companies
 
 

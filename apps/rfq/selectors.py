@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
-from django.db.models import Count, Q
+from django.db.models import Aggregate, Count, FloatField, Q
 from django.utils import timezone
 
 from apps.core.money import Money
@@ -27,6 +27,7 @@ from apps.rfq.models import (
     LineItemLabel,
     QuotaLedger,
     Quote,
+    QuoteLineItem,
     QuoteStatus,
     Rfq,
     RfqStatus,
@@ -34,6 +35,7 @@ from apps.rfq.models import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import date, datetime
 
     from django.db.models import QuerySet
@@ -253,6 +255,103 @@ def comparison_rows(quotes: list[Quote]) -> list[ComparisonRow]:
             )
         rows.append(ComparisonRow(label=label, display_label=str(labels[label]), cells=cells))
     return rows
+
+
+class _PercentileCont(Aggregate):
+    """Postgres ``PERCENTILE_CONT(x) WITHIN GROUP (ORDER BY ...)``.
+
+    Written out rather than approximated in Python because the whole point of
+    AI_AGENTS A5 is that the market price is arithmetic the platform can show
+    its working for, not something a model was asked to remember.
+    """
+
+    function = "PERCENTILE_CONT"
+    template = "%(function)s(%(percentile)s) WITHIN GROUP (ORDER BY %(expressions)s)"
+    output_field = FloatField()
+
+    def __init__(self, expression: Any, percentile: float, **extra: Any) -> None:
+        super().__init__(expression, percentile=percentile, **extra)
+
+
+#: Below this many comparable prices, no percentile is published. "Cheaper than
+#: the market" drawn from four quotes is not a fact about the market, and it is
+#: shown to a buyer who is about to act on it.
+MIN_PERCENTILE_SAMPLE = 8
+
+#: The key under which the whole-quote percentile lives, beside the per-item
+#: ones. Not a ``LineItemLabel`` value, and deliberately not confusable with one.
+FIRST_YEAR_TOTAL = "first_year_total"
+
+
+class PricePercentiles(NamedTuple):
+    """What the market charges for one thing, in minor units."""
+
+    p10: int
+    p50: int
+    p90: int
+    sample_size: int
+
+
+def market_percentiles(
+    *, currency: str = "HKD", exclude_quote: Quote | None = None
+) -> dict[str, PricePercentiles]:
+    """Market prices per standard item, and per first-year total, from real quotes.
+
+    Only live quotes in one currency: two currencies in one percentile is a
+    number that means nothing, and a withdrawn or expired offer is not a price
+    anybody can still get. The quote being analysed is excluded so that a quote
+    is never compared against itself - with a small sample, including it drags
+    the percentile towards the quote and hides exactly the outlier A5 exists to
+    find.
+
+    Entries below ``MIN_PERCENTILE_SAMPLE`` are dropped rather than returned
+    with a caveat: a caller that has the number will use it.
+    """
+    quotes = Quote.objects.filter(status__in=LIVE_QUOTE_STATUSES, currency=currency)
+    if exclude_quote is not None:
+        quotes = quotes.exclude(pk=exclude_quote.pk)
+
+    percentiles: dict[str, PricePercentiles] = {}
+
+    items = (
+        QuoteLineItem.objects.filter(quote__in=quotes)
+        .exclude(label=LineItemLabel.OTHER)
+        .values("label")
+        .annotate(
+            p10=_PercentileCont("amount_minor", 0.10),
+            p50=_PercentileCont("amount_minor", 0.50),
+            p90=_PercentileCont("amount_minor", 0.90),
+            sample_size=Count("pk"),
+        )
+    )
+    for row in items:
+        if row["sample_size"] >= MIN_PERCENTILE_SAMPLE:
+            percentiles[str(row["label"])] = _row_to_percentiles(row)
+
+    totals = quotes.aggregate(
+        p10=_PercentileCont("first_year_total_minor", 0.10),
+        p50=_PercentileCont("first_year_total_minor", 0.50),
+        p90=_PercentileCont("first_year_total_minor", 0.90),
+        sample_size=Count("pk"),
+    )
+    if totals["sample_size"] >= MIN_PERCENTILE_SAMPLE:
+        percentiles[FIRST_YEAR_TOTAL] = _row_to_percentiles(totals)
+    return percentiles
+
+
+def _row_to_percentiles(row: Mapping[str, Any]) -> PricePercentiles:
+    """Round the float Postgres returns back to whole minor units.
+
+    ``PERCENTILE_CONT`` interpolates, so it answers in fractions of a cent.
+    Money is an integer on this platform (CLAUDE.md rule 6) and a percentile is
+    a comparison threshold, so rounding here loses nothing.
+    """
+    return PricePercentiles(
+        p10=round(row["p10"] or 0),
+        p50=round(row["p50"] or 0),
+        p90=round(row["p90"] or 0),
+        sample_size=int(row["sample_size"]),
+    )
 
 
 def missing_standard_items(quote: Quote) -> list[str]:

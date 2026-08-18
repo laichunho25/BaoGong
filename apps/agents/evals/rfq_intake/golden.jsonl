@@ -1,0 +1,22 @@
+{"id": "i01", "raw_input": "我想在香港注册一家公司做电商，需要注册地址和公司秘书，另外想开个银行账户。", "expect_services": ["incorporation", "registered_address", "company_secretary", "bank_account_assist"], "expect_budget": false}
+{"id": "i02", "raw_input": "深圳的贸易公司，打算在香港开一家子公司走出口结算，预算一万港币以内，越快越好。", "expect_services": ["incorporation"], "expect_budget": true}
+{"id": "i03", "raw_input": "公司去年在香港注册好了，现在想换一家秘书公司做周年申报和做账报税。", "expect_services": ["company_secretary", "accounting", "tax_filing"], "expect_budget": false}
+{"id": "i04", "raw_input": "需要做审计，会计师那边要出报告，我们自己有账本。", "expect_services": ["audit_liaison"], "expect_budget": false}
+{"id": "i05", "raw_input": "注册公司+开户，两个股东都是内地身份证，没有香港身份。", "expect_services": ["incorporation", "bank_account_assist"], "expect_budget": false}
+{"id": "i06", "raw_input": "想注册一个香港商标，公司主体已经有了，不需要其他服务。", "expect_services": ["trademark"], "expect_budget": false}
+{"id": "i07", "raw_input": "我朋友说香港开公司很方便，我完全不懂流程，想先了解一下要花多少钱。", "expect_services": [], "expect_budget": false}
+{"id": "i08", "raw_input": "做跨境支付业务，需要注册公司，希望能开虚拟银行或者EMI账户，传统银行也可以试。", "expect_services": ["incorporation", "bank_account_assist"], "expect_budget": false}
+{"id": "i09", "raw_input": "香港公司已经运营三年，每年报税和审计都要做，想找个长期合作的，预算 8000-15000 港币一年。", "expect_services": ["accounting", "audit_liaison", "tax_filing"], "expect_budget": true}
+{"id": "i10", "raw_input": "我要办工作签证去香港上班，公司是我自己的香港公司，还没注册。", "expect_services": ["incorporation", "work_visa"], "expect_budget": false}
+{"id": "i11", "raw_input": "只要一个注册地址，能收政府信件转寄到深圳就行。", "expect_services": ["registered_address"], "expect_budget": false}
+{"id": "i12", "raw_input": "急！下个月要签合同，必须有香港公司主体，注册加秘书服务，麻烦快点。", "expect_services": ["incorporation", "company_secretary"], "expect_budget": false}
+{"id": "i13", "raw_input": "上一家秘书公司联系不上了，公司现在处于不活跃状态，想找人接手秘书和地址。", "expect_services": ["company_secretary", "registered_address"], "expect_budget": false}
+{"id": "i14", "raw_input": "我在深圳做外贸，人民币五万块的预算，想在香港注册公司并开汇丰账户。", "expect_services": ["incorporation", "bank_account_assist"], "expect_budget": false}
+{"id": "i15", "raw_input": "计划开一家香港的代表处，主要做市场调研，不做经营。", "expect_services": ["incorporation"], "expect_budget": false}
+{"id": "i16", "raw_input": "公司注册好了但一直没做账，现在收到税局的信，需要补做几年的账和报税。", "expect_services": ["accounting", "tax_filing"], "expect_budget": false}
+{"id": "i17", "raw_input": "注册香港公司，需要全套：地址、秘书、做账、审计、报税，一条龙。", "expect_services": ["incorporation", "registered_address", "company_secretary", "accounting", "audit_liaison", "tax_filing"], "expect_budget": false}
+{"id": "i18", "raw_input": "想问一下开户成功率高不高，我们是做电子烟出口的，注册公司和开户都要。", "expect_services": ["incorporation", "bank_account_assist"], "expect_budget": false}
+{"id": "i19", "raw_input": "已有香港公司，想加一个商标注册和工作签证的服务，预算不超过 HK$30,000。", "expect_services": ["trademark", "work_visa"], "expect_budget": true}
+{"id": "i20", "raw_input": "股东有一位是马来西亚籍，一位是内地的，注册香港公司需要什么材料？顺便报个价。", "expect_services": ["incorporation"], "expect_budget": false}
+{"id": "i21", "raw_input": "时间不急，半年内办好就行，需要注册公司和后续每年的秘书服务，想比较几家的价格。", "expect_services": ["incorporation", "company_secretary"], "expect_budget": false}
+{"id": "i22", "raw_input": "港币一万五左右，注册公司加第一年的做账报税，能做吗？", "expect_services": ["incorporation", "accounting", "tax_filing"], "expect_budget": true}

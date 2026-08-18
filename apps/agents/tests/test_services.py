@@ -18,6 +18,7 @@ from apps.core.scanning import ScanStatus
 from apps.core.uploads import inspect_upload
 from apps.reviews import services as review_services
 from apps.reviews.models import ReviewStatus, VerificationResult
+from apps.rfq import services as rfq_services
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from apps.accounts.models import User
     from apps.providers.models import Provider
     from apps.reviews.models import Review
+    from apps.rfq.models import Rfq
 
 pytestmark = pytest.mark.django_db
 
@@ -207,6 +209,88 @@ def test_feedback_is_one_row_per_reviewer(review: Review, moderator: User, setti
 
     assert run.feedback.count() == 1
     assert run.feedback.get().verdict == FeedbackVerdict.CORRECT
+
+
+def test_the_prefill_writes_no_requirement(settings: Any) -> None:
+    """A1's red line (AI_AGENTS A1, CLAUDE.md rule 3). What comes back is form
+    values; the buyer confirms them, and ``rfq.services.create_rfq`` is the only
+    thing that puts a requirement in front of a licensed company."""
+    from apps.rfq.models import Rfq
+
+    settings.AGENTS_ENABLED = False
+
+    result = services.draft_rfq_prefill(raw_input="想注册香港公司，还要开户。")
+
+    assert result.data is not None
+    assert Rfq.objects.count() == 0
+    # The run is still recorded: a fallback is a decision too (CLAUDE.md rule 4).
+    assert AgentRun.objects.get().agent_name == "rfq_intake"
+
+
+def test_a_quote_in_another_currency_is_not_analysed(
+    open_rfq: Rfq, make_quoting_provider: Callable[..., tuple[Provider, User]], settings: Any
+) -> None:
+    """Every figure in A5's schema is HKD and so are the percentiles. Comparing
+    across currencies needs a rate the platform has no business inventing, so
+    the quote keeps its place in the table and carries no analysis."""
+    settings.AGENTS_ENABLED = False
+    provider, member = make_quoting_provider()
+    quote = rfq_services.submit_quote(
+        rfq=open_rfq,
+        provider=provider,
+        submitted_by=member,
+        first_year_total_minor=9_800_00,
+        currency="CNY",
+    )
+
+    assert services.analyse_quote(quote) is None
+    quote.refresh_from_db()
+    assert quote.analysis == {}
+
+
+def test_the_analysis_lands_beside_the_price_and_changes_nothing_else(
+    open_rfq: Rfq, make_quoting_provider: Callable[..., tuple[Provider, User]], settings: Any
+) -> None:
+    settings.AGENTS_ENABLED = False
+    provider, member = make_quoting_provider()
+    quote = rfq_services.submit_quote(
+        rfq=open_rfq,
+        provider=provider,
+        submitted_by=member,
+        first_year_total_minor=4_500_00,
+        includes_govt_fee=False,
+        line_items=[{"label": "incorporation_service", "amount_minor": 4_500_00}],
+    )
+    before = quote.status
+
+    services.analyse_quote(quote)
+
+    quote.refresh_from_db()
+    assert quote.status == before
+    assert quote.first_year_total_minor == 4_500_00
+    assert "missing_govt_fee" in quote.analysis["flags"]
+    assert quote.analysis["used_fallback"] is True
+    assert quote.analysis["run_id"] == str(AgentRun.objects.get().pk)
+
+
+def test_the_analysis_records_how_much_market_there_was(
+    open_rfq: Rfq, make_quoting_provider: Callable[..., tuple[Provider, User]], settings: Any
+) -> None:
+    """A reader of the stored analysis has to be able to tell "cheaper than the
+    market" from "cheaper than the four quotes we had that week"."""
+    settings.AGENTS_ENABLED = False
+    provider, member = make_quoting_provider()
+    quote = rfq_services.submit_quote(
+        rfq=open_rfq, provider=provider, submitted_by=member, first_year_total_minor=9_800_00
+    )
+
+    services.analyse_quote(quote)
+
+    quote.refresh_from_db()
+    # One quote on the platform, which is below the sample floor, so there is
+    # no market figure to record and none is claimed.
+    assert quote.analysis["percentile_sample"] == {}
+    assert "below_market_p10" not in quote.analysis["flags"]
 
 
 def test_an_unknown_verdict_is_refused(review: Review, moderator: User, settings: Any) -> None:

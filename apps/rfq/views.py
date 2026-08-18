@@ -23,9 +23,17 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import is_provider_member, verified_email_required
+from apps.agents import services as agent_services
 from apps.providers.selectors import get_provider_detail
 from apps.rfq import selectors, services
-from apps.rfq.forms import QuoteForm, QuoteLineItemFormSet, RfqForm, line_items_from
+from apps.rfq.forms import (
+    IntakeForm,
+    QuoteForm,
+    QuoteLineItemFormSet,
+    RfqForm,
+    initial_from_intake,
+    line_items_from,
+)
 from apps.rfq.models import LineItemLabel, Quote, RfqStatus
 
 if TYPE_CHECKING:
@@ -38,6 +46,11 @@ if TYPE_CHECKING:
 #: How many requests one page of the wall shows. No pagination yet: the wall is
 #: young enough that a longer list is a better answer than a second page.
 WALL_LIMIT = 100
+
+#: Where A1's draft waits between the two requests. Server-side on purpose:
+#: ``Rfq.structured`` is meant to be what the model actually said, so it must
+#: not travel through a form the browser can edit.
+INTAKE_SESSION_KEY = "rfq_intake_draft"
 
 
 def _owned_rfq(request: HttpRequest, rfq_id: str) -> Rfq:
@@ -64,26 +77,86 @@ def _provider_for_member(request: HttpRequest, slug: str) -> Provider:
 def rfq_create(request: HttpRequest) -> HttpResponse:
     """Write a requirement. It lands as a draft and nobody sees it yet.
 
-    Draft rather than straight to the wall because P5-3 pre-fills this form
-    from the buyer's own words: what a model made of your business is something
-    you get to read before licensed companies do (CLAUDE.md rule 3). The extra
+    Draft rather than straight to the wall because A1 pre-fills this form from
+    the buyer's own words: what a model made of your business is something you
+    get to read before licensed companies do (CLAUDE.md rule 3). The extra
     click is the price of that, and it is the same click either way.
+
+    The agent's own draft rides along in the session, not in a hidden field.
+    ``Rfq.structured`` is the record of what the model said, and a copy of it
+    the browser could edit on the way back would be a record of nothing.
     """
     buyer = cast("User", request.user)
     if request.method == "POST":
         form = RfqForm(request.POST)
         if form.is_valid():
+            draft = request.session.get(INTAKE_SESSION_KEY) or {}
             try:
-                rfq = services.create_rfq(buyer=buyer, **form.to_service_kwargs())
+                rfq = services.create_rfq(
+                    buyer=buyer,
+                    structured=draft.get("structured", {}),
+                    is_ai_assisted=bool(draft),
+                    **form.to_service_kwargs(),
+                )
             except services.RfqError as exc:
                 form.add_error(None, str(exc))
             else:
+                request.session.pop(INTAKE_SESSION_KEY, None)
                 messages.success(request, _("需求已保存为草稿，确认无误后再发布。"))
                 return redirect("rfq:detail", rfq_id=str(rfq.pk))
     else:
+        # A fresh visit is a fresh requirement; a draft left over from an
+        # abandoned attempt must not attach itself to somebody's next one.
+        request.session.pop(INTAKE_SESSION_KEY, None)
         form = RfqForm(initial={"currency": "HKD"})
 
-    return render(request, "rfq/rfq_form.html", {"form": form})
+    return render(
+        request,
+        "rfq/rfq_form.html",
+        {"form": form, "intake_form": IntakeForm(), "intake": None},
+    )
+
+
+@login_required
+@verified_email_required
+@require_POST
+def rfq_intake(request: HttpRequest) -> HttpResponse:
+    """Read the buyer's paragraph with A1 and hand back a filled-in form.
+
+    Writes no ``Rfq``. What comes back is the same form as ``rfq_create``, with
+    boxes filled in and a notice above it saying who filled them in; the buyer
+    corrects it and submits it themselves (AI_AGENTS A1). When the agent is off
+    or the call fails, the keyword fallback fills in what it can and the notice
+    says so - the page never becomes unusable because a model was unavailable.
+    """
+    intake_form = IntakeForm(request.POST)
+    if not intake_form.is_valid():
+        return render(
+            request,
+            "rfq/rfq_form.html",
+            {"form": RfqForm(initial={"currency": "HKD"}), "intake_form": intake_form},
+            status=422,
+        )
+
+    raw_input = intake_form.cleaned_data["raw_input"]
+    result = agent_services.draft_rfq_prefill(raw_input=raw_input)
+    structured = result.data.model_dump(mode="json")
+    request.session[INTAKE_SESSION_KEY] = {"structured": structured, "run_id": result.run_id}
+
+    return render(
+        request,
+        "rfq/rfq_form.html",
+        {
+            "form": RfqForm(initial=initial_from_intake(structured, raw_input)),
+            "intake_form": IntakeForm(initial={"raw_input": raw_input}),
+            "intake": {
+                "questions": structured.get("clarifying_questions", []),
+                "missing_fields": structured.get("missing_fields", []),
+                "used_fallback": result.used_fallback,
+                "confidence": result.confidence,
+            },
+        },
+    )
 
 
 @login_required

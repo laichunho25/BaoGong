@@ -12,7 +12,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from apps.agents.nnc1_extraction import Nnc1ExtractionAgent
+from apps.agents.quote_analysis import QuoteAnalysisAgent
 from apps.agents.review_moderation import ReviewModerationAgent
+from apps.agents.rfq_intake import RfqIntakeAgent
 
 if TYPE_CHECKING:
     from apps.agents.base import BaseAgent
@@ -20,6 +22,8 @@ if TYPE_CHECKING:
 AGENTS: dict[str, type[BaseAgent]] = {
     ReviewModerationAgent.name: ReviewModerationAgent,
     Nnc1ExtractionAgent.name: Nnc1ExtractionAgent,
+    RfqIntakeAgent.name: RfqIntakeAgent,
+    QuoteAnalysisAgent.name: QuoteAnalysisAgent,
 }
 
 

@@ -38,6 +38,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.permissions import is_provider_member
 from apps.accounts.selectors import provider_member_emails
+from apps.agents import tasks as agent_tasks
 from apps.core.money import Money, MoneyError
 from apps.core.notifications import absolute_url, notify
 from apps.providers.models import ClaimStatus
@@ -342,6 +343,13 @@ def submit_quote(
             "url": absolute_url(reverse("rfq:detail", args=[str(rfq.pk)])),
         },
     )
+
+    # A5 reads the quote and files its questions beside it (P5-3). After commit,
+    # so the worker cannot arrive before the line items it is meant to read;
+    # dispatched here rather than from the view so every path that creates a
+    # quote gets the same treatment. Nothing waits on it - the buyer's page
+    # computes the missing-item list from the standard labels regardless.
+    transaction.on_commit(lambda: agent_tasks.analyse_quote.delay(str(quote.pk)))
     return quote
 
 

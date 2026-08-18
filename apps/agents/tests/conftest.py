@@ -23,6 +23,14 @@ from apps.reviews.tests.conftest import (  # noqa: F401  (re-exported fixtures)
     moderator,
 )
 
+# A5 is analysis of a real quote against real percentiles, so its tests need the
+# matching layer's fixtures rather than a second, thinner copy of them.
+from apps.rfq.tests.conftest import (  # noqa: F401  (re-exported fixtures)
+    buyer,
+    make_quoting_provider,
+    open_rfq,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 

@@ -168,6 +168,60 @@ class RfqForm(forms.Form):
         }
 
 
+class IntakeForm(forms.Form):
+    """The one box A1 reads: the buyer's own words.
+
+    Separate from ``RfqForm`` rather than a mode of it because it asks for
+    something different. This form produces nothing but a filled-in ``RfqForm``
+    for the buyer to correct - it cannot create a request, and the button on it
+    does not say it will.
+    """
+
+    raw_input = forms.CharField(
+        label=_("用您自己的话描述需求"),
+        min_length=MIN_DESCRIPTION_LENGTH,
+        max_length=4000,
+        widget=forms.Textarea(
+            attrs={
+                "class": INPUT_CLASSES,
+                "rows": 4,
+                "placeholder": _(
+                    "例：我和朋友想注册一家香港有限公司做跨境电商，股东都是内地身份，"
+                    "希望顺便开个公司户，越快越好。"
+                ),
+            }
+        ),
+        help_text=_("请不要填写姓名、电话、微信等联系方式。"),
+    )
+
+
+def initial_from_intake(structured: dict[str, Any], raw_input: str) -> dict[str, Any]:
+    """Turn one ``RfqIntakeOut`` payload into ``RfqForm`` initial values.
+
+    Takes a plain dict rather than the schema object so this app does not have
+    to import the agent layer to render a form. Anything the agent left unset
+    stays unset here: a blank field asks the buyer a question, and a filled-in
+    wrong one is something they may not notice before licensed companies read
+    it (AI_AGENTS A1).
+    """
+    return {
+        "title": structured.get("title", ""),
+        "raw_input": raw_input,
+        "company_type": structured.get("company_type") or CompanyType.UNDECIDED,
+        "business_nature": structured.get("business_nature", ""),
+        "shareholder_nationalities": ", ".join(structured.get("shareholder_nationalities") or []),
+        "services_needed": structured.get("services_needed") or [],
+        "needs_bank_account": bool(structured.get("needs_bank_account")),
+        "preferred_banks": structured.get("preferred_bank_types") or [],
+        "timeline": structured.get("timeline") or Timeline.UNDECIDED,
+        # A1 answers in HKD only, and the field takes major units, so there is
+        # no conversion here to get wrong.
+        "currency": "HKD",
+        "budget_min": structured.get("budget_min_hkd"),
+        "budget_max": structured.get("budget_max_hkd"),
+    }
+
+
 class QuoteForm(forms.Form):
     """One company's answer.
 

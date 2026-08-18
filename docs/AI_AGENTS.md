@@ -12,16 +12,19 @@
 5. **每個 agent 必須有 eval**：`apps/agents/evals/{name}/golden.jsonl` ≥ 20 筆，附通過門檻。
 6. **PII 最小化**：送進 LLM 前先 redact 身分證號、護照號、電話、完整地址（除非該 agent 必需）。
 
-## 實作進度（截至 P4-3）
+## 實作進度（截至 P5-3）
 
 | Agent | 狀態 | Prompt | Eval |
 |---|---|---|---|
-| A1 RfqIntake | 未做（P5） | — | — |
-| A2 Matching | 未做（P5） | — | — |
+| A1 RfqIntake | ✅ 已實作（**有偏離，見該節**） | `rfq_intake_v1.md` | ⚠️ 22 筆合成 golden，欠 30 段真實買家原話 |
+| A2 Matching | 未做（P5-4） | — | — |
 | A3 Nnc1Extraction | ✅ 已實作 | `nnc1_extract_v1.md` | ❌ 欠 20 份去識別化樣本 |
 | A4 ReviewModeration | ✅ 已實作（**有偏離，見該節**） | `moderation_v1.md` | ⚠️ 22 筆合成 golden，欠 50 筆真實標註 |
-| A5 QuoteAnalysis | 未做（P5） | — | — |
+| A5 QuoteAnalysis | ✅ 已實作（**有偏離，見該節**） | `quote_analysis_v1.md` | ⚠️ 22 筆合成 golden，欠 25 份真實報價 |
 | A6 / A7 | 未做 | — | — |
+
+分數與樣本來源記在 `apps/agents/evals/RESULTS.md`。**四個 agent 都還沒跑過真 API eval，
+所以四個都不得在生產啟用**（COMPLIANCE §8 的上線 gate）。
 
 共用基礎設施已完成：`base.py::BaseAgent`（強制 tool use、指數退避、逐條路徑 fallback）、
 `pricing.py`（Decimal 價目表）、`redaction.py`、`schemas.py`、`registry.py`、
@@ -48,6 +51,28 @@ agent 可以連續一個月完全沒被呼叫過，而畫面上看起來一切�
 
 **用途**：把買家的自然語言（常見於微信貼過來的一段話）轉成結構化 RFQ。
 
+> ### ⚠️ 實作偏離本文件（P5-3，刻意的）
+>
+> 1. **`services_needed` 等 enum 用平台自己的代碼**（`ServiceCategory` / `CompanyType` /
+>    `Timeline` 的 `TextChoices` 值），不是本節寫的那組較短的字串。
+>    prefill 的每一欄最後都要落進表單的 `<select>`，中間夾一張對照表，
+>    等於讓錯誤發生在對照表裡而不是模型裡。`test_schemas.py` 逐個 `Literal`
+>    對著 `TextChoices` 斷言，改了其中一邊另一邊會紅。
+> 2. **多了 `title`**：需求牆上顯示的就是標題，讓模型順手擬一句，
+>    比讓買家對著空白框想一句好。
+>
+> **實作狀態**：`apps/agents/rfq_intake.py`，prompt `prompts/rfq_intake_v1.md`。
+> 由 `rfq.views` 的 prefill endpoint（HTMX）呼叫，**不寫任何 `Rfq` 列**——
+> 回來的只是一張填好的表單（CLAUDE.md 規則 3）。買家按確認送出的那一張才是被存的那一張，
+> 並標 `is_ai_assisted=True`；棄掉 prefill 直接手打，下一張需求單不會沾到它
+> （`test_an_abandoned_prefill_does_not_attach_to_the_next_requirement`）。
+> 送進模型的原話先過 `redaction.redact()`——電話與 email 不需要出境才讀得懂一段需求。
+>
+> **幻覺預算是硬零**：規則式 fallback 也一樣照這個標準量
+> （`test_the_intake_fallback_never_invents_a_budget` 掃過 golden set 裡每一筆
+> 沒寫預算的原話）。人民幣金額**不會**被換算成 HKD 預算：五萬人民幣不是五萬港元，
+> 而一個被平台自行換算過的數字會以買家自己寫的樣子出現在持牌公司眼前。
+
 - Model: `claude-haiku-4-5-20251001`
 - Input: `raw_input`（用戶原話）、可選的部分表單欄位
 - Output schema:
@@ -69,6 +94,9 @@ class RfqIntakeOut(BaseModel):
 - **後處理**：結果以「預填表單」呈現給用戶確認，用戶按下確認才寫入 `Rfq.structured`。
 - Fallback: 只做關鍵字規則抽取（服務名稱、金額 regex、銀行名稱字典），`confidence=0.3`，全部欄位標 `needs_review`。
 - Eval 門檻：services_needed 的 F1 ≥ 0.85；不得幻覺出用戶沒提的預算數字（hallucinated_budget_rate = 0）。
+  目前 `evals/rfq_intake/golden.jsonl` 22 筆合成樣本，門檻寫在 `evals/runner.py`：
+  `INTAKE_SERVICES_F1_THRESHOLD = 0.85`、`MAX_HALLUCINATED_BUDGET_RATE = 0.0`。
+  分數見 `evals/RESULTS.md`。30 段真實買家原話仍然欠著。
 
 ---
 
@@ -231,6 +259,27 @@ class ModerationOut(BaseModel):
 
 **用途**：把秘書公司提交的報價正規化，揪出隱藏費用與異常低價。
 
+> ### ⚠️ 實作偏離本文件（P5-3，刻意的）
+>
+> 1. **只分析 HKD 報價**。其他貨幣直接 `skipped`，連 `AgentRun` 都不寫——
+>    市場分位數是用 HKD 算的，拿 CNY 的總額去比 HKD 的 p10 會得出一個看起來
+>    很便宜的假結論，而那個結論會顯示給買家看。
+> 2. **`total_renewal_hkd` 可為 `None`**（本節寫的是 `int`）。很多報價根本沒寫續期費，
+>    那時候 0 是錯的答案：0 的意思是「續期免費」。`None` 的意思是「他沒說」，
+>    而「他沒說」正是這個 agent 要買家去問的東西。
+>
+> **實作狀態**：`apps/agents/quote_analysis.py`，prompt `prompts/quote_analysis_v1.md`。
+> 由 `rfq.services.submit_quote` 的 `transaction.on_commit` 派發，只寫 `Quote.analysis`
+> 一欄（JSON，建議性質），**不動報價金額、不動狀態、不排序**。
+> 買家看到的仍然是公司自己填的價，agent 只是旁邊那幾條要問的問題。
+>
+> **分位數由 SQL 算**：`rfq.selectors` 用 Postgres `PERCENTILE_CONT` 算同類服務的
+> p10/p50/p90，樣本少於 `MIN_PERCENTILE_SAMPLE = 8` 就回空 dict，
+> prompt 裡明講「Not enough comparable quotes」。這一條有測試把每個坑都釘住：
+> 一張報價不會跟自己比、撤回的報價不是價格、兩種貨幣不混在一起
+> （`test_selectors.py::TestMarketPercentiles`）。
+> **沒有市場數字與「不低於市場」必須答得一樣**——不然「沒得比」會被讀成「便宜」。
+
 - Model: `claude-sonnet-5`
 - Input: `QuoteLineItem[]` + RFQ 需求 + 該服務類別的市場價分位數（由平台自算，非 LLM）
 - Output schema:
@@ -248,7 +297,13 @@ class QuoteAnalysisOut(BaseModel):
 - **價格分位數由 SQL 算**，不讓 LLM 估市場價（會幻覺）。
 - 前台顯示 `flags` 時措辭要中性：「此报价未列明政府规费，建议向服务商确认」，**不可寫「此公司不可信」**。
 - Fallback: 用標準項目清單做 set difference 找 missing items，`flags` 只留規則能判的。
-- Eval：對 25 份真實報價，missing_govt_fee 偵測 precision ≥ 0.9。
+- Eval：對 25 份真實報價，missing_govt_fee 偵測 precision ≥ 0.9
+  （`MISSING_GOVT_FEE_PRECISION_THRESHOLD`；選 precision 不選 recall，
+  因為一個常常喊錯的警示，買家很快就學會不看）。
+  **目前只有 `evals/quote_analysis/golden.jsonl` 22 筆合成報價**，其中 q03／q13
+  刻意只在附言裡用中文寫「已包含政府规费」——規則判不出來，模型應該讀得出來。
+  規則式 fallback 在這個 set 上 precision 0.56 / recall 1.00，**是刻意多喊**；
+  所以 fallback 的測試只量 recall。25 份真實報價仍然欠著，分數見 `evals/RESULTS.md`。
 
 ---
 

@@ -132,6 +132,8 @@
           </p>
         {% endif %}
 
+        {% include "components/quote_analysis.html" with analysis=quote.analysis %}
+
         {% if rfq.status == "open" and quote.is_live %}
           <div class="mt-4 flex flex-wrap gap-3 border-t border-line pt-4">
             <form method="post" action="{% url 'rfq:quote_shortlist' quote.id %}">

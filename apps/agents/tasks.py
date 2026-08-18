@@ -66,3 +66,38 @@ def extract_nnc1(verification_id: str) -> str:
     if result is None:
         return "skipped"
     return "fallback" if result.used_fallback else "ok"
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="agents.analyse_quote",
+    autoretry_for=(Exception,),
+    retry_backoff=30,
+    max_retries=2,
+    time_limit=180,
+)
+def analyse_quote(quote_id: str) -> str:
+    """Run A5 over a quote that has just been submitted.
+
+    Queued rather than run inside ``submit_quote``: the company pressing Send
+    has spent one of its three daily quotes and is owed a fast answer, and the
+    buyer's comparison table works without the analysis - the missing-item list
+    on that page is computed from the standard labels either way. If this never
+    runs, the buyer loses the questions, not the quote.
+    """
+    from apps.agents.services import analyse_quote as run
+    from apps.rfq.models import Quote
+
+    quote = (
+        Quote.objects.select_related("rfq")
+        .prefetch_related("line_items")
+        .filter(pk=quote_id)
+        .first()
+    )
+    if quote is None:
+        logger.warning("Quote %s vanished before it could be analysed", quote_id)
+        return "missing"
+
+    result = run(quote)
+    if result is None:
+        return "skipped"
+    return "fallback" if result.used_fallback else "ok"

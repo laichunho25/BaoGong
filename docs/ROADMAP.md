@@ -9,7 +9,7 @@
 | **P2 目錄前台** | `providers` app（Provider/ServiceOffering/PriceItem/Certification）、每日回填、列表頁（HTMX 搜尋/篩選/排序/分頁）、詳情頁、`/compare/`、來源與評分元件、sitemap/robots | 可公開瀏覽的 MVP | ✅ |
 | **P3 帳號 + 認領** | User/角色、郵箱註冊登入（手機為選填欄位）、`ProviderMember` 權限、`ProviderClaim` + `ClaimEvidence` 流程（私有儲存、MIME/大小驗證、可插拔病毒掃描、網站 TXT/meta 驗證、90 日保留期）、moderator 佇列（客製 admin，理由必填）、批准後發 `tcsp_licence` | 秘書公司可認領 | ✅ |
 | **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ✅** `agents.BaseAgent` + `AgentRun`/`AgentFeedback` + 三段 kill switch + Decimal 成本記帳、A4 評價審核（建議而非放行，排序人工佇列）、A3 NNC1 抽取（讀數擺在規則比對旁邊，不碰 `result`）、唯讀 run log admin、22 筆合成 golden set · **P4-4 ✅** Dispute（申訴不改動評價任何欄位、`due_at` 以工作天落實 COMPLIANCE §3 的 5 天承諾、逾期在後台印 `OVERDUE`、一則評價同時只有一宗未決申訴由 partial unique constraint 保證、隱藏／移除一律繞回 `hide_review`／`remove_review`；仲裁 agent 未做） | 已驗證評價可上線 | ✅ |
-| **P5 RFQ 撮合** | **P5-1 ✅** Rfq/Quote/QuoteLineItem/QuotaLedger 資料層與 services／selectors：需求單不帶買家身分、`structured` 只是 A1 草稿、報價以封閉 enum 的逐項明細存放（比較表同口徑）、只有已認領且仍在名單上的公司可報價、每日 3 單額度以流水帳實作（送出即扣、撤回不退、付費結餘跨日結轉）、需求 14 日到期（每小時 beat + 牆上再過濾一次） · **P5-2 ✅** 需求牆（登入才看得到）／RFQ 表單（草稿→發布兩步）／報價表單（總額 + 逐項明細 formset）／同口徑比較表（空白格代表沒報這一項，並逐項點名）、兩封通知（買家收到報價、公司知道自己被選上**或落選**）、報價依 `validity_days` 到期（每小時 beat） · **P5-3 ⬜** A1 RfqIntake + A5 QuoteAnalysis | 撮合閉環 | 🟨 |
+| **P5 RFQ 撮合** | **P5-1 ✅** Rfq/Quote/QuoteLineItem/QuotaLedger 資料層與 services／selectors：需求單不帶買家身分、`structured` 只是 A1 草稿、報價以封閉 enum 的逐項明細存放（比較表同口徑）、只有已認領且仍在名單上的公司可報價、每日 3 單額度以流水帳實作（送出即扣、撤回不退、付費結餘跨日結轉）、需求 14 日到期（每小時 beat + 牆上再過濾一次） · **P5-2 ✅** 需求牆（登入才看得到）／RFQ 表單（草稿→發布兩步）／報價表單（總額 + 逐項明細 formset）／同口徑比較表（空白格代表沒報這一項，並逐項點名）、兩封通知（買家收到報價、公司知道自己被選上**或落選**）、報價依 `validity_days` 到期（每小時 beat） · **P5-3 ✅** A1 RfqIntake（HTMX 預填表單，**不寫任何 `Rfq` 列**，買家確認過的那一張才是被存的那一張，標 `is_ai_assisted`；原話先 redact；人民幣不換算成港元預算）、A5 QuoteAnalysis（`submit_quote` 於 `on_commit` 派發，只寫 `Quote.analysis` 一欄建議，不動金額不動排序；市場 p10/p50/p90 由 Postgres `PERCENTILE_CONT` 算，樣本不足 8 就明說「沒得比」；非 HKD 報價直接跳過）、兩份 22 筆合成 golden set + `evals/RESULTS.md` | 撮合閉環 | ✅ |
 | **P6 匹配 + 內容** | **A2 MatchingAgent**、pgvector + content app、**A6 AdvisorAgent**、教育文章 CMS、**A7 RegistryDiffAgent** | AI 完整上線 | ⬜ |
 | **P7 商業化** | Plan/Subscription/CreditPack、Stripe（或 Airwallex）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
 | **P8 上線** | `compliance-review` 全綠、Sentry、備份、負載測試、法律覆核 | Production | ⬜ |
@@ -64,9 +64,9 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - ~~`[P4] 評價提交與審核都不發通知`~~ — 已補：作者每次審核決定都收到結論與理由；公司則是**評價公開時**才收到通知，不是提交時——提交時就寄，等於在任何人查證之前，先把投訴者的身分交到被投訴的公司手上。
 - ~~`[P4] 審核佇列純人手，A4 尚未接上`~~ — P4-3 已接上：`submit_review` 於 `on_commit` 派發 A4，結果寫進 `Review.moderation`。**改變 `status` 的仍然只有人**，A4 只決定佇列順序（`escalation_reason`）。
 - `[P4] A4 不會 auto-publish，與 AI_AGENTS §A4 原規劃不同` — 原文允許 `severity=none` + `confidence ≥ 0.8` + 已驗證用戶自動發佈；實作沒做，因為那與 CLAUDE.md 規則 3 及 `publish_review` 的具名審核員＋必填理由衝突 — **這是政策決定不是技術債**，要開的話是一個開關加一句「誰為 agent 放行的評價負責」，跟我說即可。
-- `[P4] A4 / A3 都還沒有真實 eval 資料` — A4 只有 22 筆合成 golden（量的是規則有沒有壞，不是模型準不準），A3 完全沒有；AI_AGENTS 要求的是 50 筆標註評價與 20 份去識別化 NNC1 — **在補齊之前不要把 `AGENT_ENABLED_*` 打開到生產**，否則等於把沒量過準確率的讀數擺到審核員眼前，而他們會相信它。
+- `[P4] 四個 agent 都還沒有真實 eval 資料` — A1／A4／A5 各 22 筆合成 golden（量的是規則有沒有壞，不是模型準不準），A3 完全沒有；AI_AGENTS 要求的是 30 段真實買家原話、50 筆標註評價、20 份去識別化 NNC1、25 份真實報價 — **在補齊並跑過 `uv run pytest -m eval` 之前不要把 `AGENT_ENABLED_*` 打開到生產**，否則等於把沒量過準確率的讀數擺到審核員與買家眼前，而他們會相信它。現況與規則式 fallback 的分數記在 `apps/agents/evals/RESULTS.md`。
 - `[P4] 沒有人在看 fallback 率` — `selectors.health(days=7)` 寫好了但沒有人／沒有告警去讀它，所以 agent 可以連續一個月完全沒被呼叫而畫面一切正常 — 與 `[P1] sanity check 告警只寫 logger.critical` 同一件事，P8 接告警通道時一起做。
-- `[P4] 每日預算是全域而非逐 agent` — `AGENT_BUDGET_DAILY_USD` 用完是所有 agent 一起走 fallback，所以一個跑掉的高頻 agent 會餓死審核 — 有第三個 agent（P5）之後再拆成逐 agent 額度。
+- `[P4] 每日預算是全域而非逐 agent` — `AGENT_BUDGET_DAILY_USD` 用完是所有 agent 一起走 fallback，所以一個跑掉的高頻 agent 會餓死審核 — P5-3 之後已有四個 agent，其中 A1 是買家每打一段話就呼叫一次的高頻路徑，**這條已經該做了**：拆成逐 agent 額度，A1 用完不該讓 A4 停下來。
 - `[P4] 時間衰減權重未實作` — RATING_SYSTEM §2 規劃「24 個月以上權重 0.5」，v1 沒做 — 它上線當天會改動全站每一個分數，而目前沒有足夠評價量支撐這個代價；有量之後再開，開的時候要跑 `reviews.recompute_all_ratings`。
 - `[P4] 評價不能修改，只能重寫一則` — 一人一公司一則是硬約束，作者寫錯了只能請 moderator 下架 — 編輯流程要有自己的版本軌跡（誰在什麼時候改了什麼），是一個獨立功能，P7 再評估。
 - `[P4] 申訴沒有仲裁 agent，ai_arbitration_draft 恆為空` — PRD §44 與 DATA_MODEL 都寫了這個欄位，實作只留欄位不留 agent — 仲裁草稿會是這個系統風險最高的一段 agent 產出（它要在兩造之間下判斷），而 A3／A4 到現在都還沒有真實 eval 資料；先累積幾十宗人手決定，那些才是這個 agent 的 golden set。
@@ -85,7 +85,9 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P5] 買家聯絡方式完全不在系統內` — 這是刻意的（COMPLIANCE §4），代價是報價之後雙方要怎麼繼續談，目前平台沒有答案 — 站內訊息是 P7 的事；在那之前，成交後的聯絡方式交換要有一個明確、買家按過同意的動作。
 - `[P5] responsiveness_score 仍然沒有寫入者` — P5-1 存了 `submitted_at`，但沒有人拿它去算「這家公司多久回一則需求」 — 排序權重 §5 那 0.08 依舊對所有公司同值，P5-2 有真實報價流量後補。
 - `[P5] 需求牆只擋匿名，不擋「任何已登入帳號」` — 註冊一個免費帳號就能讀到全部開放中的需求內容（不含買家身分） — 真正的門檻應該是「已認領的持牌公司才看得到需求全文」，未認領者只看得到標題與服務類別；等 P6 的 A2 匹配決定「誰看得到這則需求」時一起收緊，屆時 `invited_only` 也才有流程。
-- `[P5] 草稿只能發布或關閉，不能改` — 買家送出後發現寫錯，唯一的辦法是關掉重寫 — A1 預填（P5-3）會讓「改草稿」變成主要動線，那時再補 `update_rfq`（只允許 `draft`，發布後不得改動，因為公司是照著已發布的內容報的價）。
+- `[P5] 草稿只能發布或關閉，不能改` — 買家送出後發現寫錯，唯一的辦法是關掉重寫 — P5-3 的 A1 預填是在**送出之前**的表單上改，所以還沒逼出這條；但預填會讓買家更習慣「先出一版再修」，`update_rfq`（只允許 `draft`，發布後不得改動，因為公司是照著已發布的內容報的價）該排進 P6。
+- `[P5] 市場分位數在開站初期幾乎永遠是空的` — `MIN_PERCENTILE_SAMPLE = 8`，同一服務類別湊不到八張同幣別報價就回空 dict，所以 `below_market_p10` 在有量之前基本上不會出現 — 這是刻意的（三張報價算出來的「市場價」是三家公司的價，不是市場），代價是 A5 前期只答得出「他沒說什麼」，答不出「他比別人貴」；不要為了讓畫面好看而調低這個門檻。
+- `[P5] A5 關掉時會誤喊 missing_govt_fee` — 規則只看得懂 line item 與勾選框，看不懂附言裡的「已包含政府规费」，在合成 golden set 上 precision 只有 0.56（recall 1.00） — **方向是對的**（漏喊的代價是簽約後才發現要再付一筆），但模型長期關著的話，買家會學會不看這個標籤；`selectors.health()` 要盯的不只是 fallback 率，還有 fallback 期間的 flag 量。
 - `[P5] 報價明細固定 6 行，沒有動態加行` — 超過六項就得塞進「其他」的備註 — HTMX 加行是小事，但先看真實報價的項目分布再決定要不要把常用項目做成預設列。
 - `[P5] 需求牆沒有分頁、沒有篩選` — 上限寫死 100 則（`views.WALL_LIMIT`） — 牆上超過一頁的量出現之前，多給幾則比多一個分頁器有用；到時篩選要按服務類別與公司類型，不是按買家。
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。
@@ -100,5 +102,6 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - P1：必須有 fixture 測試涵蓋「筆數暴跌 > 15% → aborted_sanity，DB 不變」
 - P3：必須有測試「未掃描的證明檔案不被服務、也擋住批准」與「他人的申請回 404 而非 403」
 - P4：必須有測試「1 條 4.5 分驗證評價 → 顯示 4.95」與「0 條評價 → 不顯示分數」
-- P5：必須有測試「同一天第 4 次報價被擋，購買額度後可報」
+- P5：必須有測試「同一天第 4 次報價被擋，購買額度後可報」；A1 預填不得寫出任何 `Rfq` 列，
+  A5 不得改動報價的任何一欄（兩者都有測試）
 - P6：每個 agent 的 eval 必須跑過並記錄分數在 `apps/agents/evals/RESULTS.md`

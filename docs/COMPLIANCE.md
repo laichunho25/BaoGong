@@ -135,12 +135,21 @@
       `test_an_unclaimed_company_is_offered_no_way_to_quote`），後者同時斷言連 POST 直闖也拿不到報價
 - [ ] DSAR 後台流程可用
 - [ ] Agent kill switch 全部可用 — P4-3 已落地三段：`AGENTS_ENABLED`（全域）、
-      `AGENT_ENABLED_{NAME}`（逐 agent，目前 `REVIEW_MODERATION` / `NNC1_EXTRACTION`）、
+      `AGENT_ENABLED_{NAME}`（逐 agent，目前 `REVIEW_MODERATION` / `NNC1_EXTRACTION` /
+      `RFQ_INTAKE` / `QUOTE_ANALYSIS`）、
       沒有 `ANTHROPIC_API_KEY` 即視為關閉。三者都只從環境變數讀，見 `.env.example`。
       **驗收方式不是「設定存在」而是「關掉之後平台照常運作」**：關掉時 agent 走規則式 fallback，
       評價照樣進審核佇列、NNC1 照樣可被人手核驗，`AgentRun` 照樣寫一列 `status=fallback`。
+      P5-3 起這條由 `test_registry.py` 逐 agent 斷言（kill switch、prompt 檔、模型政策），
+      而不是靠有人記得在這張清單上補一列。
 - [ ] 送進 LLM 的評價正文已 redact（A4 不是 §4 的例外；用 `[PHONE]` 這類佔位符而非刪除）
+      — 買家貼過來的需求原話同樣（A1，`redaction.redact()` 後才進 prompt）
 - [ ] `AgentRun.input_ref` 只存形狀摘要（`body_chars=412`），畫面上看不到評價原文或 NNC1 內容
 - [ ] `AgentRun` 在 admin 不可新增／不可修改／不可刪除（可被改寫的稽核紀錄等於沒有稽核紀錄）
 - [ ] 每個已啟用的 agent 都有跑過 eval 且分數記錄在 `apps/agents/evals/RESULTS.md`
-      （**目前 A3 無 eval、A4 只有合成樣本，兩者都不得在生產啟用**）
+      （**目前 A3 完全無 golden set，A1／A4／A5 各只有 22 筆合成樣本、且都未跑過真 API eval
+      ——四個都不得在生產啟用**。RESULTS.md 現在記的是規則式 fallback 的分數，
+      那是「模型關掉時平台實際的表現」，不是 agent 的分數）
+- [ ] A5 的 flag 措辭中性——「此报价未列明政府规费，建议向服务商确认」，
+      不得出現任何指向公司可信度的字眼（AI_AGENTS A5）
+- [ ] A1 的 prefill 不寫任何 `Rfq` 列；被存下來的一定是買家確認過的那一張（CLAUDE.md 規則 3）

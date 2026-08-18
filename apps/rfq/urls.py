@@ -10,6 +10,7 @@ urlpatterns = [
     # Reserved first segments, before the id route.
     path("", views.rfq_wall, name="wall"),
     path("new/", views.rfq_create, name="create"),
+    path("new/read/", views.rfq_intake, name="intake"),
     path("mine/", views.my_rfqs, name="my_rfqs"),
     path("<uuid:rfq_id>/", views.rfq_detail, name="detail"),
     path("<uuid:rfq_id>/publish/", views.rfq_publish, name="publish"),
