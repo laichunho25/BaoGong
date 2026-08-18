@@ -269,6 +269,38 @@ class AdvisorOut(StrictSchema):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class CriticalItem(StrictSchema):
+    """One change an operator has to act on today.
+
+    ``licence_no`` is checked against the rule-decided critical list before any
+    of this is shown or mailed: the model writes the copy, and the copy has to
+    be about a change that a rule - not the model - called critical
+    (AI_AGENTS A7).
+    """
+
+    licence_no: str = Field(max_length=32)
+    provider_name: str = Field(default="", max_length=255)
+    what: str = Field(default="", max_length=200)
+    why_it_matters: str = Field(default="", max_length=300)
+    action: str = Field(default="", max_length=200)
+
+
+class DiffDigestOut(StrictSchema):
+    """A7's operations digest for one sync run.
+
+    ``counts`` is recomputed from the database after the model answers rather
+    than trusted: it is the one part of this output somebody might quote as a
+    number, and a model that miscounts is a model that has just published a
+    wrong figure about the official register (CLAUDE.md rule 3).
+    """
+
+    headline: str = Field(default="", max_length=200)
+    critical_items: list[CriticalItem] = Field(default_factory=list, max_length=25)
+    routine_summary: str = Field(default="", max_length=800)
+    counts: dict[str, int] = Field(default_factory=dict)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
 def tool_schema(schema: type[BaseModel]) -> dict[str, Any]:
     """The JSON Schema the Anthropic tool definition carries.
 

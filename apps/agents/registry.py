@@ -15,6 +15,7 @@ from apps.agents.advisor import AdvisorAgent
 from apps.agents.matching import MatchingAgent
 from apps.agents.nnc1_extraction import Nnc1ExtractionAgent
 from apps.agents.quote_analysis import QuoteAnalysisAgent
+from apps.agents.registry_diff import RegistryDiffAgent
 from apps.agents.review_moderation import ReviewModerationAgent
 from apps.agents.rfq_intake import RfqIntakeAgent
 
@@ -28,6 +29,7 @@ AGENTS: dict[str, type[BaseAgent]] = {
     QuoteAnalysisAgent.name: QuoteAnalysisAgent,
     MatchingAgent.name: MatchingAgent,
     AdvisorAgent.name: AdvisorAgent,
+    RegistryDiffAgent.name: RegistryDiffAgent,
 }
 
 

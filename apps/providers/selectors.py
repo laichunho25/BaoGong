@@ -174,7 +174,11 @@ def filter_directory(filters: DirectoryFilters) -> QuerySet[Provider]:
     if filters.remote_onboarding:
         queryset = queryset.filter(remote_onboarding=True)
     if filters.tier:
+        # A suspended paid page is not in its paid tier for anything a buyer
+        # sees; it stays findable, just not under the badge it is not showing.
         queryset = queryset.filter(tier=filters.tier)
+        if filters.tier != Tier.FREE:
+            queryset = queryset.filter(paid_placement_suspended_at__isnull=True)
     if filters.bank_type:
         queryset = queryset.filter(bank_types__contains=[filters.bank_type])
 

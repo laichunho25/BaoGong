@@ -22,10 +22,10 @@
 | A4 ReviewModeration | ✅ 已實作（**有偏離，見該節**） | `moderation_v1.md` | ⚠️ 22 筆合成 golden，欠 50 筆真實標註 |
 | A5 QuoteAnalysis | ✅ 已實作（**有偏離，見該節**） | `quote_analysis_v1.md` | ⚠️ 22 筆合成 golden，欠 25 份真實報價 |
 | A6 Advisor | ✅ 已實作（**有偏離，見該節**） | `advisor_v1.md` | ⚠️ 32 筆合成 golden，欠 30 條真實提問 |
-| A7 RegistryDiff | 未做 | — | — |
+| A7 RegistryDiff | ✅ 已實作（**有偏離，見該節**） | `registry_diff_v1.md` | ⚠️ 12 筆合成 golden，欠 30 天真實 diff |
 
-分數與樣本來源記在 `apps/agents/evals/RESULTS.md`。**六個 agent 都還沒跑過真 API eval，
-所以六個都不得在生產啟用**（COMPLIANCE §8 的上線 gate）。
+分數與樣本來源記在 `apps/agents/evals/RESULTS.md`。**七個 agent 都還沒跑過真 API eval，
+所以七個都不得在生產啟用**（COMPLIANCE §8 的上線 gate）。
 
 共用基礎設施已完成：`base.py::BaseAgent`（強制 tool use、指數退避、逐條路徑 fallback）、
 `pricing.py`（Decimal 價目表）、`redaction.py`、`schemas.py`、`registry.py`、
@@ -405,6 +405,27 @@ class DiffDigestOut(BaseModel):
   - 已認領 Provider 名稱／地址變更 → `warn`，要求重新驗證。
   - 新增／移除未認領公司 → `info`。
 - Fallback: 用模板生成純數字摘要。
+
+### 實作偏離（`apps/agents/registry_diff.py` + `apps/agents/services.py`）
+
+1. **severity 在同步之後被重算一次。** `registry.services` 建 `LicenseeChange` 時只看得到
+   官方檔案，所以 `removed` 一律先寫 `critical`。A7 的 `severity_for()` 才知道那張牌照
+   對應的頁面有沒有被認領、有沒有在付費，於是**未認領公司的移除會被降級成 `info`**
+   ——那種頁面本來就自動掛著除牌提示（`registry.notices`），沒有人需要為它被叫醒。
+   規則表本身沒有改，只是它要到 A7 這一層才有足夠資料可以套用。
+2. **「自動下架付費曝光」實作成暫停而不是下架。** 新欄位
+   `Provider.paid_placement_suspended_at` + `effective_tier` property：排序與 tier 篩選
+   都讀 effective 值，於是那家公司立刻不再被推薦，但頁面仍然公開、除牌提示仍然在、
+   `tier` 與帳務狀態原封不動——恢復只是把時間戳清掉。真的下架頁面會讓買家連
+   「這家已經不在名單上」都看不到，方向反而不保守。
+3. **`counts` 一律由 SQL 重算，模型寫的數字直接丟掉**（`screen_digest()`）。同一個
+   screen 也丟掉模型對「規則沒說 critical」的那些牌照寫的 item，並替模型漏掉的
+   critical 補一條模板 item——決定誰被叫醒的是規則，不是文案。
+4. **`critical_items` 上限 25 條**（schema 硬限制）。超出的部分在 `routine_summary`
+   結尾明講還有幾條、請進後台看，而不是安靜地少寄。
+5. **重複告警防護**：`notified_at` 先用 `update()` 搶下來才寄信，Celery 重試不會寄第二次。
+6. **模型永遠不准說「為什麼」被移除。** 官方檔案不公布原因，所以 prompt 明文禁止
+   吊銷／撤銷／違規／涉嫌一類字眼，eval 也把它當硬門檻（`MAX_DIGEST_FORBIDDEN_RATE = 0`）。
 
 ---
 

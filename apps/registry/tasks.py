@@ -7,6 +7,7 @@ from typing import Any
 
 from celery import shared_task
 
+from apps.registry.models import SyncStatus
 from apps.registry.services import sync_registry
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,13 @@ logger = logging.getLogger(__name__)
 def sync_tcsp_registry(self: Any, *, dry_run: bool = False) -> dict[str, Any]:
     """Daily register sync. Scheduled at 06:00 Asia/Hong_Kong by beat."""
     report = sync_registry(dry_run=dry_run)
-    if report.status == "aborted_sanity":
+    if report.status == SyncStatus.SUCCESS and report.sync_run_id and not dry_run:
+        # Queued, not called: the register is already written and correct, and
+        # a digest that fails must not drag a good sync into a retry.
+        from apps.agents.tasks import summarise_registry_diff
+
+        summarise_registry_diff.delay(str(report.sync_run_id))
+    if report.status == SyncStatus.ABORTED_SANITY:
         # Do not retry: the file is intact but implausible, so retrying just
         # re-downloads the same implausible file. A human has to look.
         logger.critical("TCSP sync aborted by sanity check: %s", report.error)

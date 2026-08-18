@@ -16,12 +16,13 @@ Three jobs live here:
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
 import secrets
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 from django.conf import settings
 from django.db import transaction
@@ -53,6 +54,8 @@ if TYPE_CHECKING:
 
     from apps.accounts.models import User
     from apps.core.uploads import InspectedUpload
+
+logger = logging.getLogger(__name__)
 
 # RATING_SYSTEM section 5. The weights are the product definition; the inputs
 # they read are defined in this module.
@@ -179,7 +182,7 @@ def compute_ranking_score(provider: Provider) -> Decimal:
     score = (
         WEIGHT_RATING * normalised_rating
         + WEIGHT_REVIEW_VOLUME * compute_review_volume_score(provider.verified_review_count)
-        + WEIGHT_CERTIFICATION * TIER_CERTIFICATION_LEVEL[Tier(provider.tier)]
+        + WEIGHT_CERTIFICATION * TIER_CERTIFICATION_LEVEL[Tier(provider.effective_tier)]
         + WEIGHT_COMPLETENESS * provider.profile_completeness
         + WEIGHT_RESPONSIVENESS * provider.responsiveness_score
     )
@@ -213,6 +216,35 @@ def recompute_ranking_inputs(*, provider_ids: list[str] | None = None) -> int:
         changed, ["profile_completeness", "ranking_score", "updated_at"], batch_size=500
     )
     return len(changed)
+
+
+#: The tiers somebody is paying for. A licence leaving the register matters on
+#: every page, but only these are being actively promoted by the platform.
+PAID_TIERS: Final[frozenset[str]] = frozenset({Tier.VERIFIED, Tier.PREMIUM})
+
+
+def suspend_paid_placement(provider: Provider) -> bool:
+    """Stop promoting one page. Returns whether anything changed.
+
+    Called by A7 when the licence behind a paying page stops appearing in the
+    official register. Automating this direction is allowed because it is the
+    conservative one: the platform stops advertising a company until a human
+    has looked, and the page itself stays up carrying the deregistration notice
+    (``registry.notices``) so a buyer who searches for the company still learns
+    the truth. Nothing here is reversed automatically - restoring a placement is
+    somebody's decision, and it needs the official register open in front of
+    them.
+    """
+    if provider.paid_placement_suspended_at is not None:
+        return False
+
+    provider.paid_placement_suspended_at = timezone.now()
+    provider.ranking_score = compute_ranking_score(provider)
+    provider.save(update_fields=["paid_placement_suspended_at", "ranking_score", "updated_at"])
+    logger.warning(
+        "Paid placement suspended for provider %s: licence no longer on the register", provider.pk
+    )
+    return True
 
 
 # ---------------------------------------------------------------- claims

@@ -18,19 +18,25 @@ from apps.agents.evals.runner import (
     ADVISOR_ANSWER_RATE_THRESHOLD,
     ADVISOR_GROUNDING_RATE_THRESHOLD,
     ADVISOR_REFUSAL_RATE_THRESHOLD,
+    DIGEST_COVERAGE_THRESHOLD,
     ESCALATION_RECALL_THRESHOLD,
     INTAKE_SERVICES_F1_THRESHOLD,
     MATCHING_NDCG_THRESHOLD,
+    MAX_DIGEST_FORBIDDEN_RATE,
+    MAX_DIGEST_OVER_FLAG_RATE,
     MAX_FALSE_ESCALATION_RATE,
     MAX_GROUNDING_VIOLATION_RATE,
     MAX_HALLUCINATED_BUDGET_RATE,
     MISSING_GOVT_FEE_PRECISION_THRESHOLD,
     AdvisorCase,
+    DigestCase,
     GoldenCase,
     IntakeCase,
     MatchingCase,
     QuoteCase,
+    forbidden_words,
     load_advisor_golden,
+    load_digest_golden,
     load_golden,
     load_intake_golden,
     load_matching_golden,
@@ -38,12 +44,14 @@ from apps.agents.evals.runner import (
     ndcg_at_k,
     score,
     score_advisor,
+    score_digest,
     score_intake,
     score_matching,
     score_quote,
 )
 from apps.agents.matching import MatchingAgent, ground_reasons, screen_matches
 from apps.agents.quote_analysis import QuoteAnalysisAgent
+from apps.agents.registry_diff import RegistryDiffAgent, screen_digest, template_digest
 from apps.agents.review_moderation import URGENT_REASONS, ReviewModerationAgent, escalation_reason
 from apps.agents.rfq_intake import RfqIntakeAgent
 from apps.agents.schemas import (
@@ -59,6 +67,7 @@ INTAKE_GOLDEN = load_intake_golden()
 QUOTE_GOLDEN = load_quote_golden()
 MATCHING_GOLDEN = load_matching_golden()
 ADVISOR_GOLDEN = load_advisor_golden()
+DIGEST_GOLDEN = load_digest_golden()
 
 
 def test_the_golden_set_is_large_enough() -> None:
@@ -121,6 +130,78 @@ def test_the_rules_alone_catch_the_leaks_in_the_golden_set() -> None:
     for case in leaks:
         out = agent.fallback({"body": case.body}, "disabled")
         assert "personal_data_leak" in out.labels, case.id
+
+
+# --------------------------------------------------------------- A7 registry diff
+
+
+def test_the_digest_golden_set_covers_quiet_days_as_well_as_loud_ones() -> None:
+    """A set of nothing but alarms would score perfectly on a model that
+    declares every day an emergency."""
+    assert len(DIGEST_GOLDEN) >= 10
+    assert len({case.id for case in DIGEST_GOLDEN}) == len(DIGEST_GOLDEN)
+    assert sum(1 for case in DIGEST_GOLDEN if case.expect_critical) >= 5
+    assert sum(1 for case in DIGEST_GOLDEN if not case.expect_critical) >= 4
+
+
+def test_the_expected_items_are_exactly_the_rows_the_rules_flagged() -> None:
+    """The golden set may not disagree with ``severity_for``; if it did, the
+    eval would be scoring the fixture author's opinion."""
+    for case in DIGEST_GOLDEN:
+        flagged = tuple(
+            str(row["licence_no"]) for row in case.rows if row["severity"] == "critical"
+        )
+        assert flagged == case.expect_critical, case.id
+
+
+def test_digest_scoring_separates_a_miss_from_an_invention() -> None:
+    cases = [
+        DigestCase("a", [], ("TC1", "TC2")),
+        DigestCase("b", [], ()),
+    ]
+
+    # "a" wrote about one of its two alarms; "b" invented one on a quiet day.
+    result = score_digest(cases, {"a": (("TC1",), "一切正常"), "b": (("TC9",), "一切正常")})
+
+    assert result.coverage == 0.5
+    assert result.over_flag_rate == 0.5
+    assert result.forbidden_rate == 0.0
+
+
+def test_a_digest_that_says_why_a_licence_went_is_caught() -> None:
+    """The register publishes no reason, so neither may we (COMPLIANCE 1)."""
+    assert forbidden_words("该公司牌照被吊销") == ["吊销"]
+    assert forbidden_words("該牌照已被撤銷") == ["撤銷"]
+    assert forbidden_words("该牌照今日未出现在官方名单") == []
+
+
+def test_the_screen_alone_holds_the_over_flagging_floor_across_the_set() -> None:
+    """``MAX_DIGEST_OVER_FLAG_RATE`` with no model in the loop.
+
+    A digest that alarms about every row of the day is put in front of the
+    screen for each case; nothing beyond the rules' own critical list may
+    survive, because the screen - not the prompt - is what decides who is
+    woken up.
+    """
+    for case in DIGEST_GOLDEN:
+        greedy = template_digest([{**row, "severity": "critical"} for row in case.rows])
+
+        out = screen_digest(greedy, case.rows)
+
+        written = tuple(item.licence_no for item in out.critical_items)
+        assert written == case.expect_critical, case.id
+
+
+def test_the_fallback_reports_every_day_in_the_set_without_a_model() -> None:
+    agent = RegistryDiffAgent()
+
+    for case in DIGEST_GOLDEN:
+        out = agent.fallback({"rows": case.rows}, "disabled")
+
+        assert out.counts["total"] == len(case.rows), case.id
+        written = tuple(item.licence_no for item in out.critical_items)
+        assert written == case.expect_critical, case.id
+        assert not forbidden_words(f"{out.headline} {out.routine_summary}"), case.id
 
 
 @pytest.mark.eval
@@ -578,3 +659,34 @@ def test_advisor_against_the_real_api(settings: Any) -> None:
     assert result_score.grounding_rate >= ADVISOR_GROUNDING_RATE_THRESHOLD, str(result_score)
     assert result_score.refusal_rate >= ADVISOR_REFUSAL_RATE_THRESHOLD, str(result_score)
     assert result_score.answer_rate >= ADVISOR_ANSWER_RATE_THRESHOLD, str(result_score)
+
+
+@pytest.mark.eval
+def test_registry_diff_against_the_real_api(settings: Any) -> None:
+    """Run manually: ``uv run pytest -m eval``. Costs real money."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key or key.startswith("test-"):
+        pytest.skip("no real ANTHROPIC_API_KEY configured")
+    settings.ANTHROPIC_API_KEY = key
+    settings.AGENTS_ENABLED = True
+
+    agent = RegistryDiffAgent()
+    produced: dict[str, tuple[tuple[str, ...], str]] = {}
+    for case in DIGEST_GOLDEN:
+        result = agent.run({"rows": case.rows, "sync_date": "2026-08-18"})
+        assert not result.used_fallback, f"{case.id} fell back: {result.fallback_reason}"
+        raw = result.data
+        # Scored before the screen, for the same reason A6 is: the screen's
+        # output is correct by construction and would measure the screen.
+        items = list(raw.critical_items)  # type: ignore[union-attr]
+        text = " ".join(
+            [raw.headline, raw.routine_summary]  # type: ignore[union-attr]
+            + [f"{item.what} {item.why_it_matters} {item.action}" for item in items]
+        )
+        produced[case.id] = (tuple(item.licence_no for item in items), text)
+
+    result_score = score_digest(DIGEST_GOLDEN, produced)
+    print(f"\nregistry diff eval: {result_score}")
+    assert result_score.coverage >= DIGEST_COVERAGE_THRESHOLD, str(result_score)
+    assert result_score.over_flag_rate <= MAX_DIGEST_OVER_FLAG_RATE, str(result_score)
+    assert result_score.forbidden_rate <= MAX_DIGEST_FORBIDDEN_RATE, str(result_score)

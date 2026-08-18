@@ -136,7 +136,7 @@
 - [ ] DSAR 後台流程可用
 - [ ] Agent kill switch 全部可用 — P4-3 已落地三段：`AGENTS_ENABLED`（全域）、
       `AGENT_ENABLED_{NAME}`（逐 agent，目前 `REVIEW_MODERATION` / `NNC1_EXTRACTION` /
-      `RFQ_INTAKE` / `QUOTE_ANALYSIS` / `MATCHING` / `ADVISOR`）、
+      `RFQ_INTAKE` / `QUOTE_ANALYSIS` / `MATCHING` / `ADVISOR` / `REGISTRY_DIFF`）、
       沒有 `ANTHROPIC_API_KEY` 即視為關閉。三者都只從環境變數讀，見 `.env.example`。
       **驗收方式不是「設定存在」而是「關掉之後平台照常運作」**：關掉時 agent 走規則式 fallback，
       評價照樣進審核佇列、NNC1 照樣可被人手核驗，`AgentRun` 照樣寫一列 `status=fallback`。

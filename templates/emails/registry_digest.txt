@@ -1,0 +1,17 @@
+{% load i18n %}{{ headline }}
+
+{% blocktranslate %}以下条目需要人工处理（严重程度由规则判定，非模型判定）：{% endblocktranslate %}
+{% for item in items %}
+- {{ item.licence_no }} {{ item.provider_name }}
+  {{ item.what }}
+  {{ item.why_it_matters }}
+  {% blocktranslate %}下一步：{% endblocktranslate %}{{ item.action }}
+{% endfor %}
+{% blocktranslate %}其余变动：{% endblocktranslate %}{{ routine_summary }}
+
+{% blocktranslate %}后台查看当日全部变动：{% endblocktranslate %}
+{{ url }}
+
+{% blocktranslate %}本摘要的文字由 AI 生成、未经人工审阅；数字与严重程度由系统规则计算。请以官方登记册为准。{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}

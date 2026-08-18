@@ -16,6 +16,9 @@ Each agent is scored on the one failure that costs somebody something:
   teaches buyers to ignore the one that matters.
 * A6 advisor - grounding first, then how often it refuses a question our guides
   do not cover. An invented sentence about a fee is what a buyer acts on.
+* A7 registry diff - whether the digest covers every change the rules called
+  critical, never invents one, and never states a reason the register does not
+  publish. Operations acts on this mail before anyone checks it.
 """
 
 from __future__ import annotations
@@ -495,4 +498,127 @@ def score_advisor(
         refused=sum(1 for case in unanswerable if not produced.get(case.id, (False, 0, 0))[0]),
         citations_published=published,
         citations_ungrounded=ungrounded,
+    )
+
+
+# ---------------------------------------------------------------- A7 registry diff
+
+#: AI_AGENTS A7. Every critical change must appear in the digest. The screen
+#: puts a template item back when one is missing, so a miss here is not a
+#: silent alert - but a digest whose prose keeps omitting the day's alarm is a
+#: digest an operator stops trusting.
+DIGEST_COVERAGE_THRESHOLD = 0.9
+#: An item about a change the rules did not call critical. Zero, and not
+#: because the screen drops them: a model that keeps promoting rows is a model
+#: about to be given a prompt that lets it.
+MAX_DIGEST_OVER_FLAG_RATE = 0.0
+#: A digest that says *why* a licence left the register. The official file
+#: states no reason; every word below is an assertion about a named company
+#: that no source supports (COMPLIANCE sections 1 and 2).
+MAX_DIGEST_FORBIDDEN_RATE = 0.0
+
+#: Checked against the whole digest, headline and summary included. Simplified
+#: and traditional both, because the model is writing Simplified Chinese and a
+#: single traditional character would sail past a Simplified-only list.
+FORBIDDEN_DIGEST_WORDS: tuple[str, ...] = (
+    "吊销",
+    "吊銷",
+    "撤销",
+    "撤銷",
+    "除牌",
+    "违规",
+    "違規",
+    "违法",
+    "違法",
+    "涉嫌",
+    "查处",
+    "查處",
+    "不可信",
+    "不可靠",
+    "骗",
+    "騙",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DigestCase:
+    id: str
+    #: One day's rows, exactly as ``services._diff_rows`` builds them, severity
+    #: included - the rules decide it and the eval is not re-deciding it here.
+    rows: list[dict[str, Any]]
+    #: The licence numbers a correct digest must write about.
+    expect_critical: tuple[str, ...]
+
+
+def load_digest_golden() -> list[DigestCase]:
+    path = EVAL_DIR / "registry_diff" / "golden.jsonl"
+    if not path.is_file():
+        raise FileNotFoundError(f"no golden set for registry_diff: {path}")
+    return [
+        DigestCase(
+            id=row["id"],
+            rows=list(row.get("rows", ())),
+            expect_critical=tuple(row.get("expect_critical", ())),
+        )
+        for row in _rows(path)
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class DigestScore:
+    cases: int
+    expected_items: int
+    covered: int
+    over_flagged: int
+    forbidden_cases: int
+
+    @property
+    def coverage(self) -> float:
+        return self.covered / self.expected_items if self.expected_items else 1.0
+
+    @property
+    def over_flag_rate(self) -> float:
+        return self.over_flagged / self.cases if self.cases else 0.0
+
+    @property
+    def forbidden_rate(self) -> float:
+        return self.forbidden_cases / self.cases if self.cases else 0.0
+
+    def __str__(self) -> str:
+        return (
+            f"{self.cases} days, coverage {self.coverage:.2f}, "
+            f"over-flag {self.over_flag_rate:.2f}, forbidden wording "
+            f"{self.forbidden_rate:.2f}"
+        )
+
+
+def forbidden_words(text: str) -> list[str]:
+    """Which of the words a digest may never use appear in it."""
+    return [word for word in FORBIDDEN_DIGEST_WORDS if word in text]
+
+
+def score_digest(
+    cases: list[DigestCase], produced: dict[str, tuple[tuple[str, ...], str]]
+) -> DigestScore:
+    """Compare A7's digests to the golden set.
+
+    ``produced`` maps a case id to (the licence numbers the digest wrote about,
+    the whole digest as one string). A case with no result covers nothing,
+    which is what a run that fell over actually leaves an operator with.
+    """
+    expected = covered = over_flagged = forbidden = 0
+    for case in cases:
+        written, text = produced.get(case.id, ((), ""))
+        expected += len(case.expect_critical)
+        covered += len([licence for licence in case.expect_critical if licence in written])
+        if [licence for licence in written if licence not in case.expect_critical]:
+            over_flagged += 1
+        if forbidden_words(text):
+            forbidden += 1
+    return DigestScore(
+        cases=len(cases),
+        expected_items=expected,
+        covered=covered,
+        over_flagged=over_flagged,
+        forbidden_cases=forbidden,
     )

@@ -137,3 +137,34 @@ def analyse_quote(quote_id: str) -> str:
     if result is None:
         return "skipped"
     return "fallback" if result.used_fallback else "ok"
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="agents.summarise_registry_diff",
+    autoretry_for=(Exception,),
+    retry_backoff=60,
+    max_retries=2,
+    time_limit=600,
+)
+def summarise_registry_diff(sync_run_id: str) -> str:
+    """Run A7 over the differences one sync run found.
+
+    Chained after the sync rather than folded into it. The sync writes official
+    data under a write gate (CLAUDE.md rule 1) and must not be retried because
+    a summary failed - re-downloading and re-diffing the register to recover a
+    paragraph of prose would be the tail wagging the dog.
+
+    A run with no differences returns "empty" and mails nobody.
+    """
+    from apps.agents.services import summarise_registry_diff as run
+    from apps.registry.models import SyncRun
+
+    sync_run = SyncRun.objects.filter(pk=sync_run_id).first()
+    if sync_run is None:
+        logger.warning("SyncRun %s vanished before its diff could be summarised", sync_run_id)
+        return "missing"
+
+    digest = run(sync_run)
+    if digest is None:
+        return "empty"
+    return "fallback" if digest.used_fallback else "ok"

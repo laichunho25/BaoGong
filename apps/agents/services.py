@@ -15,19 +15,23 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.agents import advisor, matching, review_moderation
+from apps.accounts import selectors as account_selectors
+from apps.agents import advisor, matching, registry_diff, review_moderation
 from apps.agents.advisor import AdvisorAgent
 from apps.agents.matching import MatchingAgent
 from apps.agents.models import AgentFeedback, AgentRun, FeedbackVerdict
 from apps.agents.nnc1_extraction import Nnc1ExtractionAgent
 from apps.agents.quote_analysis import QuoteAnalysisAgent
+from apps.agents.registry_diff import RegistryDiffAgent
 from apps.agents.review_moderation import ReviewModerationAgent
 from apps.agents.rfq_intake import RfqIntakeAgent
 from apps.agents.schemas import (
     AdvisorOut,
+    DiffDigestOut,
     MatchingOut,
     ModerationOut,
     Nnc1Out,
@@ -35,13 +39,15 @@ from apps.agents.schemas import (
     RfqIntakeOut,
 )
 from apps.core.money import Money
-from apps.providers.models import ClaimStatus
+from apps.core.notifications import absolute_url, notify
+from apps.providers import services as provider_services
+from apps.providers.models import ClaimStatus, Provider
+from apps.registry.models import ChangeSeverity, LicenseeChange, SyncRun
 
 if TYPE_CHECKING:
     from apps.accounts.models import User
     from apps.agents.base import AgentResult
     from apps.content.models import Article
-    from apps.providers.models import Provider
     from apps.reviews.models import Nnc1Verification, Review
     from apps.rfq.models import Quote, Rfq
 
@@ -406,6 +412,204 @@ def answer_question(*, question: str) -> AdvisorAnswer:
         run_id=result.run_id,
         fallback_reason=result.fallback_reason,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryDigest:
+    """A7's digest, plus what the rules did before the model was asked.
+
+    ``suspended`` is the part that changed the platform rather than described
+    it, so it is on the result rather than only in the log: a caller that wants
+    to know whether today's sync took a paying page off the shelf should not
+    have to read an email to find out.
+    """
+
+    data: DiffDigestOut
+    critical_count: int
+    suspended: list[str]
+    notified: int
+    used_fallback: bool
+    run_id: str | None = None
+    fallback_reason: str = ""
+
+
+def summarise_registry_diff(sync_run: SyncRun) -> RegistryDigest | None:
+    """Read one sync run's differences and tell operations what happened (A7).
+
+    The order here is the opposite of the obvious one, deliberately. Severity,
+    the suspension and the decision to mail anybody are all settled by rules
+    **before** the agent is called, so that a day when the model is unreachable
+    is still a day when operations is told and a delisted paying company is
+    still off the shelf. The model contributes the wording of a mail that would
+    have gone out either way.
+
+    ``None`` for a run with no differences: a digest saying nothing happened
+    trains people to stop reading digests.
+    """
+    changes = list(LicenseeChange.objects.filter(sync_run=sync_run).order_by("licence_no"))
+    if not changes:
+        return None
+
+    rows = _diff_rows(changes)
+    _store_severities(changes, rows)
+    suspended = _suspend_delisted_paid_pages(rows)
+
+    result = RegistryDiffAgent().run(
+        {
+            "object_id": str(sync_run.pk),
+            "sync_date": timezone.localtime(sync_run.started_at).strftime("%Y-%m-%d"),
+            "row_count": sync_run.row_count,
+            "prev_row_count": sync_run.prev_row_count,
+            "rows": rows,
+        }
+    )
+    data = result.data
+    if not isinstance(data, DiffDigestOut):  # pragma: no cover - schema is fixed
+        raise AgentServiceError("registry diff agent returned the wrong schema")
+
+    screened = registry_diff.screen_digest(data, rows)
+    _store_summaries(changes, screened)
+    notified = _tell_operations(sync_run, screened)
+
+    return RegistryDigest(
+        data=screened,
+        critical_count=len(screened.critical_items),
+        suspended=suspended,
+        notified=notified,
+        used_fallback=result.used_fallback,
+        run_id=result.run_id,
+        fallback_reason=result.fallback_reason,
+    )
+
+
+def _diff_rows(changes: list[LicenseeChange]) -> list[dict[str, Any]]:
+    """One dict per change, carrying the platform facts severity depends on.
+
+    The provider rows are fetched in one query rather than per change: a sync
+    that renames two thousand companies would otherwise do two thousand
+    queries inside a Celery task with a time limit on it.
+    """
+    licence_nos = {change.licence_no for change in changes}
+    providers = {
+        provider.licensee.licence_no: provider
+        for provider in Provider.objects.select_related("licensee").filter(
+            licensee__licence_no__in=licence_nos
+        )
+        if provider.licensee is not None
+    }
+
+    rows: list[dict[str, Any]] = []
+    for change in changes:
+        provider = providers.get(change.licence_no)
+        claimed = provider is not None and provider.claim_status == ClaimStatus.CLAIMED
+        paid = (
+            claimed
+            and provider is not None
+            and provider.tier in provider_services.PAID_TIERS
+            and provider.paid_placement_suspended_at is None
+        )
+        rows.append(
+            {
+                "licence_no": change.licence_no,
+                "change_type": change.change_type,
+                "before": change.before,
+                "after": change.after,
+                "claimed": claimed,
+                "paid": paid,
+                "provider_name": provider.display_name if provider is not None else "",
+                "provider_id": str(provider.pk) if provider is not None else "",
+                "severity": registry_diff.severity_for(
+                    change_type=change.change_type, claimed=claimed, paid=paid
+                ),
+            }
+        )
+    return rows
+
+
+def _store_severities(changes: list[LicenseeChange], rows: list[dict[str, Any]]) -> None:
+    """Write the rule-decided severity back onto the diff rows.
+
+    The sync pipeline sets a first severity knowing nothing about providers -
+    it lives in ``apps.registry`` and rule 1 keeps it there. This is the same
+    decision made once the platform side is known, and it is the one the digest
+    and the admin queue are read against.
+    """
+    changed = []
+    for change, row in zip(changes, rows, strict=True):
+        if change.severity != row["severity"]:
+            change.severity = row["severity"]
+            changed.append(change)
+    LicenseeChange.objects.bulk_update(changed, ["severity"], batch_size=500)
+
+
+def _suspend_delisted_paid_pages(rows: list[dict[str, Any]]) -> list[str]:
+    """Stop promoting any paying company whose licence left the register.
+
+    AI_AGENTS A7 allows this one automation because it can only ever remove
+    promotion. Nothing is unpublished, nothing is deleted, and nothing is said
+    to a buyer that a human did not write - the page keeps standing and keeps
+    carrying the deregistration notice.
+    """
+    suspended: list[str] = []
+    for row in registry_diff.critical_rows(rows):
+        provider = Provider.objects.filter(pk=row["provider_id"]).first()
+        if provider is not None and provider_services.suspend_paid_placement(provider):
+            suspended.append(str(row["licence_no"]))
+    return suspended
+
+
+def _store_summaries(changes: list[LicenseeChange], digest: DiffDigestOut) -> None:
+    """Attach the agent's sentence to the change it is about.
+
+    ``ai_summary`` is an annotation beside the row in the admin queue and
+    nothing reads it as a fact (CLAUDE.md rule 3) - which is also why only the
+    critical rows get one. A generated sentence on every routine rename would
+    be thousands of sentences a year nobody asked for.
+    """
+    by_licence = {item.licence_no: item for item in digest.critical_items}
+    annotated = []
+    for change in changes:
+        item = by_licence.get(change.licence_no)
+        if item is None or change.severity != ChangeSeverity.CRITICAL:
+            continue
+        change.ai_summary = " ".join(
+            part for part in (item.what, item.why_it_matters, item.action) if part
+        )
+        annotated.append(change)
+    LicenseeChange.objects.bulk_update(annotated, ["ai_summary"], batch_size=500)
+
+
+def _tell_operations(sync_run: SyncRun, digest: DiffDigestOut) -> int:
+    """Mail the digest to the moderators, but only when there is something to do.
+
+    Returns how many changes were marked as notified. The mark is what stops a
+    retried task from sending a second copy of an alert somebody has already
+    acted on.
+    """
+    if not digest.critical_items:
+        return 0
+
+    licence_nos = [item.licence_no for item in digest.critical_items]
+    unsent = LicenseeChange.objects.filter(
+        sync_run=sync_run, licence_no__in=licence_nos, notified_at__isnull=True
+    )
+    marked = unsent.update(notified_at=timezone.now())
+    if not marked:
+        return 0
+
+    notify(
+        template="registry_digest",
+        recipients=[user.email for user in account_selectors.moderators()],
+        context={
+            "headline": digest.headline,
+            "routine_summary": digest.routine_summary,
+            "counts": digest.counts,
+            "items": [item.model_dump(mode="json") for item in digest.critical_items],
+            "sync_date": timezone.localtime(sync_run.started_at).strftime("%Y-%m-%d"),
+            "url": absolute_url(reverse("admin:registry_licenseechange_changelist")),
+        },
+    )
+    return marked
 
 
 def _to_major(amount_minor: int | None) -> int | None:

@@ -118,6 +118,13 @@ class Provider(BaseModel):
         max_digits=6, decimal_places=4, default=0, db_index=True, help_text="See services.py."
     )
 
+    # Set by apps.agents.services.summarise_registry_diff when the licence
+    # behind a paying page leaves the official register (AI_AGENTS A7). Not a
+    # tier change: the subscription still exists and billing still owns it -
+    # this only stops the platform from promoting a page whose licence it can
+    # no longer see. Cleared by hand once somebody has checked the register.
+    paid_placement_suspended_at = models.DateTimeField(null=True, blank=True)
+
     is_published = models.BooleanField(default=True, db_index=True)
     commission_agreement = models.BooleanField(
         default=False, help_text="If true the page MUST render the disclosure (COMPLIANCE 6)."
@@ -147,6 +154,15 @@ class Provider(BaseModel):
     def has_verified_reviews(self) -> bool:
         """RATING_SYSTEM section 4: gate for showing a score at all."""
         return self.verified_review_count > 0
+
+    @property
+    def effective_tier(self) -> str:
+        """The tier the platform will actually act on.
+
+        A suspended page keeps its paid tier on the row and ranks as if it were
+        free, so that restoring it is one field and not a billing question.
+        """
+        return Tier.FREE if self.paid_placement_suspended_at else self.tier
 
     @property
     def is_on_register(self) -> bool:

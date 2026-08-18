@@ -1,0 +1,1 @@
+{% load i18n %}{% blocktranslate with count=items|length %}官方名单同步（{{ sync_date }}）：{{ count }} 项需要立即处理{% endblocktranslate %}
