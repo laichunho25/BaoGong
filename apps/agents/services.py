@@ -11,25 +11,29 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.agents import review_moderation
+from apps.agents import matching, review_moderation
+from apps.agents.matching import MatchingAgent
 from apps.agents.models import AgentFeedback, AgentRun, FeedbackVerdict
 from apps.agents.nnc1_extraction import Nnc1ExtractionAgent
 from apps.agents.quote_analysis import QuoteAnalysisAgent
 from apps.agents.review_moderation import ReviewModerationAgent
 from apps.agents.rfq_intake import RfqIntakeAgent
-from apps.agents.schemas import ModerationOut, Nnc1Out, QuoteAnalysisOut, RfqIntakeOut
+from apps.agents.schemas import MatchingOut, ModerationOut, Nnc1Out, QuoteAnalysisOut, RfqIntakeOut
 from apps.core.money import Money
+from apps.providers.models import ClaimStatus
 
 if TYPE_CHECKING:
     from apps.accounts.models import User
     from apps.agents.base import AgentResult
+    from apps.providers.models import Provider
     from apps.reviews.models import Nnc1Verification, Review
-    from apps.rfq.models import Quote
+    from apps.rfq.models import Quote, Rfq
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +148,114 @@ def draft_rfq_prefill(*, raw_input: str) -> AgentResult:
     if not isinstance(result.data, RfqIntakeOut):  # pragma: no cover - schema is fixed
         raise AgentServiceError("intake agent returned the wrong schema")
     return result
+
+
+@transaction.atomic
+def match_providers(rfq: Rfq) -> AgentResult | None:
+    """Attach A2's shortlist to ``rfq.matches``. Suggestions, nothing more.
+
+    Returns ``None`` when SQL screened everybody out - an empty pool is a fact
+    about the register, not something a model can improve, and calling one to
+    rank nothing would spend money to produce an empty list.
+
+    What this writes gives no company any standing on the requirement: the wall
+    is unchanged, every claimed company may still quote, and no ordering here
+    affects who sees what. It is a reading list for the buyer (CLAUDE.md rule 3,
+    AI_AGENTS A2).
+    """
+    from apps.providers import selectors as provider_selectors
+
+    candidates = provider_selectors.match_candidates(
+        provider_selectors.CandidateFilters(
+            services=tuple(rfq.services_needed),
+            needs_bank_account=rfq.needs_bank_account,
+            budget_max_minor=rfq.budget_max_minor if rfq.currency == "HKD" else None,
+            currency=rfq.currency,
+        )
+    )
+    if not candidates:
+        logger.info("no candidates for rfq %s; nothing to rank", rfq.pk)
+        return None
+
+    wanted = list(rfq.services_needed)
+    summaries = [candidate_summary(provider, services=wanted) for provider in candidates]
+    agent = MatchingAgent()
+    result = agent.run(
+        {
+            "object_id": str(rfq.pk),
+            "services_needed": list(rfq.services_needed),
+            "company_type": rfq.company_type,
+            "business_nature": rfq.business_nature,
+            "needs_bank_account": rfq.needs_bank_account,
+            "budget_min_hkd": _to_major(rfq.budget_min_minor) if rfq.currency == "HKD" else None,
+            "budget_max_hkd": _to_major(rfq.budget_max_minor) if rfq.currency == "HKD" else None,
+            "timeline": rfq.timeline,
+            "candidates": summaries,
+        }
+    )
+    data = result.data
+    if not isinstance(data, MatchingOut):  # pragma: no cover - schema is fixed
+        raise AgentServiceError("matching agent returned the wrong schema")
+
+    # Screened on both paths: an ungrounded reason is not more acceptable for
+    # having come from a template (AI_AGENTS A2, grounding violation rate = 0).
+    screened = matching.screen_matches(data, summaries)
+    rfq.matches = {
+        **screened.model_dump(mode="json"),
+        "model": MatchingAgent.model,
+        "prompt_version": agent.prompt_version,
+        "run_id": result.run_id,
+        "used_fallback": result.used_fallback,
+        "fallback_reason": result.fallback_reason,
+        "pool_size": len(summaries),
+        "generated_at": timezone.now().isoformat(),
+    }
+    rfq.save(update_fields=["matches", "updated_at"])
+    return result
+
+
+def candidate_summary(provider: Provider, *, services: list[str]) -> dict[str, Any]:
+    """One company as the flat facts A2 is allowed to cite.
+
+    Everything here is published on the company's own directory page, so a
+    reason built from it is a reason the buyer can check. ``tier`` is
+    deliberately absent: it is partly a paid standing, and a model told which
+    companies pay would have a fact it could offer as a reason to choose one
+    (COMPLIANCE section 5 - commercial placement is disclosed and separate,
+    never dressed up as fit).
+    """
+    offerings = [offering for offering in provider.offerings.all() if offering.is_active]
+    prices = [
+        amount
+        for offering in offerings
+        if not services or offering.category in services
+        for price in offering.prices.all()
+        if price.currency == "HKD"
+        for amount in [
+            price.min_amount_minor if price.min_amount_minor is not None else price.amount_minor
+        ]
+        if amount is not None
+    ]
+    cheapest = min(prices) if prices else None
+    founded = provider.founded_year
+    return {
+        "provider_id": provider.slug,
+        "name": provider.display_name,
+        "district": provider.licensee.district if provider.licensee else "",
+        "services": [offering.category for offering in offerings],
+        "languages": list(provider.languages),
+        "supports_simplified": provider.supports_simplified,
+        "bank_account_support": provider.bank_account_support,
+        "bank_types": list(provider.bank_types),
+        "remote_onboarding": provider.remote_onboarding,
+        "non_resident_shareholder_experience": provider.non_resident_shareholder_experience,
+        "certified": any(cert.is_current for cert in provider.certifications.all()),
+        "claimed": provider.claim_status == ClaimStatus.CLAIMED,
+        "rating": float(provider.rating_cached) if provider.rating_cached is not None else None,
+        "verified_review_count": provider.verified_review_count,
+        "price_from_hkd": _to_major(cheapest),
+        "years_active": (timezone.now().year - founded) if founded else None,
+    }
 
 
 @transaction.atomic

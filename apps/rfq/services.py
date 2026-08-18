@@ -145,6 +145,10 @@ def publish_rfq(*, rfq: Rfq, buyer: User) -> Rfq:
     rfq.published_at = now
     rfq.expires_at = now + timedelta(days=settings.RFQ_OPEN_DAYS)
     rfq.save(update_fields=["status", "published_at", "expires_at", "updated_at"])
+    # After commit, so the worker cannot read a requirement that is not on the
+    # wall yet. The shortlist it writes is advice for the buyer and changes
+    # nothing about who may answer this requirement.
+    transaction.on_commit(lambda: agent_tasks.match_rfq.delay(str(rfq.pk)))
     return rfq
 
 

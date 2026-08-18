@@ -19,6 +19,7 @@ Each agent is scored on the one failure that costs somebody something:
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -273,4 +274,119 @@ def score_quote(cases: list[QuoteCase], flagged: dict[str, bool]) -> QuoteScore:
         should_flag=len(should),
         caught=sum(1 for case in should if flagged.get(case.id)),
         false_flags=sum(1 for case in ordinary if flagged.get(case.id)),
+    )
+
+
+# ------------------------------------------------------------------ A2 matching
+
+#: AI_AGENTS A2. nDCG at five, because the buyer reads the top of the list and
+#: the order inside it is the whole product of the agent.
+MATCHING_NDCG_THRESHOLD = 0.7
+#: Not a threshold anybody may relax. A reason citing something a company does
+#: not offer is a fabricated fact about a licensed business, published to a
+#: buyer who is about to act on it (COMPLIANCE section 2).
+MAX_GROUNDING_VIOLATION_RATE = 0.0
+
+#: How far down the list the score looks.
+NDCG_K = 5
+
+
+@dataclass(frozen=True, slots=True)
+class MatchingCase:
+    id: str
+    #: The requirement as the agent receives it, minus the candidates.
+    rfq: dict[str, Any]
+    #: The candidate summaries SQL would have handed the model.
+    candidates: list[dict[str, Any]]
+    #: The hand-annotated ideal top five, best first. Membership is what is
+    #: scored; the order inside it sets the gain, so a case only needs the
+    #: annotator to agree on which companies belong there.
+    ideal: tuple[str, ...]
+
+
+def load_matching_golden() -> list[MatchingCase]:
+    path = EVAL_DIR / "matching" / "golden.jsonl"
+    if not path.is_file():
+        raise FileNotFoundError(f"no golden set for matching: {path}")
+    return [
+        MatchingCase(
+            id=row["id"],
+            rfq=row["rfq"],
+            candidates=list(row["candidates"]),
+            ideal=tuple(row.get("ideal", ())),
+        )
+        for row in _rows(path)
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class MatchingScore:
+    total: int
+    ndcg_sum: float
+    #: Reasons and concerns that survived screening and were stored.
+    reasons_published: int
+    #: How many of those still cite something the candidate summary does not
+    #: bear out. Expected to be zero by construction; measured anyway, because
+    #: "by construction" is a claim about code that changes.
+    grounding_violations: int
+
+    @property
+    def ndcg(self) -> float:
+        """Mean nDCG@5 over the set."""
+        return self.ndcg_sum / self.total if self.total else 0.0
+
+    @property
+    def grounding_violation_rate(self) -> float:
+        return self.grounding_violations / self.reasons_published if self.reasons_published else 0.0
+
+    def __str__(self) -> str:
+        return (
+            f"{self.total} requirements, nDCG@{NDCG_K} {self.ndcg:.2f}, "
+            f"grounding violations {self.grounding_violations}/{self.reasons_published}"
+        )
+
+
+def _gain(ideal: tuple[str, ...], provider_id: str) -> float:
+    """Graded relevance: first in the ideal list is worth most, absent is zero."""
+    if provider_id not in ideal:
+        return 0.0
+    return float(len(ideal) - ideal.index(provider_id))
+
+
+def ndcg_at_k(ranked: list[str], ideal: tuple[str, ...], k: int = NDCG_K) -> float:
+    """Discounted gain of this order against the annotated one."""
+
+    def dcg(ids: list[str]) -> float:
+        return sum(
+            _gain(ideal, provider_id) / math.log2(position + 1)
+            for position, provider_id in enumerate(ids[:k], start=1)
+        )
+
+    best = dcg(list(ideal))
+    return dcg(ranked) / best if best else 0.0
+
+
+def score_matching(
+    cases: list[MatchingCase], produced: dict[str, tuple[list[str], int, int]]
+) -> MatchingScore:
+    """Compare A2's orderings to the annotated ideal.
+
+    ``produced`` maps a case id to (ranked provider ids, sentences the run
+    published, sentences among them that do not hold up). The rate is measured
+    over what reached the buyer, not over what the model attempted: a sentence
+    the screen dropped harmed nobody, and counting it would make a working
+    screen look like a failure.
+    """
+    ndcg_sum = 0.0
+    checked = violations = 0
+    for case in cases:
+        ranked, published, ungrounded = produced.get(case.id, ([], 0, 0))
+        ndcg_sum += ndcg_at_k(ranked, case.ideal)
+        checked += published
+        violations += ungrounded
+    return MatchingScore(
+        total=len(cases),
+        ndcg_sum=ndcg_sum,
+        reasons_published=checked,
+        grounding_violations=violations,
     )

@@ -1,0 +1,85 @@
+{% load i18n %}
+{% comment %}
+  A2's reading list for one requirement (AI_AGENTS A2). Takes `matches` =
+  rfq.selectors.suggested_matches(rfq) and `used_fallback`.
+
+  Shown to the buyer only, and never to the companies on it: nobody is told
+  they were suggested, and nobody is told they were passed over. It is also not
+  a ranking of the register - the heading says "可以先看看" rather than "最适合",
+  the numbers behind it are not shown, and no company pays to be here
+  (COMPLIANCE section 2 and section 5; paid placement is a separate, labelled
+  slot).
+
+  Reasons and concerns are the agent's sentences, already screened against the
+  company's published facts before they were stored, so nothing here can claim
+  something the buyer cannot go and check on the company's own page. The
+  framing around them is fixed in this template, never taken from the agent.
+{% endcomment %}
+{% if matches %}
+  <section class="space-y-3" aria-label="{% translate '推荐参考' %}">
+    <div>
+      <h2 class="flex items-center gap-1.5 text-lg font-semibold text-ink">
+        {% include "components/icon.html" with name="spark" class="h-4 w-4 text-ink-muted" %}
+        {% translate "可以先看看这几家" %}
+      </h2>
+      <p class="mt-1 text-xs text-ink-muted">
+        {% translate "按你填写的需求，从持牌名单里挑出来的参考名单，不是排名，也不代表推荐。你仍然可以自行浏览完整名单。" %}
+      </p>
+    </div>
+
+    <ul class="space-y-3">
+      {% for match in matches %}
+        <li class="rounded-2xl border border-line bg-white p-4 shadow-sm">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h3 class="truncate text-base font-semibold text-ink">
+                <a class="transition hover:text-brand-700" href="{{ match.provider.get_absolute_url }}">{{ match.provider.display_name }}</a>
+              </h3>
+              <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-ink-faint">
+                <span class="tabular">{% translate "牌照号" %} {{ match.provider.licensee.licence_no }}</span>
+                {% if match.provider.licensee.district %}<span>&middot;</span><span>{{ match.provider.licensee.district }}</span>{% endif %}
+              </p>
+            </div>
+            {% if match.has_quoted %}
+              {% comment %} Already on the comparison table above; saying so keeps the
+                 buyer from reading this as a second, different company. {% endcomment %}
+              {% include "components/badge.html" with tone="brand" icon="check" label=_("已报价") %}
+            {% endif %}
+          </div>
+
+          {% if match.reasons %}
+            <ul class="mt-3 space-y-1.5 text-xs leading-relaxed text-ink-soft">
+              {% for reason in match.reasons %}
+                <li class="flex gap-2">
+                  <span class="mt-0.5 shrink-0 text-ink-faint">{% include "components/icon.html" with name="check" class="h-3.5 w-3.5" %}</span>
+                  <span>{{ reason }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+
+          {% if match.concerns %}
+            <ul class="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-muted">
+              {% for concern in match.concerns %}
+                <li class="flex gap-2">
+                  <span class="mt-0.5 shrink-0 text-ink-faint">{% include "components/icon.html" with name="alert" class="h-3.5 w-3.5" %}</span>
+                  <span>{{ concern }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% comment %} Said plainly, at the bottom, every time: generated, advisory, and not
+       an endorsement of anyone on the list. {% endcomment %}
+    <p class="text-xs text-ink-faint">
+      {% if used_fallback %}
+        {% translate "以上由平台按你填写的条件自动筛选得出，未经人工审阅，也不代表对这些公司的评价或推荐。" %}
+      {% else %}
+        {% translate "以上由 AI 阅读各公司公开资料后生成，仅供参考，未经人工审阅，也不代表对这些公司的评价或推荐。" %}
+      {% endif %}
+    </p>
+  </section>
+{% endif %}

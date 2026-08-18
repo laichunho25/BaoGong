@@ -361,6 +361,10 @@ def rfq_detail(request: HttpRequest, rfq_id: str) -> HttpResponse:
                 # The whole point of the standard label list: two prices on one
                 # basis, with the gaps left visible.
                 "comparison_rows": selectors.comparison_rows(quotes),
+                # A2's reading list. Suggestions only, and only to the buyer -
+                # no company is told it was suggested or passed over.
+                "matches": selectors.suggested_matches(rfq),
+                "matches_used_fallback": bool((rfq.matches or {}).get("used_fallback")),
             },
         )
 

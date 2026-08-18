@@ -458,3 +458,51 @@ def test_withdrawing_says_plainly_that_the_credit_is_gone(
     quote.refresh_from_db()
     assert quote.status == QuoteStatus.WITHDRAWN
     assert "不会退回" in response.content.decode()
+
+
+# ------------------------------------------------------------- A2 suggestions
+
+
+def test_the_shortlist_is_shown_to_the_buyer_with_what_made_it(
+    client: Client,
+    open_rfq: Rfq,
+    buyer: User,
+    make_provider: Callable[..., Provider],
+) -> None:
+    """AI_AGENTS A2. Suggestions carry their reasons and say out loud that a
+    machine wrote them - a bare list of names reads as an endorsement."""
+    provider = make_provider()
+    open_rfq.matches = {
+        "items": [{"provider_id": provider.slug, "rank": 1, "reasons": ["提供简体中文服务"]}],
+        "used_fallback": True,
+    }
+    open_rfq.save(update_fields=["matches"])
+    client.force_login(buyer)
+
+    page = client.get(reverse("rfq:detail", args=[open_rfq.pk])).content.decode()
+
+    assert provider.display_name in page
+    assert "提供简体中文服务" in page
+    assert "未经人工审阅" in page
+
+
+def test_a_company_is_never_told_it_was_suggested(
+    client: Client,
+    open_rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    make_provider: Callable[..., Provider],
+) -> None:
+    """The shortlist is the buyer's reading list. Showing it on the company
+    side would turn a suggestion into a standing, and a rejection into news."""
+    suggested = make_provider()
+    open_rfq.matches = {
+        "items": [{"provider_id": suggested.slug, "rank": 1}],
+        "used_fallback": True,
+    }
+    open_rfq.save(update_fields=["matches"])
+    _, member = make_quoting_provider()
+    client.force_login(member)
+
+    page = client.get(reverse("rfq:detail", args=[open_rfq.pk])).content.decode()
+
+    assert suggested.display_name not in page

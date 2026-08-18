@@ -166,6 +166,39 @@ class RfqIntakeOut(StrictSchema):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class MatchItem(StrictSchema):
+    """One recommended company, with why it is on the list.
+
+    ``provider_id`` is the platform slug rather than a database key: it is what
+    the page links to, and a slug that does not exist is a mistake somebody can
+    see. The agent may only return slugs it was given - a company invented here
+    would be a recommendation of something nobody screened.
+    """
+
+    provider_id: str = Field(max_length=140)
+    rank: int = Field(ge=1, le=30)
+    fit_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    #: At most three, Simplified Chinese, each citing a fact from the candidate
+    #: summary. Every one is checked against that summary before it is stored
+    #: (AI_AGENTS A2: grounding violation rate = 0).
+    reasons: list[str] = Field(default_factory=list, max_length=3)
+    #: At most two. A concern is a reason to ask, not a reason to avoid.
+    concerns: list[str] = Field(default_factory=list, max_length=2)
+
+
+class MatchingOut(StrictSchema):
+    """A2's ordering of the candidate pool for one requirement.
+
+    ``unmatched_requirements`` is the honest half: what the buyer asked for that
+    nobody in the pool offers. A list that quietly drops those reads as if the
+    whole requirement were covered.
+    """
+
+    items: list[MatchItem] = Field(default_factory=list, max_length=10)
+    unmatched_requirements: list[str] = Field(default_factory=list, max_length=5)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
 class NormalizedItem(StrictSchema):
     """One priced part of a quote, mapped onto the standard comparison basis."""
 

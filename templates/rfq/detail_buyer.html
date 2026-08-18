@@ -197,5 +197,9 @@
       </div>
     </section>
   {% endif %}
+
+  {% comment %} Last, deliberately: the offers the buyer actually has are the page, and
+     a machine-made reading list is a suggestion underneath them. {% endcomment %}
+  {% include "components/provider_matches.html" with matches=matches used_fallback=matches_used_fallback %}
 </div>
 {% endblock %}

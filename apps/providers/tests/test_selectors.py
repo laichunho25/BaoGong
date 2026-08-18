@@ -9,7 +9,13 @@ import pytest
 from django.http import QueryDict
 
 from apps.providers import selectors
-from apps.providers.models import Provider, ServiceCategory, ServiceOffering, Tier
+from apps.providers.models import (
+    PriceItem,
+    Provider,
+    ServiceCategory,
+    ServiceOffering,
+    Tier,
+)
 from apps.registry.models import LicenceStatus
 
 if TYPE_CHECKING:
@@ -252,3 +258,86 @@ class TestHomePageSelectors:
             make_provider(licensee_kwargs={"district": f"District {index}"})
 
         assert len(selectors.popular_searches(limit=3)) == 3
+
+
+class TestMatchCandidates:
+    """The pool A2 ranks. Everything here is a hard filter, not a preference."""
+
+    def _offer(
+        self,
+        provider: Provider,
+        category: str = ServiceCategory.INCORPORATION,
+        *,
+        price_minor: int | None = None,
+    ) -> ServiceOffering:
+        offering = ServiceOffering.objects.create(provider=provider, category=category)
+        if price_minor is not None:
+            PriceItem.objects.create(
+                offering=offering, label="from", currency="HKD", amount_minor=price_minor
+            )
+        return offering
+
+    def test_a_deregistered_company_is_never_a_candidate(
+        self, make_provider: Callable[..., Provider]
+    ) -> None:
+        """Suggesting a company that lost its licence is the worst thing this can do."""
+        make_provider(licensee_kwargs={"status": LicenceStatus.INACTIVE})
+
+        assert selectors.match_candidates(selectors.CandidateFilters()) == []
+
+    def test_bank_account_help_is_a_hard_filter(
+        self, make_provider: Callable[..., Provider]
+    ) -> None:
+        helps = make_provider(bank_account_support=True)
+        make_provider(bank_account_support=False)
+
+        found = selectors.match_candidates(selectors.CandidateFilters(needs_bank_account=True))
+
+        assert [provider.pk for provider in found] == [helps.pk]
+
+    def test_companies_covering_the_request_come_first(
+        self, make_provider: Callable[..., Provider]
+    ) -> None:
+        """Departure from AI_AGENTS A2, and the reason for it: a strong company
+        that does none of what was asked for is not the first row to read."""
+        strong = make_provider(ranking_score=Decimal("90.0"))
+        relevant = make_provider(ranking_score=Decimal("10.0"))
+        self._offer(relevant)
+
+        found = selectors.match_candidates(
+            selectors.CandidateFilters(services=(ServiceCategory.INCORPORATION,))
+        )
+
+        assert [provider.pk for provider in found] == [relevant.pk, strong.pk]
+
+    def test_a_company_priced_above_the_budget_is_dropped(
+        self, make_provider: Callable[..., Provider]
+    ) -> None:
+        cheap = make_provider()
+        dear = make_provider()
+        self._offer(cheap, price_minor=3_000_00)
+        self._offer(dear, price_minor=30_000_00)
+
+        found = selectors.match_candidates(
+            selectors.CandidateFilters(budget_max_minor=5_000_00, currency="HKD")
+        )
+
+        assert [provider.pk for provider in found] == [cheap.pk]
+
+    def test_a_company_that_publishes_no_price_survives_a_budget(
+        self, make_provider: Callable[..., Provider]
+    ) -> None:
+        """Most companies publish nothing. Excluding them would turn "I have a
+        budget" into "only show me companies that already posted their fees"."""
+        silent = make_provider()
+        self._offer(silent)
+
+        found = selectors.match_candidates(selectors.CandidateFilters(budget_max_minor=1_00))
+
+        assert [provider.pk for provider in found] == [silent.pk]
+
+    def test_the_pool_is_capped(self, make_provider: Callable[..., Provider]) -> None:
+        for _ in range(4):
+            make_provider()
+
+        assert len(selectors.match_candidates(selectors.CandidateFilters(), limit=3)) == 3

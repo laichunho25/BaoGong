@@ -10,7 +10,7 @@
 | **P3 帳號 + 認領** | User/角色、郵箱註冊登入（手機為選填欄位）、`ProviderMember` 權限、`ProviderClaim` + `ClaimEvidence` 流程（私有儲存、MIME/大小驗證、可插拔病毒掃描、網站 TXT/meta 驗證、90 日保留期）、moderator 佇列（客製 admin，理由必填）、批准後發 `tcsp_licence` | 秘書公司可認領 | ✅ |
 | **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ✅** `agents.BaseAgent` + `AgentRun`/`AgentFeedback` + 三段 kill switch + Decimal 成本記帳、A4 評價審核（建議而非放行，排序人工佇列）、A3 NNC1 抽取（讀數擺在規則比對旁邊，不碰 `result`）、唯讀 run log admin、22 筆合成 golden set · **P4-4 ✅** Dispute（申訴不改動評價任何欄位、`due_at` 以工作天落實 COMPLIANCE §3 的 5 天承諾、逾期在後台印 `OVERDUE`、一則評價同時只有一宗未決申訴由 partial unique constraint 保證、隱藏／移除一律繞回 `hide_review`／`remove_review`；仲裁 agent 未做） | 已驗證評價可上線 | ✅ |
 | **P5 RFQ 撮合** | **P5-1 ✅** Rfq/Quote/QuoteLineItem/QuotaLedger 資料層與 services／selectors：需求單不帶買家身分、`structured` 只是 A1 草稿、報價以封閉 enum 的逐項明細存放（比較表同口徑）、只有已認領且仍在名單上的公司可報價、每日 3 單額度以流水帳實作（送出即扣、撤回不退、付費結餘跨日結轉）、需求 14 日到期（每小時 beat + 牆上再過濾一次） · **P5-2 ✅** 需求牆（登入才看得到）／RFQ 表單（草稿→發布兩步）／報價表單（總額 + 逐項明細 formset）／同口徑比較表（空白格代表沒報這一項，並逐項點名）、兩封通知（買家收到報價、公司知道自己被選上**或落選**）、報價依 `validity_days` 到期（每小時 beat） · **P5-3 ✅** A1 RfqIntake（HTMX 預填表單，**不寫任何 `Rfq` 列**，買家確認過的那一張才是被存的那一張，標 `is_ai_assisted`；原話先 redact；人民幣不換算成港元預算）、A5 QuoteAnalysis（`submit_quote` 於 `on_commit` 派發，只寫 `Quote.analysis` 一欄建議，不動金額不動排序；市場 p10/p50/p90 由 Postgres `PERCENTILE_CONT` 算，樣本不足 8 就明說「沒得比」；非 HKD 報價直接跳過）、兩份 22 筆合成 golden set + `evals/RESULTS.md` | 撮合閉環 | ✅ |
-| **P6 匹配 + 內容** | **A2 MatchingAgent**、pgvector + content app、**A6 AdvisorAgent**、教育文章 CMS、**A7 RegistryDiffAgent** | AI 完整上線 | ⬜ |
+| **P6 匹配 + 內容** | **P6-1 ✅** A2 MatchingAgent（硬篩在 SQL：仍在名單上、開戶協助、語言、預算內或未公開報價；候選 Top 30 先按命中服務數再按 §5 分數；模型只排序與解釋，`reasons`／`concerns` 逐句 grounding，對不上該公司公開資料的整句丟掉，模型與 fallback 同一個篩子；只寫 `Rfq.matches` 一欄建議，只出現在買家頁面；22 筆合成 golden set，nDCG@5 + grounding violation rate） · pgvector + content app、**A6 AdvisorAgent**、教育文章 CMS、**A7 RegistryDiffAgent** | AI 完整上線 | 🟡 |
 | **P7 商業化** | Plan/Subscription/CreditPack、Stripe（或 Airwallex）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
 | **P8 上線** | `compliance-review` 全綠、Sentry、備份、負載測試、法律覆核 | Production | ⬜ |
 
@@ -81,13 +81,24 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - ~~`[P5] 報價與撮合完全沒有通知`~~ — P5-2 已補：`submit_quote` 寄 `rfq_new_quote` 給買家、`accept_quote` 寄 `quote_decided` 給**得標與落選**的每一家（落選那封是刻意寄的：對方為這則需求用掉了一次額度，就該知道結果）。兩封都只帶結論與連結，金額與明細不進郵件。
 - `[P5] 額度是每日流水帳，不是可稽核的購買紀錄` — `grant_quote_credits` 直接加 `paid_balance`，沒有「誰在什麼時候付了多少錢買了幾單」 — P7 的 `billing.CreditPack` 落地時，購買要先寫一列付款紀錄再呼叫這個 service，這個 service 本身不改。
 - ~~`[P5] 報價沒有有效期的執行者`~~ — P5-2 已補：`rfq.expire_stale_quotes` 每小時把過了 `validity_days` 的 `submitted`／`shortlisted` 報價標成 `expired`，已獲選的不動（已成交的事不會因為日子到了而失效）。
-- `[P5] 需求牆對所有已認領公司一視同仁` — 沒有邀請制、沒有排除機制，`invited_only` 有欄位無流程 — A2 匹配（P6）落地前不必做，屆時「誰看得到這則需求」才有依據。
+- `[P5] 需求牆對所有已認領公司一視同仁` — 沒有邀請制、沒有排除機制，`invited_only` 有欄位無流程 — P6-1 的 A2 落地後**仍然刻意不做**：`Rfq.matches` 是給買家看的參考名單，不是誰能報價的名單。要把它變成資格之前，先想清楚沒被推薦的公司怎麼知道、怎麼申訴（COMPLIANCE §2）。
 - `[P5] 買家聯絡方式完全不在系統內` — 這是刻意的（COMPLIANCE §4），代價是報價之後雙方要怎麼繼續談，目前平台沒有答案 — 站內訊息是 P7 的事；在那之前，成交後的聯絡方式交換要有一個明確、買家按過同意的動作。
 - `[P5] responsiveness_score 仍然沒有寫入者` — P5-1 存了 `submitted_at`，但沒有人拿它去算「這家公司多久回一則需求」 — 排序權重 §5 那 0.08 依舊對所有公司同值，P5-2 有真實報價流量後補。
 - `[P5] 需求牆只擋匿名，不擋「任何已登入帳號」` — 註冊一個免費帳號就能讀到全部開放中的需求內容（不含買家身分） — 真正的門檻應該是「已認領的持牌公司才看得到需求全文」，未認領者只看得到標題與服務類別；等 P6 的 A2 匹配決定「誰看得到這則需求」時一起收緊，屆時 `invited_only` 也才有流程。
 - `[P5] 草稿只能發布或關閉，不能改` — 買家送出後發現寫錯，唯一的辦法是關掉重寫 — P5-3 的 A1 預填是在**送出之前**的表單上改，所以還沒逼出這條；但預填會讓買家更習慣「先出一版再修」，`update_rfq`（只允許 `draft`，發布後不得改動，因為公司是照著已發布的內容報的價）該排進 P6。
 - `[P5] 市場分位數在開站初期幾乎永遠是空的` — `MIN_PERCENTILE_SAMPLE = 8`，同一服務類別湊不到八張同幣別報價就回空 dict，所以 `below_market_p10` 在有量之前基本上不會出現 — 這是刻意的（三張報價算出來的「市場價」是三家公司的價，不是市場），代價是 A5 前期只答得出「他沒說什麼」，答不出「他比別人貴」；不要為了讓畫面好看而調低這個門檻。
 - `[P5] A5 關掉時會誤喊 missing_govt_fee` — 規則只看得懂 line item 與勾選框，看不懂附言裡的「已包含政府规费」，在合成 golden set 上 precision 只有 0.56（recall 1.00） — **方向是對的**（漏喊的代價是簽約後才發現要再付一筆），但模型長期關著的話，買家會學會不看這個標籤；`selectors.health()` 要盯的不只是 fallback 率，還有 fallback 期間的 flag 量。
+- `[P6] A2 的 golden set 是自己出題自己標的` — 22 筆合成 RFQ 與候選池都是開發者寫的，
+  理想 Top5 也是同一個人標的；候選池已用固定種子洗牌（不洗的話規則 fallback 能拿 nDCG 0.99，
+  量到的是出題順序），洗完 fallback 是 0.80 — 排序題的「正確答案」本來就有主觀成分，
+  這比其他四個 agent 更需要真實樣本：欠 30 張真實 RFQ 配當時真實候選名單的人工標註。
+- `[P6] A2 的 0.7 門檻對模型沒有約束力` — 規則 fallback 在合成集上已經 nDCG@5 0.80，
+  因為服務覆蓋度這個硬條件就做掉大半 — 實際的上線標準應該是「明顯好過 0.80」，
+  模型真正要贏的是 top-1（同樣做齊那幾項服務的公司之間誰排第一，規則只對 4/22）；
+  跑完真 API eval 後把這個數字寫回 `MATCHING_NDCG_THRESHOLD`。
+- `[P6] A2 的推薦不會隨資料更新` — `Rfq.matches` 是發布當下算一次就存著的快照，
+  之後公司改了服務或被除牌都不會重算（讀取時只擋掉已不在名單上的） — 需求最長 14 日，
+  快照過期的風險有限；等 RFQ 可以編輯（見上面 P5 那條）時，改完要一併重算。
 - `[P5] 報價明細固定 6 行，沒有動態加行` — 超過六項就得塞進「其他」的備註 — HTMX 加行是小事，但先看真實報價的項目分布再決定要不要把常用項目做成預設列。
 - `[P5] 需求牆沒有分頁、沒有篩選` — 上限寫死 100 則（`views.WALL_LIMIT`） — 牆上超過一頁的量出現之前，多給幾則比多一個分頁器有用；到時篩選要按服務類別與公司類型，不是按買家。
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。
@@ -104,4 +115,5 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - P4：必須有測試「1 條 4.5 分驗證評價 → 顯示 4.95」與「0 條評價 → 不顯示分數」
 - P5：必須有測試「同一天第 4 次報價被擋，購買額度後可報」；A1 預填不得寫出任何 `Rfq` 列，
   A5 不得改動報價的任何一欄（兩者都有測試）
-- P6：每個 agent 的 eval 必須跑過並記錄分數在 `apps/agents/evals/RESULTS.md`
+- P6：每個 agent 的 eval 必須跑過並記錄分數在 `apps/agents/evals/RESULTS.md`；
+  A2 不得寫出 `Rfq.matches` 以外的任何一欄，推薦名單不得改變任何公司的報價權（有測試）

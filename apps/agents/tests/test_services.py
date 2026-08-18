@@ -227,6 +227,77 @@ def test_the_prefill_writes_no_requirement(settings: Any) -> None:
     assert AgentRun.objects.get().agent_name == "rfq_intake"
 
 
+# ---------------------------------------------------------------------- matching
+
+
+def test_matching_writes_only_the_suggestion_column(
+    open_rfq: Rfq, make_provider: Callable[..., Provider], settings: Any
+) -> None:
+    """AI_AGENTS A2, CLAUDE.md rule 3. A shortlist is a reading list for the
+    buyer: it gives no company standing on the requirement and moves nothing."""
+    from apps.providers.models import ServiceCategory, ServiceOffering
+
+    settings.AGENTS_ENABLED = False
+    provider = make_provider(bank_account_support=True)
+    ServiceOffering.objects.create(provider=provider, category=ServiceCategory.INCORPORATION)
+    before_status, before_visibility = open_rfq.status, open_rfq.visibility
+
+    result = services.match_providers(open_rfq)
+
+    assert result is not None
+    open_rfq.refresh_from_db()
+    assert open_rfq.status == before_status
+    assert open_rfq.visibility == before_visibility
+    assert open_rfq.matches["used_fallback"] is True
+    assert open_rfq.matches["items"][0]["provider_id"] == provider.slug
+    assert open_rfq.matches["run_id"] == str(AgentRun.objects.get(agent_name="matching").pk)
+
+
+def test_an_empty_pool_never_reaches_the_model(open_rfq: Rfq, settings: Any) -> None:
+    """Nobody on the register can serve this. A model cannot improve that, and
+    calling one to rank nothing spends money to produce an empty list."""
+    settings.AGENTS_ENABLED = False
+
+    assert services.match_providers(open_rfq) is None
+
+    open_rfq.refresh_from_db()
+    assert open_rfq.matches == {}
+    assert not AgentRun.objects.filter(agent_name="matching").exists()
+
+
+def test_the_candidate_summary_hides_what_a_company_paid_for(
+    make_provider: Callable[..., Provider],
+) -> None:
+    """COMPLIANCE section 5. A model told which companies pay would have a fact
+    it could offer the buyer as a reason to choose one."""
+    from apps.providers.models import Tier
+
+    provider = make_provider(tier=Tier.VERIFIED)
+
+    summary = services.candidate_summary(provider, services=[])
+
+    assert "tier" not in summary
+    assert summary["provider_id"] == provider.slug
+
+
+def test_the_candidate_summary_prices_only_what_was_asked_for(
+    make_provider: Callable[..., Provider],
+) -> None:
+    from apps.providers.models import PriceItem, ServiceCategory, ServiceOffering
+
+    provider = make_provider()
+    wanted = ServiceOffering.objects.create(
+        provider=provider, category=ServiceCategory.INCORPORATION
+    )
+    other = ServiceOffering.objects.create(provider=provider, category=ServiceCategory.TRADEMARK)
+    PriceItem.objects.create(offering=wanted, label="from", amount_minor=4_800_00)
+    PriceItem.objects.create(offering=other, label="from", amount_minor=100_00)
+
+    summary = services.candidate_summary(provider, services=[ServiceCategory.INCORPORATION])
+
+    assert summary["price_from_hkd"] == 4800
+
+
 def test_a_quote_in_another_currency_is_not_analysed(
     open_rfq: Rfq, make_quoting_provider: Callable[..., tuple[Provider, User]], settings: Any
 ) -> None:

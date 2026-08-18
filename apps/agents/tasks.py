@@ -69,6 +69,42 @@ def extract_nnc1(verification_id: str) -> str:
 
 
 @shared_task(  # type: ignore[untyped-decorator]
+    name="agents.match_rfq",
+    autoretry_for=(Exception,),
+    retry_backoff=30,
+    max_retries=2,
+    time_limit=180,
+)
+def match_rfq(rfq_id: str) -> str:
+    """Run A2 over a requirement that has just been published.
+
+    Queued rather than run inside ``publish_rfq``: the requirement is on the
+    wall the moment it is published and companies can answer it immediately,
+    which is the part the buyer is waiting for. The shortlist is a reading list
+    that appears on their own page a moment later; if this never runs, the
+    buyer loses a suggestion, not their requirement.
+
+    A requirement that stopped being open before the worker got to it is left
+    alone. Suggesting companies for a closed request would be work nobody can
+    act on.
+    """
+    from apps.agents.services import match_providers as run
+    from apps.rfq.models import Rfq, RfqStatus
+
+    rfq = Rfq.objects.filter(pk=rfq_id).first()
+    if rfq is None:
+        logger.warning("Rfq %s vanished before it could be matched", rfq_id)
+        return "missing"
+    if rfq.status != RfqStatus.OPEN:
+        return "skipped"
+
+    result = run(rfq)
+    if result is None:
+        return "empty"
+    return "fallback" if result.used_fallback else "ok"
+
+
+@shared_task(  # type: ignore[untyped-decorator]
     name="agents.analyse_quote",
     autoretry_for=(Exception,),
     retry_backoff=30,

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from apps.agents.models import AgentRun
-from apps.agents.tasks import analyse_quote, extract_nnc1, moderate_review
+from apps.agents.tasks import analyse_quote, extract_nnc1, match_rfq, moderate_review
 from apps.core.scanning import ScanResult, ScanStatus
 from apps.core.uploads import inspect_upload
 from apps.reviews import services as review_services
@@ -110,6 +110,52 @@ def test_submitting_a_quote_queues_the_analysis(
 
     quote.refresh_from_db()
     assert quote.analysis["used_fallback"] is True
+
+
+def test_matching_a_vanished_requirement_is_not_an_error() -> None:
+    assert match_rfq("01a00000-0000-7000-8000-000000000000") == "missing"
+    assert AgentRun.objects.count() == 0
+
+
+def test_a_requirement_that_stopped_being_open_is_left_alone(open_rfq: Rfq) -> None:
+    """Suggesting companies for a closed request is work nobody can act on."""
+    from apps.rfq.models import RfqStatus
+
+    open_rfq.status = RfqStatus.CLOSED
+    open_rfq.save(update_fields=["status"])
+
+    assert match_rfq(str(open_rfq.pk)) == "skipped"
+    assert AgentRun.objects.count() == 0
+
+
+def test_matching_with_nobody_to_suggest_reports_an_empty_pool(open_rfq: Rfq) -> None:
+    assert match_rfq(str(open_rfq.pk)) == "empty"
+
+
+def test_publishing_a_requirement_queues_the_matching(
+    buyer: User,
+    make_provider: Callable[..., Provider],
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    """Dispatched on commit, so the requirement is on the wall first and the
+    shortlist follows; if the worker never runs, the buyer still has a request."""
+    from apps.providers.models import ServiceCategory, ServiceOffering
+
+    provider = make_provider(bank_account_support=True)
+    ServiceOffering.objects.create(provider=provider, category=ServiceCategory.INCORPORATION)
+    rfq = rfq_services.create_rfq(
+        buyer=buyer,
+        title="Incorporate and open an account",
+        services_needed=["incorporation"],
+        needs_bank_account=True,
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        rfq_services.publish_rfq(rfq=rfq, buyer=buyer)
+
+    rfq.refresh_from_db()
+    assert rfq.matches["used_fallback"] is True
+    assert rfq.matches["items"][0]["provider_id"] == provider.slug
 
 
 def test_reading_a_vanished_verification_is_not_an_error() -> None:

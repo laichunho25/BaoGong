@@ -12,19 +12,19 @@
 5. **每個 agent 必須有 eval**：`apps/agents/evals/{name}/golden.jsonl` ≥ 20 筆，附通過門檻。
 6. **PII 最小化**：送進 LLM 前先 redact 身分證號、護照號、電話、完整地址（除非該 agent 必需）。
 
-## 實作進度（截至 P5-3）
+## 實作進度（截至 P6-1）
 
 | Agent | 狀態 | Prompt | Eval |
 |---|---|---|---|
 | A1 RfqIntake | ✅ 已實作（**有偏離，見該節**） | `rfq_intake_v1.md` | ⚠️ 22 筆合成 golden，欠 30 段真實買家原話 |
-| A2 Matching | 未做（P5-4） | — | — |
+| A2 Matching | ✅ 已實作（**有偏離，見該節**） | `matching_v1.md` | ⚠️ 22 筆合成 golden，欠 30 張真實 RFQ 標註 |
 | A3 Nnc1Extraction | ✅ 已實作 | `nnc1_extract_v1.md` | ❌ 欠 20 份去識別化樣本 |
 | A4 ReviewModeration | ✅ 已實作（**有偏離，見該節**） | `moderation_v1.md` | ⚠️ 22 筆合成 golden，欠 50 筆真實標註 |
 | A5 QuoteAnalysis | ✅ 已實作（**有偏離，見該節**） | `quote_analysis_v1.md` | ⚠️ 22 筆合成 golden，欠 25 份真實報價 |
 | A6 / A7 | 未做 | — | — |
 
-分數與樣本來源記在 `apps/agents/evals/RESULTS.md`。**四個 agent 都還沒跑過真 API eval，
-所以四個都不得在生產啟用**（COMPLIANCE §8 的上線 gate）。
+分數與樣本來源記在 `apps/agents/evals/RESULTS.md`。**五個 agent 都還沒跑過真 API eval，
+所以五個都不得在生產啟用**（COMPLIANCE §8 的上線 gate）。
 
 共用基礎設施已完成：`base.py::BaseAgent`（強制 tool use、指數退避、逐條路徑 fallback）、
 `pricing.py`（Decimal 價目表）、`redaction.py`、`schemas.py`、`registry.py`、
@@ -134,6 +134,37 @@ class MatchingOut(BaseModel):
 - **不得輸出**：任何開戶成功率的數字、任何「保證」字眼。輸出後過 banned-phrase filter。
 - Fallback: 純 §5 排序分，`reasons` 用模板生成（"支持普通话 · 提供开户协助 · 已认证"）。
 - Eval：人工標註 30 張 RFQ 的理想 Top5，量 nDCG@5 ≥ 0.7；grounding violation rate = 0。
+
+> ### ⚠️ 實作偏離本文件（P6-1，刻意的）
+>
+> **實作位置**：`apps/agents/matching.py`、`prompts/matching_v1.md`、
+> 硬篩在 `providers/selectors.py::match_candidates`、寫入在 `agents/services.py::match_providers`、
+> 派發在 `rfq/services.py::publish_rfq` 的 `on_commit` → `agents.tasks.match_rfq`。
+>
+> 1. **候選排序多了一層：先按「命中幾項買家要的服務」，再按 §5 的 `ranking_score`。**
+>    本文件只寫了按 §5 排。理由：一家分數很高但完全不做買家要的那幾項服務的公司，
+>    不該是買家看到的第一列，而 §5 的分數完全不知道這張 RFQ 要什麼。
+> 2. **grounding check 不是「關鍵詞命中」，是「關鍵詞對應的事實必須為真」。**
+>    `CLAIM_TERMS` 把每組措辭綁到候選摘要的一個布林欄位；提到「开户」但
+>    `bank_account_support=False` → 整句丟掉。另外兩種也丟：命中 banned phrase 的、
+>    以及**什麼可查證的事實都沒引用的**（「专业可靠」）。
+> 3. **`concerns` 走同一個篩子，但比對的是事實的「不存在」。**
+>    「平台上没有公开报价」在沒有報價時才成立；反過來對一家有公開報價的公司這樣寫，
+>    同樣是捏造，同樣丟掉。這條在文件裡沒寫，是實作時才發現的對稱情況。
+> 4. **篩子對模型與 fallback 一視同仁**（`screen_matches` 兩條路都跑）。
+>    grounding violation rate 要維持 0，唯一可靠的做法是讓不合格的句子進不了 DB，
+>    而不是事後量它有多少。
+> 5. **候選摘要故意不含 `tier`。** `tier` 帶付費成分，給了模型就等於給它一個
+>    「這家有付錢」的事實可以當成推薦理由（COMPLIANCE §5：商業排序要分開標示，
+>    不能包裝成 fit）。
+> 6. **`fit_score` 在 fallback 裡是名次的換算，不是判斷。** 沒有人讀過買家那段話，
+>    所以 `confidence=0.3`，畫面上也不顯示任何分數。
+> 7. **候選池空的時候不呼叫模型**（`match_providers` 回 `None`），
+>    RFQ 狀態不是 `open` 的時候 task 直接 `skipped`。
+> 8. **寫入只有 `Rfq.matches` 一欄**（JSON，advisory）。這份清單不給任何公司任何身分：
+>    需求牆不變、每家已認領公司照樣可以報價、公司端看不到自己有沒有被推薦。
+>    畫面在 `templates/components/provider_matches.html`，只出現在買家自己的頁面，
+>    底部固定寫明「由 AI 生成、未經人工審閱、不代表推薦」。
 
 ---
 

@@ -92,6 +92,13 @@ class Rfq(BaseModel):
     is_ai_assisted = models.BooleanField(
         default=False, help_text="True when the form the buyer confirmed was pre-filled by A1."
     )
+    # A2's shortlist, shown to the buyer as suggestions to look at. Advisory in
+    # the same sense as ``structured``: it decides nothing, gives no company any
+    # standing on this requirement, and every company on the wall may still
+    # quote whether or not it appears here (CLAUDE.md rule 3).
+    matches = models.JSONField(
+        default=dict, blank=True, help_text="A2 suggestions. Never a permission and never a rank."
+    )
 
     company_type = models.CharField(
         max_length=24, choices=CompanyType.choices, default=CompanyType.HK_PRIVATE_LIMITED

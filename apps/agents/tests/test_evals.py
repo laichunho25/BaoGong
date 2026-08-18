@@ -16,19 +16,26 @@ import pytest
 from apps.agents.evals.runner import (
     ESCALATION_RECALL_THRESHOLD,
     INTAKE_SERVICES_F1_THRESHOLD,
+    MATCHING_NDCG_THRESHOLD,
     MAX_FALSE_ESCALATION_RATE,
+    MAX_GROUNDING_VIOLATION_RATE,
     MAX_HALLUCINATED_BUDGET_RATE,
     MISSING_GOVT_FEE_PRECISION_THRESHOLD,
     GoldenCase,
     IntakeCase,
+    MatchingCase,
     QuoteCase,
     load_golden,
     load_intake_golden,
+    load_matching_golden,
     load_quote_golden,
+    ndcg_at_k,
     score,
     score_intake,
+    score_matching,
     score_quote,
 )
+from apps.agents.matching import MatchingAgent, ground_reasons, screen_matches
 from apps.agents.quote_analysis import QuoteAnalysisAgent
 from apps.agents.review_moderation import URGENT_REASONS, ReviewModerationAgent, escalation_reason
 from apps.agents.rfq_intake import RfqIntakeAgent
@@ -37,6 +44,7 @@ from apps.agents.schemas import ESCALATING_LABELS, ModerationLabel, ServiceCode
 GOLDEN = load_golden("review_moderation")
 INTAKE_GOLDEN = load_intake_golden()
 QUOTE_GOLDEN = load_quote_golden()
+MATCHING_GOLDEN = load_matching_golden()
 
 
 def test_the_golden_set_is_large_enough() -> None:
@@ -315,3 +323,119 @@ def test_quote_analysis_against_the_real_api(settings: Any) -> None:
     result_score = score_quote(QUOTE_GOLDEN, flagged)
     print(f"\nquote_analysis eval: {result_score}")
     assert result_score.precision >= MISSING_GOVT_FEE_PRECISION_THRESHOLD, str(result_score)
+
+
+# ------------------------------------------------------------------- A2 matching
+
+
+def test_the_matching_golden_set_is_large_enough() -> None:
+    assert len(MATCHING_GOLDEN) >= 20
+    assert len({case.id for case in MATCHING_GOLDEN}) == len(MATCHING_GOLDEN)
+
+
+def test_every_case_has_an_annotated_ideal_inside_its_own_pool() -> None:
+    """An ideal naming a company that was never a candidate would score the
+    agent on a choice it was never offered."""
+    for case in MATCHING_GOLDEN:
+        pool = {candidate["provider_id"] for candidate in case.candidates}
+        assert case.ideal, case.id
+        assert set(case.ideal) <= pool, case.id
+        assert len(case.candidates) >= 4, case.id
+
+
+def test_every_case_holds_a_candidate_that_does_not_belong_in_the_top() -> None:
+    """A pool where everybody is a good answer scores nothing."""
+    for case in MATCHING_GOLDEN:
+        pool = {candidate["provider_id"] for candidate in case.candidates}
+        assert pool - set(case.ideal), case.id
+
+
+def test_the_perfect_order_scores_one_and_the_reverse_scores_less() -> None:
+    ideal = ("a", "b", "c")
+
+    assert ndcg_at_k(["a", "b", "c"], ideal) == 1.0
+    assert ndcg_at_k(["c", "b", "a"], ideal) < 1.0
+    assert ndcg_at_k(["x", "y"], ideal) == 0.0
+
+
+def test_matching_scoring_averages_over_the_set() -> None:
+    cases = [
+        MatchingCase("a", {}, [], ("p1", "p2")),
+        MatchingCase("b", {}, [], ("p1", "p2")),
+    ]
+
+    result = score_matching(cases, {"a": (["p1", "p2"], 4, 0), "b": ([], 0, 0)})
+
+    assert result.ndcg == 0.5
+    assert result.grounding_violation_rate == 0.0
+
+
+def test_matching_scoring_reports_a_violation_that_reached_the_buyer() -> None:
+    cases = [MatchingCase("a", {}, [], ("p1",))]
+
+    result = score_matching(cases, {"a": (["p1"], 3, 1)})
+
+    assert result.grounding_violation_rate > MAX_GROUNDING_VIOLATION_RATE
+
+
+def test_the_fallback_publishes_nothing_ungrounded_across_the_whole_set() -> None:
+    """The floor with the model switched off, and the one number AI_AGENTS A2
+    puts at zero. Screening is a fixed point: what survives it survives it
+    again, so nothing reaches a buyer that the company's own profile does not
+    bear out."""
+    agent = MatchingAgent()
+
+    for case in MATCHING_GOLDEN:
+        ctx = {**case.rfq, "candidates": case.candidates}
+        screened = screen_matches(agent.fallback(ctx, "disabled"), case.candidates)
+        by_id = {candidate["provider_id"]: candidate for candidate in case.candidates}
+        for item in screened.items:
+            candidate = by_id[item.provider_id]
+            assert ground_reasons(item.reasons, candidate) == item.reasons, case.id
+            assert ground_reasons(item.concerns, candidate) == item.concerns, case.id
+
+
+def test_the_fallback_puts_at_least_something_ideal_on_the_page() -> None:
+    """Not a threshold - the fallback has not read the buyer's paragraph - but
+    a shortlist that never contains a right answer would be worse than none."""
+    agent = MatchingAgent()
+    hits = 0
+
+    for case in MATCHING_GOLDEN:
+        ctx = {**case.rfq, "candidates": case.candidates}
+        out = agent.fallback(ctx, "disabled")
+        ranked = [item.provider_id for item in out.items][:5]
+        hits += int(bool(set(ranked) & set(case.ideal)))
+
+    assert hits == len(MATCHING_GOLDEN)
+
+
+@pytest.mark.eval
+def test_matching_against_the_real_api(settings: Any) -> None:
+    """Run manually: ``uv run pytest -m eval``. Costs real money."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key or key.startswith("test-"):
+        pytest.skip("no real ANTHROPIC_API_KEY configured")
+    settings.ANTHROPIC_API_KEY = key
+    settings.AGENTS_ENABLED = True
+
+    agent = MatchingAgent()
+    produced: dict[str, tuple[list[str], int, int]] = {}
+    for case in MATCHING_GOLDEN:
+        ctx = {"object_id": case.id, **case.rfq, "candidates": case.candidates}
+        result = agent.run(ctx)
+        assert not result.used_fallback, f"{case.id} fell back: {result.fallback_reason}"
+        screened = screen_matches(result.data, case.candidates)  # type: ignore[arg-type]
+        by_id = {candidate["provider_id"]: candidate for candidate in case.candidates}
+        published = ungrounded = 0
+        for item in screened.items:
+            candidate = by_id[item.provider_id]
+            sentences = list(item.reasons) + list(item.concerns)
+            published += len(sentences)
+            ungrounded += len(sentences) - len(ground_reasons(sentences, candidate))
+        produced[case.id] = ([item.provider_id for item in screened.items], published, ungrounded)
+
+    result_score = score_matching(MATCHING_GOLDEN, produced)
+    print(f"\nmatching eval: {result_score}")
+    assert result_score.ndcg >= MATCHING_NDCG_THRESHOLD, str(result_score)
+    assert result_score.grounding_violation_rate <= MAX_GROUNDING_VIOLATION_RATE, str(result_score)

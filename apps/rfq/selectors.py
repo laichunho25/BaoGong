@@ -257,6 +257,62 @@ def comparison_rows(quotes: list[Quote]) -> list[ComparisonRow]:
     return rows
 
 
+class SuggestedMatch(NamedTuple):
+    """One company A2 put on the buyer's reading list, with its sentences."""
+
+    provider: Provider
+    reasons: list[str]
+    concerns: list[str]
+    has_quoted: bool
+
+
+def suggested_matches(rfq: Rfq) -> list[SuggestedMatch]:
+    """``rfq.matches`` resolved back into companies, in the stored order.
+
+    The stored suggestion holds slugs, not rows, so a company that was later
+    struck off the register, unclaimed or deleted simply drops out here rather
+    than being rendered from a stale copy of its name. That is also why the
+    order is taken from the stored list and not from the database: the ranking
+    is the suggestion's, and re-sorting it in SQL would quietly invent a
+    different one.
+
+    ``has_quoted`` is a fact about this request, not about the suggestion - a
+    company already on the buyer's comparison table needs no second
+    introduction.
+    """
+    items = (rfq.matches or {}).get("items") or []
+    slugs = [str(item.get("provider_id", "")) for item in items if item.get("provider_id")]
+    if not slugs:
+        return []
+
+    providers = {
+        provider.slug: provider
+        for provider in Provider.objects.filter(slug__in=slugs)
+        .select_related("licensee")
+        .prefetch_related("offerings")
+    }
+    quoted = set(
+        Quote.objects.filter(rfq=rfq, status__in=LIVE_QUOTE_STATUSES).values_list(
+            "provider__slug", flat=True
+        )
+    )
+
+    matches: list[SuggestedMatch] = []
+    for item in items:
+        provider = providers.get(str(item.get("provider_id", "")))
+        if provider is None or not provider.is_on_register:
+            continue
+        matches.append(
+            SuggestedMatch(
+                provider=provider,
+                reasons=[str(reason) for reason in item.get("reasons") or []],
+                concerns=[str(concern) for concern in item.get("concerns") or []],
+                has_quoted=provider.slug in quoted,
+            )
+        )
+    return matches
+
+
 class _PercentileCont(Aggregate):
     """Postgres ``PERCENTILE_CONT(x) WITHIN GROUP (ORDER BY ...)``.
 

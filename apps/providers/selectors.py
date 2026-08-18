@@ -11,7 +11,18 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, QuerySet, When
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    When,
+)
 from django.utils.translation import gettext_lazy as _
 
 from apps.providers.models import (
@@ -19,6 +30,7 @@ from apps.providers.models import (
     ClaimDecision,
     ClaimStatus,
     Language,
+    PriceItem,
     Provider,
     ProviderClaim,
     ServiceCategory,
@@ -297,6 +309,89 @@ def popular_searches(*, limit: int = 10) -> list[SearchChip]:
     # Drop the empty ones: a shortcut into an empty result set is a dead end
     # dressed up as a suggestion.
     return sorted((chip for chip in chips if chip.count), key=lambda chip: -chip.count)[:limit]
+
+
+# ---------------------------------------------------------------- matching (A2)
+
+#: AI_AGENTS A2: the model never sees the whole register. It ranks a shortlist
+#: that SQL already screened, and thirty is what fits in a prompt without the
+#: summaries having to be shortened into uselessness.
+MATCH_CANDIDATE_LIMIT = 30
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateFilters:
+    """What a requirement asks for, in the terms the directory can answer.
+
+    Deliberately not an ``Rfq``: this is the providers app, and a read query
+    here should not know what a requirement row looks like. The caller in
+    ``rfq`` does the translating.
+    """
+
+    services: tuple[str, ...] = ()
+    needs_bank_account: bool = False
+    language: str = ""
+    budget_max_minor: int | None = None
+    currency: str = "HKD"
+
+
+def match_candidates(
+    filters: CandidateFilters, *, limit: int = MATCH_CANDIDATE_LIMIT
+) -> list[Provider]:
+    """The shortlist A2 ranks: hard filters in SQL, order by ranking score.
+
+    The filters are the ones from AI_AGENTS A2, and they are hard for a reason -
+    a company that does not help with bank accounts is not a *worse* answer to
+    "I need help opening an account", it is not an answer. What the model adds
+    is the ordering and the explanation, over a pool that is already correct.
+
+    One departure from the spec: candidates are ordered by how many of the
+    requested services they actually publish *before* ``ranking_score``. A
+    strong company that offers none of what was asked for is not the first row
+    a buyer should read, and the score in RATING_SYSTEM section 5 knows nothing
+    about this requirement.
+    """
+    queryset = directory_queryset().filter(licensee__status=LicenceStatus.ACTIVE)
+
+    if filters.needs_bank_account:
+        queryset = queryset.filter(bank_account_support=True)
+    if filters.language:
+        queryset = queryset.filter(languages__contains=[filters.language])
+    if filters.budget_max_minor is not None:
+        queryset = queryset.filter(_within_budget(filters.budget_max_minor, filters.currency))
+
+    matched = Count(
+        "offerings",
+        filter=Q(offerings__category__in=filters.services, offerings__is_active=True),
+        distinct=True,
+    )
+    return list(
+        queryset.annotate(matched_services=matched)
+        .prefetch_related(
+            Prefetch(
+                "offerings",
+                queryset=ServiceOffering.objects.filter(is_active=True).prefetch_related("prices"),
+            ),
+            "certifications",
+        )
+        .order_by("-matched_services", "-ranking_score", "licensee__name_en")[:limit]
+    )
+
+
+def _within_budget(budget_max_minor: int, currency: str) -> Q:
+    """Priced within the ceiling, or not priced publicly at all.
+
+    The second half matters more than the first: most companies publish no
+    prices, and excluding them would turn "I have a budget" into "only show me
+    companies that already told the internet what they charge".
+    """
+    priced = PriceItem.objects.filter(
+        offering__provider=OuterRef("pk"), offering__is_active=True, currency=currency
+    )
+    affordable = priced.filter(
+        Q(amount_minor__lte=budget_max_minor) | Q(min_amount_minor__lte=budget_max_minor)
+    )
+    return Q(Exists(affordable)) | ~Q(Exists(priced))
 
 
 def get_provider_detail(slug: str) -> Provider | None:

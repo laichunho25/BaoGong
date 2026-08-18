@@ -360,3 +360,61 @@ class TestMatchingSnapshot:
         )
 
         assert selectors.matching_snapshot().open_requests == 0
+
+
+# ------------------------------------------------------------- A2 suggestions
+
+
+def _stored(*items: dict[str, Any]) -> dict[str, Any]:
+    return {"items": list(items), "used_fallback": True}
+
+
+def test_suggestions_are_read_back_in_the_order_they_were_stored(
+    open_rfq: Rfq, make_provider: Callable[..., Provider]
+) -> None:
+    """The ranking belongs to the suggestion. Re-sorting it in SQL would
+    quietly invent a different one."""
+    first = make_provider()
+    second = make_provider()
+    open_rfq.matches = _stored(
+        {"provider_id": second.slug, "rank": 1, "reasons": ["a"], "concerns": []},
+        {"provider_id": first.slug, "rank": 2, "reasons": [], "concerns": ["b"]},
+    )
+    open_rfq.save(update_fields=["matches"])
+
+    matches = selectors.suggested_matches(open_rfq)
+
+    assert [match.provider.slug for match in matches] == [second.slug, first.slug]
+    assert matches[0].reasons == ["a"]
+    assert matches[1].concerns == ["b"]
+
+
+def test_a_company_struck_off_since_the_suggestion_drops_out(
+    open_rfq: Rfq, make_provider: Callable[..., Provider]
+) -> None:
+    """The suggestion holds slugs, not rows, so a stale copy of a name can
+    never be rendered for a company that is no longer on the register."""
+    from apps.registry.models import LicenceStatus
+
+    gone = make_provider(licensee_kwargs={"status": LicenceStatus.INACTIVE})
+    open_rfq.matches = _stored({"provider_id": gone.slug, "rank": 1})
+    open_rfq.save(update_fields=["matches"])
+
+    assert selectors.suggested_matches(open_rfq) == []
+
+
+def test_a_suggested_company_that_already_quoted_is_marked(
+    open_rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    quote_payload: dict[str, Any],
+) -> None:
+    provider, member = make_quoting_provider()
+    services.submit_quote(rfq=open_rfq, provider=provider, submitted_by=member, **quote_payload)
+    open_rfq.matches = _stored({"provider_id": provider.slug, "rank": 1})
+    open_rfq.save(update_fields=["matches"])
+
+    assert selectors.suggested_matches(open_rfq)[0].has_quoted is True
+
+
+def test_a_requirement_with_no_suggestion_reads_as_none(open_rfq: Rfq) -> None:
+    assert selectors.suggested_matches(open_rfq) == []
