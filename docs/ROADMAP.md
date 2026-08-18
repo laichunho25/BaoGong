@@ -102,7 +102,8 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P5] 報價明細固定 6 行，沒有動態加行` — 超過六項就得塞進「其他」的備註 — HTMX 加行是小事，但先看真實報價的項目分布再決定要不要把常用項目做成預設列。
 - `[P5] 需求牆沒有分頁、沒有篩選` — 上限寫死 100 則（`views.WALL_LIMIT`） — 牆上超過一頁的量出現之前，多給幾則比多一個分頁器有用；到時篩選要按服務類別與公司類型，不是按買家。
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。
-- `[UI] 首頁的業務功能與精選評語在空資料庫上是空的` — 這是誠實的（沒有示意數字），但本機導覽時會看起來像壞掉 — 需要一組 demo seed（`ServiceOffering` / `PriceItem` / 一則已核驗評價），只給 dev 用，不進 prod fixture。
+- ~~`[UI] 首頁的業務功能與精選評語在空資料庫上是空的`~~ — 已補：`manage.py seed_demo`（`apps/core/management/commands/seed_demo.py`）造出服務、價格、三種狀態的評價、一張開放中的需求與三份報價，全部走 services，`--reset` 收回。**沒有 `DEBUG` 就拒跑**：它把虛構的評價與價格掛在真實持牌公司的名字下面，不得進生產。唯一繞過 service 的是掃毒——本機沒有掃描器，NNC1 永遠不可讀，所以 seed 自己把檔案標成 clean 再交給 `decide_verification` 決定。
+- `[UI] seed 出來的頁面會露出英文服務名稱` — A2 的 fallback 句子用 `ServiceCategory` 的 gettext label，`locale/` 是空的，所以簡中頁面上會出現「提供你需要的服务：Company incorporation」 — 與 `[P2] locale/ 仍空` 是同一件事，補翻譯時一併解決；在那之前這是本機看得最清楚的一個提醒。
 - `[UI] 沒有視覺回歸測試` — 現在只斷言「區塊在不在、數字對不對」，版面跑掉不會有人知道 — 頁面數穩定下來再考慮 Playwright 截圖比對；在那之前，改 template 後務必手動看一次並重建 `app.css`。
 
 ---

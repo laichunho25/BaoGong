@@ -36,6 +36,24 @@ uv run mypy apps/
 Tests that do not touch the database run without a Postgres server. Anything
 marked `django_db` needs the `db` service from docker-compose.
 
+## Demo data
+
+A freshly synced database holds 7,457 real licensees and nothing else, so every
+page built after the directory renders correctly and shows nothing. To look at
+the rest of the product:
+
+```bash
+uv run python manage.py sync_tcsp     # the real register, if not already loaded
+uv run python manage.py seed_demo     # invented prices, reviews, RFQs, quotes
+uv run python manage.py seed_demo --reset
+```
+
+Sign in as `buyer@seed.local` or `moderator@seed.local`, password
+`seed-demo-1234`. The command refuses to run unless `DEBUG` is on: it writes
+fabricated reviews and prices under the names of real licensed companies, which
+must never reach a production database. Agents are off by default, so the
+shortlist and the quote analysis it produces come from the rule fallback.
+
 ## CSS
 
 Tailwind is built with the standalone CLI (no npm tree in the repo):
