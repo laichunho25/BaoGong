@@ -250,6 +250,23 @@ def test_a_paragraph_too_short_to_read_is_refused(client: Client, buyer: User) -
     assert Rfq.objects.count() == 0
 
 
+def test_both_description_boxes_print_the_words_a_quote_depends_on(
+    client: Client, buyer: User
+) -> None:
+    """A buyer who leaves out what they sell and where gets a price nobody can
+    stand behind, so the topics are printed under the box - on the one-box
+    intake and on the full form alike, which is why they live on the field."""
+    client.force_login(buyer)
+
+    html = client.get(reverse("rfq:create")).content.decode()
+
+    assert html.count("经营范围") == 2
+    assert html.count("交易地区") == 2
+    # The hints are prompts, never prefilled text: the requirement has to stay
+    # the buyer's own words for a company to be able to price it.
+    assert "经营范围</textarea>" not in html
+
+
 def test_an_anonymous_visitor_cannot_use_the_prefill(client: Client) -> None:
     """It costs money per call, and it is not a service the platform offers to
     the open internet."""

@@ -23,6 +23,17 @@
       {% if field.field.required %}<span class="text-danger-600" aria-hidden="true">*</span>{% endif %}
     </label>
     {{ field }}
+    {% if field.field.hints %}
+      {% comment %} Prompts, not choices: nothing here is inserted into the box for the
+         visitor, because a requirement written by the form is a requirement no
+         licensed company can price. {% endcomment %}
+      <p class="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs text-ink-muted">
+        <span class="text-ink-faint">{% translate "可以写：" %}</span>
+        {% for hint in field.field.hints %}
+          <span class="rounded-full border border-line bg-surface-sunken px-2 py-0.5">{{ hint }}</span>
+        {% endfor %}
+      </p>
+    {% endif %}
     {% if field.help_text %}
       <p class="text-xs leading-relaxed text-ink-muted">{{ field.help_text }}</p>
     {% endif %}

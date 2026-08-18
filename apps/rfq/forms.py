@@ -37,6 +37,32 @@ CURRENCY_CHOICES = [("HKD", "HKD"), ("CNY", "CNY"), ("USD", "USD")]
 
 MIN_DESCRIPTION_LENGTH = 20
 
+#: The topics a quote actually depends on. A buyer who has never registered a
+#: Hong Kong company does not know that "what you will be selling and where you
+#: will be selling it" is the difference between a price and a guess, so the
+#: words are printed under the box rather than left for the company to ask for
+#: in a message the buyer then has to answer twice.
+DESCRIPTION_HINTS = (
+    _("经营范围"),
+    _("交易地区"),
+    _("股东身份"),
+    _("股东人数"),
+    _("是否需要开户"),
+    _("时间要求"),
+    _("预算范围"),
+)
+
+
+class DescriptionField(forms.CharField):
+    """A free-text box that shows its own prompts.
+
+    The hints ride on the field rather than the template so that both the
+    one-box intake and the full form spell out the same list: two lists drift,
+    and the one that drifts is the one nobody is looking at.
+    """
+
+    hints = DESCRIPTION_HINTS
+
 
 def _to_minor(value: Any, currency: str, label: str) -> int | None:
     """Major units from a form field to minor units, or None if left blank."""
@@ -66,7 +92,7 @@ class RfqForm(forms.Form):
             attrs={"class": INPUT_CLASSES, "placeholder": _("例：注册香港有限公司 + 开公户")}
         ),
     )
-    raw_input = forms.CharField(
+    raw_input = DescriptionField(
         label=_("详细说明"),
         min_length=MIN_DESCRIPTION_LENGTH,
         widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 5}),
@@ -177,7 +203,7 @@ class IntakeForm(forms.Form):
     does not say it will.
     """
 
-    raw_input = forms.CharField(
+    raw_input = DescriptionField(
         label=_("用您自己的话描述需求"),
         min_length=MIN_DESCRIPTION_LENGTH,
         max_length=4000,
