@@ -57,6 +57,51 @@
     opacity: 1;
   }
 
+  /* Rendered article bodies. The HTML comes from Markdown, so the elements
+     carry no classes and have to be styled by tag - written out here rather
+     than pulling in @tailwindcss/typography, which brings a whole prose scale
+     to style five tags this project actually uses. */
+  .article-body {
+    @apply text-[15px] leading-7 text-ink-soft;
+  }
+  .article-body > * + * {
+    @apply mt-4;
+  }
+  .article-body h2 {
+    @apply mt-10 text-lg font-semibold tracking-tight text-ink sm:text-xl;
+  }
+  .article-body h3 {
+    @apply mt-8 text-base font-semibold text-ink;
+  }
+  .article-body ul {
+    @apply list-disc space-y-1.5 pl-5;
+  }
+  .article-body ol {
+    @apply list-decimal space-y-1.5 pl-5;
+  }
+  .article-body a {
+    @apply font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800;
+  }
+  .article-body strong {
+    @apply font-semibold text-ink;
+  }
+  .article-body blockquote {
+    @apply border-l-2 border-brand-200 bg-brand-50 px-4 py-3 text-ink-soft;
+  }
+  .article-body code {
+    @apply rounded bg-surface-sunken px-1.5 py-0.5 text-[13px] text-ink;
+  }
+  .article-body table {
+    @apply w-full border-collapse text-sm;
+  }
+  .article-body th,
+  .article-body td {
+    @apply border border-line px-3 py-2 text-left align-top;
+  }
+  .article-body th {
+    @apply bg-surface-sunken font-medium text-ink;
+  }
+
   /* Staggered entrance for a list of cards. The delay is set inline with a
      custom property so a template can stagger N children without N classes. */
   .stagger > * {

@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: qs-matching\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-18 18:00+0800\n"
+"POT-Creation-Date: 2026-08-18 19:47+0800\n"
 "PO-Revision-Date: 2026-08-18 18:00+0800\n"
 "Language-Team: none\n"
 "Language: zh_Hans\n"
@@ -309,6 +309,92 @@ msgstr ""
 
 #: .\apps\agents\services.py:353
 msgid "未知的评价结果。"
+msgstr ""
+
+#: .\apps\content\admin.py:54
+msgid "Titles"
+msgstr ""
+
+#: .\apps\content\admin.py:57
+msgid "Simplified Chinese is required; the other two fall back to it."
+msgstr ""
+
+#: .\apps\content\admin.py:60
+msgid "Body"
+msgstr ""
+
+#: .\apps\content\admin.py:61
+msgid "SEO"
+msgstr ""
+
+#: .\apps\content\admin.py:62
+msgid "Timestamps"
+msgstr ""
+
+#: .\apps\content\admin.py:65
+msgid "Passages"
+msgstr ""
+
+#: .\apps\content\admin.py:72
+msgid "Publish selected articles"
+msgstr ""
+
+#: .\apps\content\admin.py:83
+#, python-format
+msgid "%(count)s article(s) published."
+msgstr ""
+
+#: .\apps\content\admin.py:85
+msgid "Move selected articles back to draft"
+msgstr ""
+
+#: .\apps\content\admin.py:90
+#, python-format
+msgid "%(count)s article(s) back to draft."
+msgstr ""
+
+#: .\apps\content\models.py:33
+msgid "Setting up a company"
+msgstr "开公司"
+
+#: .\apps\content\models.py:34
+msgid "Opening a bank account"
+msgstr "银行开户"
+
+#: .\apps\content\models.py:35
+msgid "Licences and how to check them"
+msgstr "牌照与核实"
+
+#: .\apps\content\models.py:36
+msgid "Fees and hidden costs"
+msgstr "费用与隐藏成本"
+
+#: .\apps\content\models.py:37
+msgid "Staying compliant"
+msgstr "持续合规"
+
+#: .\apps\content\models.py:41 .\apps\rfq\models.py:40
+msgid "Draft"
+msgstr "草稿"
+
+#: .\apps\content\models.py:42 .\apps\reviews\models.py:57
+msgid "Published"
+msgstr "已发布"
+
+#: .\apps\content\models.py:75
+msgid "article"
+msgstr ""
+
+#: .\apps\content\models.py:76
+msgid "articles"
+msgstr ""
+
+#: .\apps\content\models.py:138
+msgid "article chunk"
+msgstr ""
+
+#: .\apps\content\models.py:139
+msgid "article chunks"
 msgstr ""
 
 #: .\apps\core\admin_site.py:33 .\apps\core\admin_site.py:34
@@ -1144,10 +1230,6 @@ msgstr ""
 msgid "Pending moderation"
 msgstr "待审核"
 
-#: .\apps\reviews\models.py:57
-msgid "Published"
-msgstr "已发布"
-
 #: .\apps\reviews\models.py:58
 msgid "Hidden"
 msgstr "已隐藏"
@@ -1554,10 +1636,6 @@ msgstr ""
 msgid "选择「其他」时请填写项目名称。"
 msgstr ""
 
-#: .\apps\rfq\models.py:40
-msgid "Draft"
-msgstr "草稿"
-
 #: .\apps\rfq\models.py:41
 msgid "Open for quotes"
 msgstr "报价中"
@@ -1803,7 +1881,7 @@ msgid "报价已撤回。已用掉的报价额度不会退回。"
 msgstr ""
 
 #: .\templates\accounts\dashboard.html:4 .\templates\accounts\dashboard.html:13
-#: .\templates\base.html:63 .\templates\base.html:112
+#: .\templates\base.html:67 .\templates\base.html:117
 msgid "我的账号"
 msgstr ""
 
@@ -1832,7 +1910,7 @@ msgstr ""
 msgid "我的认领申请"
 msgstr ""
 
-#: .\templates\accounts\dashboard.html:72 .\templates\base.html:111
+#: .\templates\accounts\dashboard.html:72 .\templates\base.html:116
 #: .\templates\components\disclaimer_footer.html:42
 #: .\templates\rfq\detail_buyer.html:12 .\templates\rfq\my_rfqs.html:4
 #: .\templates\rfq\my_rfqs.html:10
@@ -1899,7 +1977,7 @@ msgstr ""
 
 #: .\templates\accounts\login.html:4 .\templates\accounts\login.html:12
 #: .\templates\accounts\login.html:21 .\templates\accounts\register.html:56
-#: .\templates\base.html:74 .\templates\base.html:118
+#: .\templates\base.html:78 .\templates\base.html:123
 #: .\templates\components\disclaimer_footer.html:45
 msgid "登录"
 msgstr ""
@@ -1988,43 +2066,49 @@ msgstr ""
 msgid "跳到主要内容"
 msgstr ""
 
-#: .\templates\base.html:40 .\templates\base.html:107
+#: .\templates\base.html:40 .\templates\base.html:111
 #: .\templates\providers\list.html:10
 msgid "公司目录"
 msgstr ""
 
-#: .\templates\base.html:44 .\templates\base.html:108
+#: .\templates\base.html:44 .\templates\base.html:112
 #: .\templates\components\disclaimer_footer.html:31
 #: .\templates\providers\compare.html:14 .\templates\providers\list.html:170
 msgid "并排比较"
 msgstr ""
 
-#: .\templates\base.html:49 .\templates\base.html:110
+#: .\templates\base.html:48 .\templates\base.html:113
+#: .\templates\content\article_detail.html:10
+#: .\templates\content\article_list.html:10
+msgid "指南"
+msgstr ""
+
+#: .\templates\base.html:53 .\templates\base.html:115
 #: .\templates\components\disclaimer_footer.html:41
 #: .\templates\rfq\detail_provider.html:12 .\templates\rfq\wall.html:4
 #: .\templates\rfq\wall.html:16
 msgid "需求墙"
 msgstr ""
 
-#: .\templates\base.html:59 .\templates\components\disclaimer_footer.html:40
+#: .\templates\base.html:63 .\templates\components\disclaimer_footer.html:40
 #: .\templates\pages\home.html:172 .\templates\rfq\rfq_form.html:4
 #: .\templates\rfq\rfq_form.html:11
 msgid "发布需求"
 msgstr ""
 
-#: .\templates\base.html:68 .\templates\base.html:115
+#: .\templates\base.html:72 .\templates\base.html:120
 msgid "退出"
 msgstr ""
 
-#: .\templates\base.html:78
+#: .\templates\base.html:82
 msgid "免费注册"
 msgstr ""
 
-#: .\templates\base.html:85
+#: .\templates\base.html:89
 msgid "界面语言"
 msgstr ""
 
-#: .\templates\base.html:98
+#: .\templates\base.html:102
 msgid "打开菜单"
 msgstr ""
 
@@ -2192,6 +2276,100 @@ msgstr[1] ""
 #: .\templates\components\rating_display.html:33
 #: .\templates\reviews\_review_list.html:72
 msgid "暂无已验证评价"
+msgstr ""
+
+#: .\templates\content\article_detail.html:9
+#: .\templates\providers\detail.html:17
+msgid "面包屑"
+msgstr ""
+
+#: .\templates\content\article_detail.html:20
+#, python-format
+msgid "发布于 %(date)s"
+msgstr ""
+
+#: .\templates\content\article_detail.html:22
+#, python-format
+msgid "最后更新 %(date)s"
+msgstr ""
+
+#: .\templates\content\article_detail.html:34
+msgid ""
+"以上为一般资讯，不构成法律、税务或任何专业意见。本平台并非香港公司注册处或任"
+"何政府机构，亦非信托或公司服务持牌人。牌照状态请自行向官方登记册核实，必要时"
+"咨询持牌专业人士。"
+msgstr ""
+
+#: .\templates\content\article_detail.html:40
+msgid "同一类"
+msgstr ""
+
+#: .\templates\content\article_detail.html:40
+msgid "接着读"
+msgstr ""
+
+#: .\templates\content\article_list.html:4
+msgid "香港开公司指南 — QS Matching"
+msgstr ""
+
+#: .\templates\content\article_list.html:5
+msgid ""
+"注册香港公司、银行开户、TCSP 牌照核实、费用与合规的完整说明。由平台整理，可核"
+"实来源，不推荐任何一家公司。"
+msgstr ""
+
+#: .\templates\content\article_list.html:11
+msgid "香港开公司与开户指南"
+msgstr ""
+
+#: .\templates\content\article_list.html:13
+msgid ""
+"第一次在香港开公司，最贵的往往不是服务费，而是不知道该问什么。这里写的是流"
+"程、费用构成、银行开户被拒的常见原因，以及如何自己去官方登记册核实一家公司的"
+"牌照。"
+msgstr ""
+
+#: .\templates\content\article_list.html:20
+msgid "文章分类"
+msgstr ""
+
+#: .\templates\content\article_list.html:23
+msgid "全部"
+msgstr ""
+
+#: .\templates\content\article_list.html:48
+#: .\templates\providers\_results.html:42
+msgid "分页"
+msgstr ""
+
+#: .\templates\content\article_list.html:51
+#: .\templates\providers\_results.html:50
+#: .\templates\providers\_results.html:52
+msgid "上一页"
+msgstr ""
+
+#: .\templates\content\article_list.html:53
+#, python-format
+msgid "第 %(current)s / %(total)s 页"
+msgstr ""
+
+#: .\templates\content\article_list.html:56
+#: .\templates\providers\_results.html:66
+#: .\templates\providers\_results.html:69
+msgid "下一页"
+msgstr ""
+
+#: .\templates\content\article_list.html:63
+msgid "这个分类下还没有文章"
+msgstr ""
+
+#: .\templates\content\article_list.html:63
+msgid ""
+"指南正在陆续补上。先看看公司目录，或发一张需求单让持牌公司来回答你的问题。"
+msgstr ""
+
+#: .\templates\content\article_list.html:63 .\templates\pages\home.html:282
+msgid "浏览公司目录"
 msgstr ""
 
 #: .\templates\emails\_footer.txt:1
@@ -2732,10 +2910,6 @@ msgid ""
 "的内容。"
 msgstr ""
 
-#: .\templates\pages\home.html:282
-msgid "浏览公司目录"
-msgstr ""
-
 #: .\templates\pages\home.html:288
 msgid "热门搜索"
 msgstr ""
@@ -2799,23 +2973,9 @@ msgstr ""
 msgid "加入比较"
 msgstr ""
 
-#: .\templates\providers\_results.html:42
-msgid "分页"
-msgstr ""
-
-#: .\templates\providers\_results.html:50
-#: .\templates\providers\_results.html:52
-msgid "上一页"
-msgstr ""
-
 #: .\templates\providers\_results.html:55
 #, python-format
 msgid "第 %(current)s / %(total_pages)s 页"
-msgstr ""
-
-#: .\templates\providers\_results.html:66
-#: .\templates\providers\_results.html:69
-msgid "下一页"
 msgstr ""
 
 #: .\templates\providers\_results.html:78
@@ -3066,10 +3226,6 @@ msgstr ""
 msgid ""
 "%(name)s（TCSP 牌照号 %(licence)s）的官方登记资料、服务范围与价格区间。资料来"
 "源为香港公司注册处持牌人登记册。"
-msgstr ""
-
-#: .\templates\providers\detail.html:17
-msgid "面包屑"
 msgstr ""
 
 #: .\templates\providers\detail.html:18 .\templates\providers\list.html:11

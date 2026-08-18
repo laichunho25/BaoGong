@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "香港开公司指南 — QS Matching" %}{% endblock %}
+{% block meta_description %}{% translate "注册香港公司、银行开户、TCSP 牌照核实、费用与合规的完整说明。由平台整理，可核实来源，不推荐任何一家公司。" %}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'content:list' %}">{% endblock %}
+
+{% block content %}
+  <header class="rounded-2xl border border-line bg-surface-sunken p-6">
+    <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "指南" %}</p>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "香港开公司与开户指南" %}</h1>
+    <p class="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
+      {% translate "第一次在香港开公司，最贵的往往不是服务费，而是不知道该问什么。这里写的是流程、费用构成、银行开户被拒的常见原因，以及如何自己去官方登记册核实一家公司的牌照。" %}
+    </p>
+  </header>
+
+  {% comment %} Plain links, not a JS filter: each category is its own URL so it can be
+     shared and indexed. {% endcomment %}
+  <nav class="mt-6 flex flex-wrap gap-2" aria-label="{% translate '文章分类' %}">
+    <a href="{% url 'content:list' %}"
+       class="rounded-full px-3 py-1.5 text-sm font-medium transition {% if not active_category %}bg-brand-600 text-white{% else %}border border-line bg-white text-ink-soft hover:border-brand-300 hover:text-brand-700{% endif %}">
+      {% translate "全部" %}
+    </a>
+    {% for value, label in categories %}
+      <a href="{% url 'content:list' %}?category={{ value }}"
+         class="rounded-full px-3 py-1.5 text-sm font-medium transition {% if value == active_category %}bg-brand-600 text-white{% else %}border border-line bg-white text-ink-soft hover:border-brand-300 hover:text-brand-700{% endif %}">
+        {{ label }}
+      </a>
+    {% endfor %}
+  </nav>
+
+  {% if page_obj.object_list %}
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {% for article in page_obj.object_list %}
+        <article class="animate-rise-in flex h-full flex-col rounded-2xl border border-line bg-white p-5 shadow-card transition hover:shadow-lift">
+          <p class="text-xs font-medium text-brand-700">{{ article.get_category_display }}</p>
+          <h2 class="mt-1.5 text-base font-semibold leading-snug text-ink">
+            <a href="{{ article.get_absolute_url }}" class="transition hover:text-brand-700">{{ article.title }}</a>
+          </h2>
+          <p class="mt-2 line-clamp-3 text-sm leading-relaxed text-ink-muted">{{ article.summary }}</p>
+          <p class="mt-4 pt-3 text-xs text-ink-faint">{{ article.published_at|date:"Y-m-d" }}</p>
+        </article>
+      {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+      <nav class="mt-8 flex items-center justify-between text-sm" aria-label="{% translate '分页' %}">
+        {% if page_obj.has_previous %}
+          <a href="?{% if active_category %}category={{ active_category }}&{% endif %}page={{ page_obj.previous_page_number }}"
+             class="rounded-lg border border-line px-3 py-2 font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700">{% translate "上一页" %}</a>
+        {% else %}<span></span>{% endif %}
+        <span class="text-ink-muted">{% blocktranslate with current=page_obj.number total=page_obj.paginator.num_pages %}第 {{ current }} / {{ total }} 页{% endblocktranslate %}</span>
+        {% if page_obj.has_next %}
+          <a href="?{% if active_category %}category={{ active_category }}&{% endif %}page={{ page_obj.next_page_number }}"
+             class="rounded-lg border border-line px-3 py-2 font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700">{% translate "下一页" %}</a>
+        {% else %}<span></span>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="mt-6">
+      {% url 'providers:list' as directory_url %}
+      {% include "components/empty_state.html" with title=_("这个分类下还没有文章") hint=_("指南正在陆续补上。先看看公司目录，或发一张需求单让持牌公司来回答你的问题。") action_url=directory_url action_label=_("浏览公司目录") icon="doc" %}
+    </div>
+  {% endif %}
+{% endblock %}

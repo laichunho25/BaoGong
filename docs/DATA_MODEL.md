@@ -382,9 +382,20 @@ NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評�
 
 ## content
 
-`Article(slug, title_zh_hans, title_zh_hant, title_en, body_md, category, published_at, seo JSON)`
-`Chunk(article FK, ordinal, text, embedding vector(1536))` ← pgvector，供 Advisor Agent RAG
-`Faq(question, answer, tags)`
+`Article(slug, category, title_zh_hans, title_zh_hant, title_en, summary, body_md, status, published_at, author FK SET_NULL, seo JSON)`
+`Chunk(article FK, ordinal, heading, text, embedding vector(1536) NULL)` ← pgvector，供 Advisor Agent RAG
+
+- 標題分語言、正文不分：翻一個標題便宜且讓頁面被搜到，翻一整篇正文是人的工作，
+  半翻的正文比一種誠實的語言更糟。`Article.title` 依 `get_language()` 回退到簡體。
+- `Chunk` 是**衍生資料**，由 `services.save_article()` 在同一個 transaction 內從
+  `body_md` 重建（後台的 inline 是唯讀）。下架文章會連同 chunk 一起刪掉 —— 讀者打不開的頁面，
+  Advisor Agent 也不准引用（AI_AGENTS A6）。
+- `embedding` 可為 NULL：還沒選定 embedding provider，檢索先用 `text__icontains`
+  （語料是簡體中文，這台 Postgres 沒有 `zhparser`，`to_tsvector` 會把整句當成一個 token）。
+  **因此 `0001_initial` 只建 `VectorExtension()`，沒有 ivfflat index** —— ivfflat 的 `lists`
+  要照實際筆數估，而現在一筆 embedding 都還沒有；等 embedding 落地再補一支 migration。
+- `CHECK (status='draft' OR published_at IS NOT NULL)`：已發布卻沒有日期的頁面無法排序、
+  無法引用、也不該進 sitemap，所以由資料庫擋住。
 
 ---
 
@@ -404,5 +415,8 @@ CHECK  (reviews_review.overall BETWEEN 1 AND 5)
 CHECK  (reviews_reviewscore.* BETWEEN 1 AND 5)  -- bank_support 另允許 NULL
 CHECK  (amount_minor >= 0)
 INDEX  GIN on Licensee(name_en gin_trgm_ops), Licensee(name_zh gin_trgm_ops)
-INDEX  ivfflat on content_chunk(embedding vector_cosine_ops)
+UNIQUE (content_article.slug)
+UNIQUE (content_chunk.article_id, content_chunk.ordinal)
+CHECK  (content_article.status = 'draft' OR content_article.published_at IS NOT NULL)
+-- ivfflat on content_chunk(embedding vector_cosine_ops) — 待 embedding provider 落地後才建
 ```

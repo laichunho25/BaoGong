@@ -5,6 +5,7 @@ from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 from django.views.generic import TemplateView
 
+from apps.content.sitemaps import ArticleSitemap
 from apps.core.views import healthz, home
 from apps.providers.sitemaps import ProviderSitemap, StaticViewSitemap
 from apps.providers.views import provider_compare
@@ -13,7 +14,11 @@ from apps.registry.views import registry_healthz
 # Split into an index plus per-section files: the directory alone is over
 # 7,000 URLs, and a single sitemap that grows past the 50,000/50MB limit fails
 # silently at the search engine rather than at deploy time.
-SITEMAPS = {"static": StaticViewSitemap, "providers": ProviderSitemap}
+SITEMAPS = {
+    "static": StaticViewSitemap,
+    "providers": ProviderSitemap,
+    "guides": ArticleSitemap,
+}
 
 urlpatterns = [
     path("", home, name="home"),
@@ -21,6 +26,9 @@ urlpatterns = [
     path("providers/", include("apps.providers.urls")),
     path("reviews/", include("apps.reviews.urls")),
     path("rfq/", include("apps.rfq.urls")),
+    # "guides" rather than "content" or "blog": it is the word a reader
+    # would type, and these pages exist to be found from outside the site.
+    path("guides/", include("apps.content.urls")),
     # Top level rather than under /providers/: the comparison is of providers
     # but it is its own shareable page, and the URL is short enough to retype.
     path("compare/", provider_compare, name="compare"),

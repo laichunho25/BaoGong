@@ -41,6 +41,10 @@
            class="rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-brand-50 hover:text-brand-700">
           {% translate "并排比较" %}
         </a>
+        <a href="{% url 'content:list' %}"
+           class="rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-brand-50 hover:text-brand-700">
+          {% translate "指南" %}
+        </a>
         {% if user.is_authenticated %}
           <a href="{% url 'rfq:wall' %}"
              class="rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-brand-50 hover:text-brand-700">
@@ -104,6 +108,7 @@
       <div class="flex flex-col gap-1 text-sm">
         <a href="{% url 'providers:list' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "公司目录" %}</a>
         <a href="{% url 'compare' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "并排比较" %}</a>
+        <a href="{% url 'content:list' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "指南" %}</a>
         {% if user.is_authenticated %}
           <a href="{% url 'rfq:wall' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "需求墙" %}</a>
           <a href="{% url 'rfq:my_rfqs' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "我的需求" %}</a>

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ article.meta_title }} — QS Matching{% endblock %}
+{% block meta_description %}{{ article.meta_description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ article.get_absolute_url }}">{% endblock %}
+
+{% block content %}
+  <nav class="text-xs text-ink-muted" aria-label="{% translate '面包屑' %}">
+    <a href="{% url 'content:list' %}" class="hover:text-brand-700">{% translate "指南" %}</a>
+    <span aria-hidden="true"> / </span>
+    <a href="{% url 'content:list' %}?category={{ article.category }}" class="hover:text-brand-700">{{ article.get_category_display }}</a>
+  </nav>
+
+  <article class="mt-3">
+    <header class="border-b border-line pb-6">
+      <h1 class="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{{ article.title }}</h1>
+      <p class="mt-3 text-sm leading-relaxed text-ink-muted">{{ article.summary }}</p>
+      <p class="mt-4 text-xs text-ink-faint">
+        {% blocktranslate with date=article.published_at|date:"Y-m-d" %}发布于 {{ date }}{% endblocktranslate %}
+        {% if article.updated_at|date:"Y-m-d" != article.published_at|date:"Y-m-d" %}
+          · {% blocktranslate with date=article.updated_at|date:"Y-m-d" %}最后更新 {{ date }}{% endblocktranslate %}
+        {% endif %}
+      </p>
+    </header>
+
+    <div class="article-body mt-6 max-w-3xl">{{ body_html|safe }}</div>
+
+    {% comment %} The same line the Advisor agent has to append to every answer
+       (COMPLIANCE section 7). The page a buyer reads and the answer a model
+       gives out of that page must not disagree about what this is. {% endcomment %}
+    <p class="mt-10 rounded-xl border border-line bg-surface-sunken px-4 py-3 text-xs leading-relaxed text-ink-muted">
+      {% translate "以上为一般资讯，不构成法律、税务或任何专业意见。本平台并非香港公司注册处或任何政府机构，亦非信托或公司服务持牌人。牌照状态请自行向官方登记册核实，必要时咨询持牌专业人士。" %}
+    </p>
+  </article>
+
+  {% if related %}
+    <section class="mt-12">
+      {% include "components/section_heading.html" with eyebrow=_("同一类") title=_("接着读") level="h2" %}
+      <div class="mt-4 grid gap-4 sm:grid-cols-3">
+        {% for other in related %}
+          <a href="{{ other.get_absolute_url }}"
+             class="flex h-full flex-col rounded-2xl border border-line bg-white p-5 shadow-card transition hover:shadow-lift">
+            <span class="text-xs font-medium text-brand-700">{{ other.get_category_display }}</span>
+            <span class="mt-1.5 text-sm font-semibold leading-snug text-ink">{{ other.title }}</span>
+            <span class="mt-2 line-clamp-2 text-xs leading-relaxed text-ink-muted">{{ other.summary }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

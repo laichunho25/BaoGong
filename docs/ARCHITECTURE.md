@@ -43,7 +43,7 @@ qs-platform/
 │   ├── rfq/           # Rfq, Quote, QuoteLineItem, QuotaLedger
 │   ├── agents/        # BaseAgent, registry, prompts/, tools/, AgentRun, evals/
 │   ├── billing/       # Plan, Subscription, CreditPack, Invoice, CommissionDisclosure
-│   └── content/       # Article, Faq, Embedding(pgvector), SeoMeta
+│   └── content/       # Article, Chunk(pgvector), rendering.py（markdown → 消毒過的 HTML／可引用段落）
 ├── templates/         # base.html, components/（共用元件）, pages/, 各 app 的頁面
 ├── static/            # tailwind input.css → app.css（已進版控）, alpine, self-hosted fonts
 ├── tests/             # 跨 app 的 integration tests

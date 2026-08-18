@@ -88,6 +88,11 @@
 | `section_heading.html` | 區塊標題（eyebrow / title / subtitle / 連結） | eyebrow 是標籤不是口號 |
 | `stat.html` | 統計數字 | 每個數字都必須是資料庫真實 count，沒有示意數字（COMPLIANCE §2） |
 
+指南內文是唯一一塊「不是我們一個 class 一個 class 排出來的 HTML」：`content` app 把
+markdown 消毒後整段輸出，所以 `static/css/input.css` 有一個 `.article-body` component
+（h2/h3/ul/ol/a/strong/blockquote/code/table），一樣只用語意 token。**只有它可以這樣包**，
+其他地方仍然是 template 上的 utility class。
+
 表單 widget 的 class 集中在 `apps/core/form_styles.py`（`INPUT_CLASSES` / `CHECKBOX_CLASSES` /
 `FILE_CLASSES`）。這些字串寫在 `.py` 裡也能被 Tailwind 掃到，因為 `content` glob 包含 `./apps/**/*.py`。
 

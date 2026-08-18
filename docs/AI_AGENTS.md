@@ -343,7 +343,10 @@ class QuoteAnalysisOut(BaseModel):
 **用途**：回答「開公司要多久」「開戶被拒怎麼辦」「NNC1 是什麼」等問題。
 
 - Model: `claude-sonnet-5`
-- **只能引用平台自有內容**：pgvector 檢索 `content.Chunk` Top 8 → 塞進 context。
+- **只能引用平台自有內容**：檢索 `content.Chunk` Top 8 → 塞進 context。檢索一律走
+  `apps.content.selectors.search_chunks()`（只回已發布文章的段落）。**現況**：`embedding`
+  仍是 NULL，該函式先用 `text__icontains`；換成 pgvector 相似度時只改它一個地方，
+  agent 這邊不用動（見 ROADMAP 的 `[P6] 指南的檢索還不是向量檢索`）。
 - Output schema:
 ```python
 class AdvisorOut(BaseModel):
