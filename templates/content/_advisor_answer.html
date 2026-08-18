@@ -1,0 +1,71 @@
+{% load i18n %}
+{% comment %}
+  The ask box and whatever came back from it (AI_AGENTS A6).
+
+  Swapped into itself, so the box is always here: a reader who asked one
+  question usually has a second one, and re-rendering the form is cheaper than
+  making them scroll back up.
+
+  The answer is rendered as text, never as markup: it is generated, and the one
+  thing a generated string must not be able to do is put a link on this page.
+  Quotes are shown next to the answer rather than behind a footnote, because a
+  buyer who cannot check the quote has only been given a confident sentence.
+{% endcomment %}
+<form hx-post="{% url 'content:ask' %}"
+      hx-target="#advisor-panel"
+      hx-swap="innerHTML"
+      hx-indicator="#advisor-indicator"
+      class="space-y-3">
+  {% csrf_token %}
+  {% include "components/form_fields.html" with form=form %}
+  <div class="flex items-center gap-3">
+    <button type="submit"
+            class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700">
+      {% translate "问一下" %}
+    </button>
+    <span id="advisor-indicator" class="htmx-indicator inline-flex items-center gap-2 text-xs text-ink-muted">
+      {% translate "正在从指南里找答案…" %}
+    </span>
+  </div>
+</form>
+
+{% if throttled %}
+  <p class="mt-4 flex gap-2 rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800" role="alert">
+    <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+    {% translate "这个小时问得有点多了，请稍后再试。想要更具体的答复，可以发一张需求单让持牌公司直接回答你。" %}
+  </p>
+{% endif %}
+
+{% if answer %}
+  <section class="mt-4 rounded-xl border border-line bg-surface-sunken p-4" aria-label="{% translate '回答' %}">
+    <p class="text-xs font-medium text-ink-faint">{{ question }}</p>
+    <div class="mt-2 space-y-2 text-sm leading-relaxed text-ink">{{ answer.answer_zh_hans|linebreaks }}</div>
+
+    {% if answer.citations %}
+      <ul class="mt-3 space-y-2 border-t border-line pt-3 text-xs leading-relaxed text-ink-soft">
+        {% for citation in answer.citations %}
+          <li class="border-l-2 border-line pl-3">{{ citation.quote }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if sources %}
+      <p class="mt-3 text-xs text-ink-muted">
+        {% translate "出处：" %}
+        {% for article in sources %}
+          <a href="{{ article.get_absolute_url }}" class="font-medium text-brand-700 underline-offset-2 hover:underline">{{ article.title }}</a>{% if not forloop.last %}、{% endif %}
+        {% endfor %}
+      </p>
+    {% endif %}
+
+    {% comment %} Said on every answer, including the refusals: this is generated from our
+       own guides, it is nobody's professional advice, and it names no company. {% endcomment %}
+    <p class="mt-3 border-t border-line pt-2 text-xs text-ink-faint">
+      {% if used_fallback %}
+        {% translate "本次未生成回答，以上只是平台指南的原文摘录，未经人工审阅。" %}
+      {% else %}
+        {% translate "以上由 AI 阅读本平台指南后生成，只引用平台自己写的内容，未经人工审阅，也不推荐任何一家公司。" %}
+      {% endif %}
+    </p>
+  </section>
+{% endif %}

@@ -12,7 +12,7 @@
 5. **每個 agent 必須有 eval**：`apps/agents/evals/{name}/golden.jsonl` ≥ 20 筆，附通過門檻。
 6. **PII 最小化**：送進 LLM 前先 redact 身分證號、護照號、電話、完整地址（除非該 agent 必需）。
 
-## 實作進度（截至 P6-1）
+## 實作進度（截至 A6）
 
 | Agent | 狀態 | Prompt | Eval |
 |---|---|---|---|
@@ -21,10 +21,11 @@
 | A3 Nnc1Extraction | ✅ 已實作 | `nnc1_extract_v1.md` | ❌ 欠 20 份去識別化樣本 |
 | A4 ReviewModeration | ✅ 已實作（**有偏離，見該節**） | `moderation_v1.md` | ⚠️ 22 筆合成 golden，欠 50 筆真實標註 |
 | A5 QuoteAnalysis | ✅ 已實作（**有偏離，見該節**） | `quote_analysis_v1.md` | ⚠️ 22 筆合成 golden，欠 25 份真實報價 |
-| A6 / A7 | 未做 | — | — |
+| A6 Advisor | ✅ 已實作（**有偏離，見該節**） | `advisor_v1.md` | ⚠️ 32 筆合成 golden，欠 30 條真實提問 |
+| A7 RegistryDiff | 未做 | — | — |
 
-分數與樣本來源記在 `apps/agents/evals/RESULTS.md`。**五個 agent 都還沒跑過真 API eval，
-所以五個都不得在生產啟用**（COMPLIANCE §8 的上線 gate）。
+分數與樣本來源記在 `apps/agents/evals/RESULTS.md`。**六個 agent 都還沒跑過真 API eval，
+所以六個都不得在生產啟用**（COMPLIANCE §8 的上線 gate）。
 
 共用基礎設施已完成：`base.py::BaseAgent`（強制 tool use、指數退避、逐條路徑 fallback）、
 `pricing.py`（Decimal 價目表）、`redaction.py`、`schemas.py`、`registry.py`、
@@ -360,8 +361,28 @@ class AdvisorOut(BaseModel):
   - 禁止提供法律、稅務、投資意見 → 命中關鍵詞（稅務籌劃、避稅、離岸豁免、投資回報）自動加免責並降級為「一般資訊」。
   - 每則回答尾部強制附：「以上為一般資訊，不構成法律或專業意見。」
   - 禁止推薦具體某一家秘書公司（避免變成中介行為）→ banned phrase filter 檢查是否出現 Provider 名稱。
-- Fallback: 回傳 FTS 搜到的 Top 3 文章連結，不生成文字。
-- Eval：30 條問題，citation-grounded rate = 1.0；out-of-scope 正確拒答率 ≥ 0.9。
+- Fallback: 回傳檢索到的 Top 3 段落（原文摘錄 + 文章連結），不生成任何句子。
+- Eval：`evals/advisor/golden.jsonl` 32 筆，citation-grounded rate = 1.0
+  （`ADVISOR_GROUNDING_RATE_THRESHOLD`，不得放寬）；答不了的問題正確拒答率 ≥ 0.9
+  （`ADVISOR_REFUSAL_RATE_THRESHOLD`）；答得了的問題回答率 ≥ 0.7
+  （`ADVISOR_ANSWER_RATE_THRESHOLD`——全部拒答的 agent 前兩個分數都是滿分，卻一文不值）。
+
+### 實作偏離（A6）
+
+1. **拒答是整段丟掉，不是改寫。** `screen_answer()` 一旦判定引文不成立／命中 banned
+   phrase／點名了持牌公司，整個回答換成 `refusal()`，不編輯句子——一句「推薦某公司」
+   改幾個字仍然是推薦。
+2. **公司名比對的是官方名單，不是 Provider 名稱。** 規格寫「檢查是否出現 Provider 名稱」，
+   實作改為比對 `registry.Licensee` 的 `name_en`／`name_zh`（≥ 6 字，快取 5 分鐘）：
+   規則是「不點名任何持牌公司」，而持牌公司的清單就是官方名單，不是我們收錄了誰。
+3. **引文是逐字核對的。** `is_grounded()` 把引文與該段原文都去掉空白後做子字串比對；
+   模型換行不算改字，其餘一律視為虛構。
+4. **檢索不是整句 `icontains`。** 中文整句比對等於什麼都比不到，所以
+   `selectors.query_terms()` 先把問題切成重疊 bigram 再 OR 查詢、在 Python 重排。
+   換 pgvector 時仍然只改 `search_chunks()`。
+5. **問答入口要登入且有節流。** `content:ask` 是 `@login_required` + 每帳號每小時 12 條
+   （cache 計數，不落 DB——問題本身不留紀錄，COMPLIANCE §4）。檢索不到段落時
+   **不呼叫模型**，直接拒答。
 
 ---
 

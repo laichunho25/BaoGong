@@ -10,7 +10,7 @@
 | **P3 帳號 + 認領** | User/角色、郵箱註冊登入（手機為選填欄位）、`ProviderMember` 權限、`ProviderClaim` + `ClaimEvidence` 流程（私有儲存、MIME/大小驗證、可插拔病毒掃描、網站 TXT/meta 驗證、90 日保留期）、moderator 佇列（客製 admin，理由必填）、批准後發 `tcsp_licence` | 秘書公司可認領 | ✅ |
 | **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ✅** `agents.BaseAgent` + `AgentRun`/`AgentFeedback` + 三段 kill switch + Decimal 成本記帳、A4 評價審核（建議而非放行，排序人工佇列）、A3 NNC1 抽取（讀數擺在規則比對旁邊，不碰 `result`）、唯讀 run log admin、22 筆合成 golden set · **P4-4 ✅** Dispute（申訴不改動評價任何欄位、`due_at` 以工作天落實 COMPLIANCE §3 的 5 天承諾、逾期在後台印 `OVERDUE`、一則評價同時只有一宗未決申訴由 partial unique constraint 保證、隱藏／移除一律繞回 `hide_review`／`remove_review`；仲裁 agent 未做） | 已驗證評價可上線 | ✅ |
 | **P5 RFQ 撮合** | **P5-1 ✅** Rfq/Quote/QuoteLineItem/QuotaLedger 資料層與 services／selectors：需求單不帶買家身分、`structured` 只是 A1 草稿、報價以封閉 enum 的逐項明細存放（比較表同口徑）、只有已認領且仍在名單上的公司可報價、每日 3 單額度以流水帳實作（送出即扣、撤回不退、付費結餘跨日結轉）、需求 14 日到期（每小時 beat + 牆上再過濾一次） · **P5-2 ✅** 需求牆（登入才看得到）／RFQ 表單（草稿→發布兩步）／報價表單（總額 + 逐項明細 formset）／同口徑比較表（空白格代表沒報這一項，並逐項點名）、兩封通知（買家收到報價、公司知道自己被選上**或落選**）、報價依 `validity_days` 到期（每小時 beat） · **P5-3 ✅** A1 RfqIntake（HTMX 預填表單，**不寫任何 `Rfq` 列**，買家確認過的那一張才是被存的那一張，標 `is_ai_assisted`；原話先 redact；人民幣不換算成港元預算）、A5 QuoteAnalysis（`submit_quote` 於 `on_commit` 派發，只寫 `Quote.analysis` 一欄建議，不動金額不動排序；市場 p10/p50/p90 由 Postgres `PERCENTILE_CONT` 算，樣本不足 8 就明說「沒得比」；非 HKD 報價直接跳過）、兩份 22 筆合成 golden set + `evals/RESULTS.md` | 撮合閉環 | ✅ |
-| **P6 匹配 + 內容** | **P6-1 ✅** A2 MatchingAgent（硬篩在 SQL：仍在名單上、開戶協助、語言、預算內或未公開報價；候選 Top 30 先按命中服務數再按 §5 分數；模型只排序與解釋，`reasons`／`concerns` 逐句 grounding，對不上該公司公開資料的整句丟掉，模型與 fallback 同一個篩子；只寫 `Rfq.matches` 一欄建議，只出現在買家頁面；22 筆合成 golden set，nDCG@5 + grounding violation rate） · **P6-2 ✅** pgvector + `content` app（`Article`／`Chunk`；markdown 經 `nh3` 消毒後才進頁面——只有員工能寫稿，正是每一份 stored XSS 事後檢討的開場白；chunk 由正文在同一個 transaction 內重建，下架連同 chunk 一起刪，讀者打不開的頁面 Advisor 也不准引用；`embedding` 先留 NULL，檢索用 `icontains`，ivfflat index 待實際筆數再建）、指南列表／內文頁（公開、可被搜尋引擎索引、內文頁帶 COMPLIANCE §7 免責聲明）、sitemap 只收已發布 · **A6 AdvisorAgent**、**A7 RegistryDiffAgent** | AI 完整上線 | 🟡 |
+| **P6 匹配 + 內容** | **P6-1 ✅** A2 MatchingAgent（硬篩在 SQL：仍在名單上、開戶協助、語言、預算內或未公開報價；候選 Top 30 先按命中服務數再按 §5 分數；模型只排序與解釋，`reasons`／`concerns` 逐句 grounding，對不上該公司公開資料的整句丟掉，模型與 fallback 同一個篩子；只寫 `Rfq.matches` 一欄建議，只出現在買家頁面；22 筆合成 golden set，nDCG@5 + grounding violation rate） · **P6-2 ✅** pgvector + `content` app（`Article`／`Chunk`；markdown 經 `nh3` 消毒後才進頁面——只有員工能寫稿，正是每一份 stored XSS 事後檢討的開場白；chunk 由正文在同一個 transaction 內重建，下架連同 chunk 一起刪，讀者打不開的頁面 Advisor 也不准引用；`embedding` 先留 NULL，檢索用 `icontains`，ivfflat index 待實際筆數再建）、指南列表／內文頁（公開、可被搜尋引擎索引、內文頁帶 COMPLIANCE §7 免責聲明）、sitemap 只收已發布 · **A6 ✅** AdvisorAgent（只答自家指南：檢索 → 模型 → `screen_answer()` 逐條逐字核對引文，引文不成立／命中 banned phrase／點名任何一家持牌公司就整段丟掉換成拒答；尾部強制免責句，稅務／離岸／投資回報再加一句「請問持牌專業人士」；fallback 不生成任何句子，只回三段原文摘錄；`content:ask` 要登入 + 每帳號每小時 12 條，檢索不到段落就不呼叫模型；問題不落 DB，只留 `AgentRun` 的 input hash；32 筆合成 golden set） · **A7 RegistryDiffAgent** | AI 完整上線 | 🟡 |
 | **P7 商業化** | Plan/Subscription/CreditPack、Stripe（或 Airwallex）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
 | **P8 上線** | `compliance-review` 全綠、Sentry、備份、負載測試、法律覆核 | Production | ⬜ |
 
@@ -101,9 +101,15 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
   快照過期的風險有限；等 RFQ 可以編輯（見上面 P5 那條）時，改完要一併重算。
 - `[P6] 指南的檢索還不是向量檢索` — `Chunk.embedding` 全部是 NULL，`selectors.search_chunks()`
   用 `text__icontains` 排序照文章日期 — 語料是簡體中文，這台 Postgres 沒有 `zhparser`，
-  FTS 會把整句當一個 token，反而更差；幾十篇文章掃一遍是誠實且夠快的。A6 上線前要決定
-  embedding provider（成本進 `agents.pricing`），補回填 task 與 ivfflat index，
-  介面不用改——換的只是 `search_chunks` 的排序。
+  FTS 會把整句當一個 token，反而更差；幾十篇文章掃一遍是誠實且夠快的。A6 已經接上這個介面，
+  問題先由 `query_terms()` 切成重疊 bigram 再 OR 查詢、在 Python 依命中詞數重排。
+  真 API eval 前要決定 embedding provider（成本進 `agents.pricing`），補回填 task 與
+  ivfflat index，介面不用改——換的只是 `search_chunks` 的排序。
+- `[P6] A6 的節流是 cache 計數，重啟就歸零` — `content.views._over_the_limit()` 每帳號每小時
+  12 條，記在 cache 不記在 DB — 這是花費控制不是稽核紀錄，能落地的版本等於一份「誰問過什麼」
+  的清單（COMPLIANCE §4）；等真的有人刷，再改成只記次數不記內容的計數表。
+- `[P6] A6 只在指南列表頁有入口` — 文章內文頁沒有提問框 — 先看讀者是在列表頁問還是讀完才問；
+  真 API eval 跑完、成本有實測數字之後再決定要不要多開一個入口。
 - `[P6] 文章只有一種語言的正文` — 標題有三語欄位，正文只有一份 —
   翻譯是人的工作，半翻的正文比一種誠實的語言更糟；等有量再決定要不要開 `ArticleTranslation`。
 - `[P6] 指南沒有站內搜尋入口` — `selectors.search_articles()` 已經寫好但沒有頁面用它 —

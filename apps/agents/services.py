@@ -10,6 +10,7 @@ opinion that is not the same place a decision lives.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -17,20 +18,29 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.agents import matching, review_moderation
+from apps.agents import advisor, matching, review_moderation
+from apps.agents.advisor import AdvisorAgent
 from apps.agents.matching import MatchingAgent
 from apps.agents.models import AgentFeedback, AgentRun, FeedbackVerdict
 from apps.agents.nnc1_extraction import Nnc1ExtractionAgent
 from apps.agents.quote_analysis import QuoteAnalysisAgent
 from apps.agents.review_moderation import ReviewModerationAgent
 from apps.agents.rfq_intake import RfqIntakeAgent
-from apps.agents.schemas import MatchingOut, ModerationOut, Nnc1Out, QuoteAnalysisOut, RfqIntakeOut
+from apps.agents.schemas import (
+    AdvisorOut,
+    MatchingOut,
+    ModerationOut,
+    Nnc1Out,
+    QuoteAnalysisOut,
+    RfqIntakeOut,
+)
 from apps.core.money import Money
 from apps.providers.models import ClaimStatus
 
 if TYPE_CHECKING:
     from apps.accounts.models import User
     from apps.agents.base import AgentResult
+    from apps.content.models import Article
     from apps.providers.models import Provider
     from apps.reviews.models import Nnc1Verification, Review
     from apps.rfq.models import Quote, Rfq
@@ -328,6 +338,74 @@ def analyse_quote(quote: Quote) -> AgentResult | None:
     }
     quote.save(update_fields=["analysis", "updated_at"])
     return result
+
+
+@dataclass(frozen=True, slots=True)
+class AdvisorAnswer:
+    """A6's answer plus the articles it is made of.
+
+    ``sources`` are the distinct articles behind the surviving citations, in
+    the order they were cited, so the page can offer them as links. An answer
+    without sources is a refusal by construction - see ``advisor.screen_answer``.
+    """
+
+    data: AdvisorOut
+    sources: list[Article]
+    used_fallback: bool
+    run_id: str | None = None
+    fallback_reason: str = ""
+
+
+def answer_question(*, question: str) -> AdvisorAnswer:
+    """Answer an education question out of the platform's own guides (A6).
+
+    **Writes nothing but the ``AgentRun``.** Nothing here creates content, and
+    an answer is not stored: it is one reader's question, and keeping it would
+    mean keeping a record of what a person is trying to do with their money
+    (COMPLIANCE section 4).
+
+    Retrieval happens before the model and decides whether there is a model
+    call at all. No passages means no answer this platform can stand behind, so
+    it refuses without spending anything - the alternative is paying a vendor to
+    tell a buyer something none of our articles say.
+    """
+    from apps.content import selectors as content_selectors
+
+    chunks = list(content_selectors.search_chunks(question, limit=advisor.RETRIEVAL_LIMIT))
+    passages = [
+        {
+            "article_slug": chunk.article.slug,
+            "ordinal": chunk.ordinal,
+            "heading": chunk.heading,
+            "title": chunk.article.title,
+            "text": chunk.text,
+        }
+        for chunk in chunks
+    ]
+    if not passages:
+        return AdvisorAnswer(
+            data=advisor.refusal([]), sources=[], used_fallback=True, fallback_reason="no_passages"
+        )
+
+    result = AdvisorAgent().run({"question": question, "passages": passages})
+    data = result.data
+    if not isinstance(data, AdvisorOut):  # pragma: no cover - schema is fixed
+        raise AgentServiceError("advisor agent returned the wrong schema")
+
+    screened = advisor.screen_answer(data, passages, question=question)
+    by_slug = {chunk.article.slug: chunk.article for chunk in chunks}
+    sources: list[Article] = []
+    for citation in screened.citations:
+        article = by_slug.get(citation.article_slug)
+        if article is not None and article not in sources:
+            sources.append(article)
+    return AdvisorAnswer(
+        data=screened,
+        sources=sources,
+        used_fallback=result.used_fallback,
+        run_id=result.run_id,
+        fallback_reason=result.fallback_reason,
+    )
 
 
 def _to_major(amount_minor: int | None) -> int | None:

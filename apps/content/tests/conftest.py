@@ -14,6 +14,7 @@ import pytest
 
 from apps.content import services
 from apps.content.models import Article, ArticleCategory, ArticleStatus
+from apps.providers.tests.conftest import make_user  # noqa: F401  (re-exported fixture)
 
 if TYPE_CHECKING:
     from collections.abc import Callable

@@ -88,6 +88,12 @@
 | `section_heading.html` | 區塊標題（eyebrow / title / subtitle / 連結） | eyebrow 是標籤不是口號 |
 | `stat.html` | 統計數字 | 每個數字都必須是資料庫真實 count，沒有示意數字（COMPLIANCE §2） |
 
+指南列表頁上方那個提問框（`templates/content/_advisor_answer.html`）是 A6 的入口：
+HTMX 把整塊換掉，所以表單自己也在被換掉的那塊裡面。回答一律用 `{{ ... }}` 當**純文字**輸出，
+不 `|safe`——那是模型生成的字串，唯一絕對不能讓它做的事就是在這一頁上放連結。
+引文（原文摘錄）跟出處連結和回答並排顯示，不藏在腳註裡：看不到引文的買家，拿到的只是
+一句聽起來很有信心的話。沒有登入時整塊換成一行登入提示，不是把框畫出來再擋。
+
 指南內文是唯一一塊「不是我們一個 class 一個 class 排出來的 HTML」：`content` app 把
 markdown 消毒後整段輸出，所以 `static/css/input.css` 有一個 `.article-body` component
 （h2/h3/ul/ol/a/strong/blockquote/code/table），一樣只用語意 token。**只有它可以這樣包**，

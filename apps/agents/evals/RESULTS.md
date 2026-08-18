@@ -26,8 +26,9 @@ uv run pytest -m eval -s
 | A3 Nnc1Extraction | **無** | licence_no 準確率 ≥ 0.95、false-pass = 0 | — | — |
 | A4 ReviewModeration | 22 筆（合成） | escalation recall ≥ 0.95、false escalation ≤ 0.35 | **未跑** | recall 0.50、false 0.06 |
 | A5 QuoteAnalysis | 22 筆（合成） | missing_govt_fee precision ≥ 0.9 | **未跑** | precision 0.56、recall 1.00 |
+| A6 Advisor | 32 筆（合成） | grounding = 1.0、正確拒答率 ≥ 0.9、回答率 ≥ 0.7 | **未跑** | grounding 1.00、拒答 1.00、回答 0.00 |
 
-**五個 agent 目前都沒有跑過真 API eval，所以五個都不得在生產啟用。**
+**六個 agent 目前都沒有跑過真 API eval，所以六個都不得在生產啟用。**
 `AGENTS_ENABLED` 預設關，`config/settings/test.py` 也明確關掉。
 
 ## 為什麼還是先記了 fallback 分數
@@ -38,6 +39,10 @@ uv run pytest -m eval -s
 - **A1 fallback F1 0.85**，recall 0.78 偏低——關鍵字讀不出沒有寫成關鍵字的需求。
   但 precision 0.95 且**幻覺預算 0**：它寧可少填一欄，也不會把買家沒寫過的金額
   填進表單再送去給持牌公司看。這一項是硬零，模型路徑同樣要守。
+- **A6 fallback 回答率 0.00**——這不是壞掉，是設計：模型關掉時它一個句子都不生成，
+  只把檢索到的三段原文摘錄連同文章連結交出去。所以 grounding 1.00 與拒答 1.00 都是
+  白送的分數，**A6 的模型分數不跑就等於沒有分數**。反過來說，關掉 A6 的代價很明確：
+  讀者拿到的是三個連結，而不是一句不知道從哪來的答案。
 - **A4 fallback recall 0.50**——正則表達式讀得出電話號碼，讀不出誹謗。
   這就是 A4 存在的理由，也是為什麼 A4 關掉時所有評價一律進人工佇列而非自動放行。
 - **A2 fallback nDCG@5 0.80，但 top-1 只對 4/22**——這兩個數字要一起看。

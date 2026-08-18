@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from apps.agents.advisor import AdvisorAgent
 from apps.agents.matching import MatchingAgent
 from apps.agents.nnc1_extraction import Nnc1ExtractionAgent
 from apps.agents.quote_analysis import QuoteAnalysisAgent
@@ -26,6 +27,7 @@ AGENTS: dict[str, type[BaseAgent]] = {
     RfqIntakeAgent.name: RfqIntakeAgent,
     QuoteAnalysisAgent.name: QuoteAnalysisAgent,
     MatchingAgent.name: MatchingAgent,
+    AdvisorAgent.name: AdvisorAgent,
 }
 
 

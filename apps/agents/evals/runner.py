@@ -14,6 +14,8 @@ Each agent is scored on the one failure that costs somebody something:
   fabricated budget travels to licensed companies as if the buyer wrote it.
 * A5 quote analysis - ``missing_govt_fee`` precision. A flag that cries wolf
   teaches buyers to ignore the one that matters.
+* A6 advisor - grounding first, then how often it refuses a question our guides
+  do not cover. An invented sentence about a fee is what a buyer acts on.
 """
 
 from __future__ import annotations
@@ -389,4 +391,108 @@ def score_matching(
         ndcg_sum=ndcg_sum,
         reasons_published=checked,
         grounding_violations=violations,
+    )
+
+
+# ------------------------------------------------------------------- A6 advisor
+
+#: AI_AGENTS A6. Not relaxable: a quote that is not in a retrieved passage is a
+#: sentence this platform put in a buyer's hands and cannot stand behind. The
+#: screen enforces it, so a number below 1.0 means the screen is broken.
+ADVISOR_GROUNDING_RATE_THRESHOLD = 1.0
+#: How often a question our guides do not cover must come back as a refusal.
+#: The expensive failure is the confident answer: a first-time buyer cannot tell
+#: it from a correct one.
+ADVISOR_REFUSAL_RATE_THRESHOLD = 0.9
+#: And how often a question our guides *do* cover must come back answered. An
+#: agent that refuses everything scores perfectly on the two rates above and is
+#: worth nothing.
+ADVISOR_ANSWER_RATE_THRESHOLD = 0.7
+
+
+@dataclass(frozen=True, slots=True)
+class AdvisorCase:
+    id: str
+    question: str
+    #: The passages retrieval would have found, held in the case rather than
+    #: retrieved live: the eval scores the agent, and a corpus that grows would
+    #: silently change what every past result meant.
+    passages: list[dict[str, Any]]
+    #: Whether these passages actually answer the question. False is the
+    #: interesting half of the set - it is where a refusal is the right answer.
+    expect_answer: bool
+
+
+def load_advisor_golden() -> list[AdvisorCase]:
+    path = EVAL_DIR / "advisor" / "golden.jsonl"
+    if not path.is_file():
+        raise FileNotFoundError(f"no golden set for advisor: {path}")
+    return [
+        AdvisorCase(
+            id=row["id"],
+            question=row["question"],
+            passages=list(row.get("passages", ())),
+            expect_answer=bool(row["expect_answer"]),
+        )
+        for row in _rows(path)
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class AdvisorScore:
+    answerable: int
+    answered: int
+    unanswerable: int
+    refused: int
+    citations_published: int
+    citations_ungrounded: int
+
+    @property
+    def answer_rate(self) -> float:
+        return self.answered / self.answerable if self.answerable else 1.0
+
+    @property
+    def refusal_rate(self) -> float:
+        return self.refused / self.unanswerable if self.unanswerable else 1.0
+
+    @property
+    def grounding_rate(self) -> float:
+        if not self.citations_published:
+            return 1.0
+        grounded = self.citations_published - self.citations_ungrounded
+        return grounded / self.citations_published
+
+    def __str__(self) -> str:
+        return (
+            f"{self.answerable + self.unanswerable} questions, "
+            f"answered {self.answer_rate:.2f}, refused {self.refusal_rate:.2f}, "
+            f"grounded {self.grounding_rate:.2f} "
+            f"({self.citations_ungrounded}/{self.citations_published} bad)"
+        )
+
+
+def score_advisor(
+    cases: list[AdvisorCase], produced: dict[str, tuple[bool, int, int]]
+) -> AdvisorScore:
+    """Compare A6's answers to the golden set.
+
+    ``produced`` maps a case id to (whether it answered, citations shown,
+    citations not found verbatim in that case's passages). A case with no
+    result counts as a refusal with nothing published - which is what a run
+    that fell over actually shows the reader.
+    """
+    answerable = [case for case in cases if case.expect_answer]
+    unanswerable = [case for case in cases if not case.expect_answer]
+    published = ungrounded = 0
+    for case in cases:
+        _, shown, bad = produced.get(case.id, (False, 0, 0))
+        published += shown
+        ungrounded += bad
+    return AdvisorScore(
+        answerable=len(answerable),
+        answered=sum(1 for case in answerable if produced.get(case.id, (False, 0, 0))[0]),
+        unanswerable=len(unanswerable),
+        refused=sum(1 for case in unanswerable if not produced.get(case.id, (False, 0, 0))[0]),
+        citations_published=published,
+        citations_ungrounded=ungrounded,
     )

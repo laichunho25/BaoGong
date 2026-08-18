@@ -13,7 +13,11 @@ from typing import Any
 
 import pytest
 
+from apps.agents.advisor import AdvisorAgent, is_grounded, screen_answer
 from apps.agents.evals.runner import (
+    ADVISOR_ANSWER_RATE_THRESHOLD,
+    ADVISOR_GROUNDING_RATE_THRESHOLD,
+    ADVISOR_REFUSAL_RATE_THRESHOLD,
     ESCALATION_RECALL_THRESHOLD,
     INTAKE_SERVICES_F1_THRESHOLD,
     MATCHING_NDCG_THRESHOLD,
@@ -21,16 +25,19 @@ from apps.agents.evals.runner import (
     MAX_GROUNDING_VIOLATION_RATE,
     MAX_HALLUCINATED_BUDGET_RATE,
     MISSING_GOVT_FEE_PRECISION_THRESHOLD,
+    AdvisorCase,
     GoldenCase,
     IntakeCase,
     MatchingCase,
     QuoteCase,
+    load_advisor_golden,
     load_golden,
     load_intake_golden,
     load_matching_golden,
     load_quote_golden,
     ndcg_at_k,
     score,
+    score_advisor,
     score_intake,
     score_matching,
     score_quote,
@@ -39,12 +46,19 @@ from apps.agents.matching import MatchingAgent, ground_reasons, screen_matches
 from apps.agents.quote_analysis import QuoteAnalysisAgent
 from apps.agents.review_moderation import URGENT_REASONS, ReviewModerationAgent, escalation_reason
 from apps.agents.rfq_intake import RfqIntakeAgent
-from apps.agents.schemas import ESCALATING_LABELS, ModerationLabel, ServiceCode
+from apps.agents.schemas import (
+    ESCALATING_LABELS,
+    AdvisorOut,
+    Citation,
+    ModerationLabel,
+    ServiceCode,
+)
 
 GOLDEN = load_golden("review_moderation")
 INTAKE_GOLDEN = load_intake_golden()
 QUOTE_GOLDEN = load_quote_golden()
 MATCHING_GOLDEN = load_matching_golden()
+ADVISOR_GOLDEN = load_advisor_golden()
 
 
 def test_the_golden_set_is_large_enough() -> None:
@@ -439,3 +453,128 @@ def test_matching_against_the_real_api(settings: Any) -> None:
     print(f"\nmatching eval: {result_score}")
     assert result_score.ndcg >= MATCHING_NDCG_THRESHOLD, str(result_score)
     assert result_score.grounding_violation_rate <= MAX_GROUNDING_VIOLATION_RATE, str(result_score)
+
+
+# -------------------------------------------------------------------- A6 advisor
+
+
+def test_the_advisor_golden_set_is_large_enough() -> None:
+    assert len(ADVISOR_GOLDEN) >= 20
+    assert len({case.id for case in ADVISOR_GOLDEN}) == len(ADVISOR_GOLDEN)
+
+
+def test_the_advisor_set_holds_questions_our_guides_do_not_cover() -> None:
+    """Refusing is half of what this agent does, so half of the set has to be
+    questions where refusing is the right answer - tax, legal, another
+    jurisdiction, a bank's odds, or "which company should I use"."""
+    assert sum(1 for case in ADVISOR_GOLDEN if case.expect_answer) >= 10
+    assert sum(1 for case in ADVISOR_GOLDEN if not case.expect_answer) >= 8
+
+
+def test_every_case_carries_the_passages_it_will_be_judged_on() -> None:
+    """Including the unanswerable ones: a case with no passages would refuse
+    for lack of retrieval rather than for lack of an answer, and prove nothing."""
+    for case in ADVISOR_GOLDEN:
+        assert case.passages, case.id
+        for passage in case.passages:
+            assert passage["article_slug"] and passage["text"], case.id
+
+
+def test_advisor_scoring_separates_the_two_kinds_of_mistake() -> None:
+    cases = [
+        AdvisorCase("a", "q", [], True),
+        AdvisorCase("b", "q", [], True),
+        AdvisorCase("c", "q", [], False),
+    ]
+
+    # "a" answered, "b" refused a question it should have answered, "c"
+    # answered one it should have refused and cited something invented.
+    result = score_advisor(cases, {"a": (True, 2, 0), "b": (False, 0, 0), "c": (True, 1, 1)})
+
+    assert result.answer_rate == 0.5
+    assert result.refusal_rate == 0.0
+    assert result.grounding_rate == pytest.approx(2 / 3)
+
+
+def test_advisor_scoring_treats_a_missing_answer_as_a_refusal() -> None:
+    cases = [AdvisorCase("a", "q", [], True), AdvisorCase("b", "q", [], False)]
+
+    result = score_advisor(cases, {})
+
+    assert result.answer_rate == 0.0
+    assert result.refusal_rate == 1.0
+    assert result.grounding_rate == 1.0
+
+
+def test_the_screen_alone_holds_the_grounding_floor_across_the_set() -> None:
+    """The number AI_AGENTS A6 puts at 1.0, tested without a model.
+
+    An invented quote is put in front of the screen for every case in the set;
+    none of them may survive, because the screen - not the prompt - is what
+    keeps this agent's promise.
+    """
+    for case in ADVISOR_GOLDEN:
+        invented = AdvisorOut(
+            answer_zh_hans="大约三个工作日，费用全包。",
+            citations=[
+                Citation(
+                    article_slug=case.passages[0]["article_slug"],
+                    chunk_ordinal=int(case.passages[0]["ordinal"]),
+                    quote="这句话没有任何一篇指南写过。",
+                )
+            ],
+            confidence=0.9,
+        )
+
+        out = screen_answer(invented, case.passages, question=case.question)
+
+        assert out.out_of_scope, case.id
+
+
+def test_the_fallback_answers_nothing_and_still_points_somewhere() -> None:
+    """The floor with the model switched off: no generated sentence anywhere in
+    the set, and every quote shown is one of that case's own passages."""
+    agent = AdvisorAgent()
+
+    for case in ADVISOR_GOLDEN:
+        out = agent.fallback({"question": case.question, "passages": case.passages}, "disabled")
+        texts = [passage["text"] for passage in case.passages]
+
+        assert out.out_of_scope, case.id
+        assert out.citations, case.id
+        for citation in out.citations:
+            assert any(citation.quote in text for text in texts), case.id
+
+
+@pytest.mark.eval
+def test_advisor_against_the_real_api(settings: Any) -> None:
+    """Run manually: ``uv run pytest -m eval``. Costs real money."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key or key.startswith("test-"):
+        pytest.skip("no real ANTHROPIC_API_KEY configured")
+    settings.ANTHROPIC_API_KEY = key
+    settings.AGENTS_ENABLED = True
+
+    agent = AdvisorAgent()
+    produced: dict[str, tuple[bool, int, int]] = {}
+    for case in ADVISOR_GOLDEN:
+        result = agent.run({"question": case.question, "passages": case.passages})
+        assert not result.used_fallback, f"{case.id} fell back: {result.fallback_reason}"
+        raw = result.data
+        # Grounding is measured on what the model sent, before the screen: the
+        # screen's own output is grounded by construction, and scoring it would
+        # measure the screen rather than the agent.
+        index = {
+            (str(passage["article_slug"]), int(passage["ordinal"])): str(passage["text"])
+            for passage in case.passages
+        }
+        citations = list(raw.citations)  # type: ignore[union-attr]
+        ungrounded = sum(1 for citation in citations if not is_grounded(citation, index))
+        screened = screen_answer(raw, case.passages, question=case.question)  # type: ignore[arg-type]
+        produced[case.id] = (not screened.out_of_scope, len(citations), ungrounded)
+
+    result_score = score_advisor(ADVISOR_GOLDEN, produced)
+    print(f"\nadvisor eval: {result_score}")
+    assert result_score.grounding_rate >= ADVISOR_GROUNDING_RATE_THRESHOLD, str(result_score)
+    assert result_score.refusal_rate >= ADVISOR_REFUSAL_RATE_THRESHOLD, str(result_score)
+    assert result_score.answer_rate >= ADVISOR_ANSWER_RATE_THRESHOLD, str(result_score)

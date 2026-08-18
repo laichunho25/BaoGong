@@ -13,16 +13,27 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
+from apps.agents import services as agent_services
 from apps.content import selectors
+from apps.content.forms import AskForm
 from apps.content.models import ArticleCategory
 from apps.content.rendering import render_markdown
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
+
+#: Questions one account may ask in an hour. A reader working through a page
+#: asks a handful; a script asks thousands, and each one is money.
+ASKS_PER_HOUR = 12
+ASK_WINDOW_SECONDS = 3600
 
 
 def article_index(request: HttpRequest) -> HttpResponse:
@@ -38,8 +49,63 @@ def article_index(request: HttpRequest) -> HttpResponse:
             "page_obj": page,
             "categories": ArticleCategory.choices,
             "active_category": category,
+            "ask_form": AskForm(),
         },
     )
+
+
+@require_POST
+@login_required
+def ask(request: HttpRequest) -> HttpResponse:
+    """Answer a reader's question out of our own guides (AI_AGENTS A6).
+
+    Behind a login, and rate limited per account. Every question is a paid call
+    to a vendor, and an open box on a public page is somebody else's budget:
+    the daily cap in ``BaseAgent`` protects the account, but it protects it by
+    switching every agent off, which is not a way to find out that a page was
+    being scraped.
+
+    Nothing is written. The answer is rendered and forgotten; only the
+    ``AgentRun`` remains, and its input is a hash (COMPLIANCE section 4).
+    """
+    form = AskForm(request.POST)
+    if not form.is_valid():
+        return render(request, "content/_advisor_answer.html", {"form": form}, status=422)
+
+    if _over_the_limit(request):
+        return render(
+            request,
+            "content/_advisor_answer.html",
+            {"form": AskForm(), "throttled": True},
+            status=429,
+        )
+
+    question = form.cleaned_data["question"]
+    answer = agent_services.answer_question(question=question)
+    return render(
+        request,
+        "content/_advisor_answer.html",
+        {
+            "form": AskForm(),
+            "question": question,
+            "answer": answer.data,
+            "sources": answer.sources,
+            "used_fallback": answer.used_fallback,
+        },
+    )
+
+
+def _over_the_limit(request: HttpRequest) -> bool:
+    """Count this account's questions this hour, and say whether it is enough.
+
+    A cache counter rather than a table: this is a spending control, not a
+    record of what somebody asked, and the version of it that survives a
+    restart would be a log of readers' questions.
+    """
+    key = f"advisor:asks:{request.user.pk}:{timezone.now():%Y%m%d%H}"
+    asked = cache.get_or_set(key, 0, ASK_WINDOW_SECONDS)
+    cache.set(key, int(asked or 0) + 1, ASK_WINDOW_SECONDS)
+    return int(asked or 0) >= ASKS_PER_HOUR
 
 
 def article_detail(request: HttpRequest, slug: str) -> HttpResponse:

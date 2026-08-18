@@ -240,6 +240,35 @@ class QuoteAnalysisOut(StrictSchema):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class Citation(StrictSchema):
+    """Where one sentence of an answer came from.
+
+    ``quote`` is verbatim from the passage, and is checked against it before
+    the answer is shown. A citation nobody can check is decoration on a claim,
+    and this agent's whole licence to answer is that every claim is one of ours.
+    """
+
+    article_slug: str = Field(max_length=80)
+    chunk_ordinal: int = Field(ge=1)
+    quote: str = Field(max_length=400)
+
+
+class AdvisorOut(StrictSchema):
+    """A6's answer to one education question.
+
+    ``citations`` empty means the answer does not get published: the agent may
+    only say what the platform's own articles say, so an uncited answer is one
+    the platform cannot stand behind (AI_AGENTS A6). ``out_of_scope`` is the
+    model saying the same thing about a question the library does not cover -
+    both paths end at the same refusal.
+    """
+
+    answer_zh_hans: str = Field(default="", max_length=1600)
+    citations: list[Citation] = Field(default_factory=list, max_length=8)
+    out_of_scope: bool = False
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
 def tool_schema(schema: type[BaseModel]) -> dict[str, Any]:
     """The JSON Schema the Anthropic tool definition carries.
 
