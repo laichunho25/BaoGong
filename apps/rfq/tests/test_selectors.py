@@ -7,11 +7,14 @@ table shows when one company priced something the other did not.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from django.utils import timezone
 
 from apps.rfq import selectors, services
+from apps.rfq.models import Quote
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -182,3 +185,60 @@ def test_a_company_sees_its_own_quotes_newest_first(
 
     assert len(quotes) == 2
     assert quotes[0].submitted_at >= quotes[1].submitted_at
+
+
+class TestMatchingSnapshot:
+    """Counts safe to print on a page anyone can open.
+
+    The home page is public and a requirement is only ever a requirement
+    there: who wrote it, and anything that could identify them, stops at the
+    login (COMPLIANCE section 4). This selector therefore returns numbers and
+    nothing else - the guarantee is that there is no row here to leak.
+    """
+
+    def test_it_counts_open_requests_and_recent_quotes(
+        self,
+        open_rfq: Rfq,
+        make_quoting_provider: Callable[..., tuple[Provider, User]],
+        quote_payload: dict[str, Any],
+    ) -> None:
+        provider, member = make_quoting_provider()
+        services.submit_quote(rfq=open_rfq, provider=provider, submitted_by=member, **quote_payload)
+
+        snapshot = selectors.matching_snapshot()
+
+        assert snapshot.open_requests == 1
+        assert snapshot.quotes_recently == 1
+
+    def test_quotes_outside_the_window_are_not_counted(
+        self,
+        open_rfq: Rfq,
+        make_quoting_provider: Callable[..., tuple[Provider, User]],
+        quote_payload: dict[str, Any],
+    ) -> None:
+        provider, member = make_quoting_provider()
+        quote = services.submit_quote(
+            rfq=open_rfq, provider=provider, submitted_by=member, **quote_payload
+        )
+        Quote.objects.filter(pk=quote.pk).update(submitted_at=timezone.now() - timedelta(days=60))
+
+        assert selectors.matching_snapshot(window_days=30).quotes_recently == 0
+
+    def test_it_reports_the_free_allowance_the_page_quotes(self) -> None:
+        # The home page prints "每家每日免费 N 次" from this field; a hard-coded
+        # number in the template would drift from the setting that enforces it.
+        from django.conf import settings
+
+        snapshot = selectors.matching_snapshot()
+
+        assert snapshot.free_quotes_per_day == settings.RFQ_FREE_QUOTES_PER_DAY
+
+    def test_a_draft_requirement_is_not_open(self, buyer: User) -> None:
+        services.create_rfq(
+            buyer=buyer,
+            title="Still thinking about it",
+            services_needed=["incorporation"],
+            raw_input="Not published yet.",
+        )
+
+        assert selectors.matching_snapshot().open_requests == 0

@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
-from django.db.models import Case, F, IntegerField, Prefetch, Q, QuerySet, When
+from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, QuerySet, When
+from django.utils.translation import gettext_lazy as _
 
 from apps.providers.models import (
     BankType,
@@ -19,6 +21,7 @@ from apps.providers.models import (
     Language,
     Provider,
     ProviderClaim,
+    ServiceCategory,
     ServiceOffering,
     Tier,
 )
@@ -60,6 +63,7 @@ class DirectoryFilters:
     query: str = ""
     district: str = ""
     language: str = ""
+    service: str = ""
     bank_support: bool = False
     remote_onboarding: bool = False
     tier: str = ""
@@ -75,6 +79,7 @@ class DirectoryFilters:
         these URLs get shared and edited by hand, and a 400 helps nobody.
         """
         language = params.get("language", "")
+        service = params.get("service", "")
         tier = params.get("tier", "")
         bank_type = params.get("bank_type", "")
         sort = params.get("sort", "")
@@ -82,6 +87,7 @@ class DirectoryFilters:
             query=params.get("q", "").strip(),
             district=params.get("district", "").strip(),
             language=language if language in Language.values else "",
+            service=service if service in ServiceCategory.values else "",
             bank_support=params.get("bank_support") == "1",
             remote_onboarding=params.get("remote_onboarding") == "1",
             tier=tier if tier in Tier.values else "",
@@ -98,6 +104,7 @@ class DirectoryFilters:
                 self.query,
                 self.district,
                 self.language,
+                self.service,
                 self.bank_support,
                 self.remote_onboarding,
                 self.tier,
@@ -144,6 +151,12 @@ def filter_directory(filters: DirectoryFilters) -> QuerySet[Provider]:
         queryset = queryset.filter(licensee__district=filters.district)
     if filters.language:
         queryset = queryset.filter(languages__contains=[filters.language])
+    if filters.service:
+        # ``distinct`` because the join can match a provider once per offering
+        # row; without it a company would appear twice for one filter.
+        queryset = queryset.filter(
+            offerings__category=filters.service, offerings__is_active=True
+        ).distinct()
     if filters.bank_support:
         queryset = queryset.filter(bank_account_support=True)
     if filters.remote_onboarding:
@@ -168,6 +181,122 @@ def available_districts() -> list[str]:
         .values_list("licensee__district", flat=True)
         .distinct()
     )
+
+
+# ---------------------------------------------------------------- home page
+
+#: The service categories the home page leads with, in the order a buyer meets
+#: them: you incorporate, then you must keep a secretary and an address, then
+#: you try to open an account, then the books start. The remaining categories
+#: are reachable from the directory filters; this is a doorway, not an index.
+FEATURED_SERVICES: tuple[tuple[str, str], ...] = (
+    (ServiceCategory.INCORPORATION, "building"),
+    (ServiceCategory.COMPANY_SECRETARY, "stamp"),
+    (ServiceCategory.REGISTERED_ADDRESS, "doc"),
+    (ServiceCategory.BANK_ACCOUNT_ASSIST, "bank"),
+    (ServiceCategory.ACCOUNTING, "calculator"),
+    (ServiceCategory.TAX_FILING, "coins"),
+    (ServiceCategory.AUDIT_LIAISON, "scale"),
+    (ServiceCategory.WORK_VISA, "passport"),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceSummary:
+    """One service tile on the home page."""
+
+    value: str
+    label: str
+    icon: str
+    provider_count: int
+
+    @property
+    def url(self) -> str:
+        from django.urls import reverse
+
+        return f"{reverse('providers:list')}?service={self.value}"
+
+
+def service_summaries() -> list[ServiceSummary]:
+    """The featured service categories with how many companies publish each.
+
+    The count is of companies that have actually filled the category in, so a
+    tile reading 0 is telling the truth about the directory rather than hiding
+    it. Tiles are shown whatever the count: a category with nobody in it yet is
+    still the thing the visitor came to find out about.
+    """
+    counts = dict(
+        ServiceOffering.objects.filter(
+            is_active=True,
+            provider__is_published=True,
+            provider__licensee__status=LicenceStatus.ACTIVE,
+        )
+        .values_list("category")
+        .annotate(total=Count("provider", distinct=True))
+    )
+    labels = dict(ServiceCategory.choices)
+    return [
+        ServiceSummary(
+            value=value, label=str(labels[value]), icon=icon, provider_count=counts.get(value, 0)
+        )
+        for value, icon in FEATURED_SERVICES
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class SearchChip:
+    """A one-click entry into the directory, with the size of what it opens."""
+
+    label: str
+    url: str
+    count: int
+
+
+def popular_searches(*, limit: int = 10) -> list[SearchChip]:
+    """Ready-made directory queries, largest first.
+
+    These are the busiest *slices of the register*, not the most-typed search
+    terms: nothing here logs what visitors type, so calling them 搜索热度 would
+    describe a measurement the platform never took. The page labels them as
+    what they are - shortcuts into the directory - and each chip carries its
+    count so the reader can see why it is on the list.
+    """
+    from django.urls import reverse
+
+    base = reverse("providers:list")
+    published = directory_queryset().filter(licensee__status=LicenceStatus.ACTIVE)
+
+    chips = [
+        SearchChip(
+            label=str(_("协助银行开户")),
+            url=f"{base}?bank_support=1",
+            count=published.filter(bank_account_support=True).count(),
+        ),
+        SearchChip(
+            label=str(_("可远程办理")),
+            url=f"{base}?remote_onboarding=1",
+            count=published.filter(remote_onboarding=True).count(),
+        ),
+        SearchChip(
+            label=str(_("普通话服务")),
+            url=f"{base}?language={Language.MANDARIN}",
+            count=published.filter(languages__contains=[Language.MANDARIN]).count(),
+        ),
+        SearchChip(
+            label=str(_("虚拟银行经验")),
+            url=f"{base}?bank_type={BankType.VIRTUAL}",
+            count=published.filter(bank_types__contains=[BankType.VIRTUAL]).count(),
+        ),
+    ]
+    from apps.registry.selectors import top_districts
+
+    chips += [
+        SearchChip(label=district, url=f"{base}?district={quote(district)}", count=count)
+        for district, count in top_districts(limit=limit)
+    ]
+    # Drop the empty ones: a shortcut into an empty result set is a dead end
+    # dressed up as a suggestion.
+    return sorted((chip for chip in chips if chip.count), key=lambda chip: -chip.count)[:limit]
 
 
 def get_provider_detail(slug: str) -> Provider | None:

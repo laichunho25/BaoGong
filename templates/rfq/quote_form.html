@@ -6,20 +6,30 @@
 
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
-  <div>
-    <a href="{% url 'rfq:detail' rfq.id %}" class="text-sm text-slate-500 underline">&larr; {{ rfq.title }}</a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{% translate "向客户报价" %}</h1>
-    <p class="mt-1 text-sm text-slate-600">
-      {{ provider.display_name }} &middot;
-      {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+  <header>
+    <a href="{% url 'rfq:detail' rfq.id %}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {{ rfq.title }}
+    </a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">{% translate "向客户报价" %}</h1>
+    <p class="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-ink-muted">
+      <span class="font-medium text-ink">{{ provider.display_name }}</span>
+      <span class="text-ink-faint">&middot;</span>
+      <span class="tabular">
+        {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+      </span>
     </p>
-  </div>
+  </header>
 
   {% comment %} Both facts a company needs before it presses Submit: the credit is
      spent on submission and never comes back, and the price breakdown is what
      the buyer's comparison table reads. {% endcomment %}
-  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-    <ul class="list-disc space-y-1 pl-5">
+  <div class="rounded-2xl border border-warning-200 bg-warning-50 p-4 text-sm text-warning-900">
+    <p class="flex items-center gap-1.5 font-medium">
+      {% include "components/icon.html" with name="alert" class="h-4 w-4" %}
+      {% translate "提交前请确认" %}
+    </p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
       <li>{% translate "提交即扣除一次报价额度，撤回不退回。" %}</li>
       <li>{% translate "填写费用明细后，客户才能把贵公司与其他报价按同一口径比较；漏填的项目会显示为空白。" %}</li>
       <li>{% translate "请勿承诺开户成功率，或使用「保证」「包过」「官方认证」等字眼。" %}</li>
@@ -30,52 +40,57 @@
   <form method="post" class="space-y-6">
     {% csrf_token %}
 
-    {% if form.non_field_errors %}
-      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-        {{ form.non_field_errors }}
-      </div>
-    {% endif %}
-
-    <div class="space-y-5">
-      {% for field in form %}
-        <div>
-          <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
-            {{ field.label }}
-          </label>
-          <div class="mt-1">{{ field }}</div>
-          {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
-          {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
-        </div>
-      {% endfor %}
+    <div class="space-y-5 rounded-2xl border border-line bg-white p-6 shadow-sm">
+      {% include "components/form_fields.html" %}
     </div>
 
-    <fieldset class="space-y-4 rounded-lg border border-slate-200 p-4">
-      <legend class="px-1 text-sm font-medium text-slate-900">{% translate "费用明细" %}</legend>
+    <fieldset class="space-y-4 rounded-2xl border border-line bg-white p-6 shadow-sm">
+      <legend class="flex items-center gap-1.5 px-1 text-sm font-semibold text-ink">
+        {% include "components/icon.html" with name="calculator" class="h-4 w-4" %}
+        {% translate "费用明细" %}
+      </legend>
       {{ formset.management_form }}
       {% if formset.non_form_errors %}
-        <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div class="rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700" role="alert">
           {{ formset.non_form_errors }}
         </div>
       {% endif %}
+      {% comment %} One row per line item, numbered so a validation message about "第 3 项"
+         can be found without counting. {% endcomment %}
       {% for line in formset %}
-        <div class="grid gap-2 border-b border-slate-100 pb-3 sm:grid-cols-4">
+        <div class="rounded-xl border border-line bg-surface-sunken/60 p-4">
+          <p class="tabular mb-3 text-xs font-semibold text-ink-faint">
+            {% blocktranslate with n=forloop.counter %}第 {{ n }} 项{% endblocktranslate %}
+          </p>
           {% if line.non_field_errors %}
-            <p class="sm:col-span-4 text-xs text-red-600">{{ line.non_field_errors|striptags }}</p>
+            <p class="mb-2 text-xs text-danger-700">{{ line.non_field_errors|striptags }}</p>
           {% endif %}
-          <div class="sm:col-span-2">{{ line.label }}</div>
-          <div>{{ line.amount }}</div>
-          <div>{{ line.unit }}</div>
-          <div class="sm:col-span-2">{{ line.custom_label }}</div>
-          <div class="sm:col-span-2">{{ line.note }}</div>
-          <label class="sm:col-span-4 inline-flex items-center gap-2 text-xs text-slate-600">
-            {{ line.is_optional }}{% translate "可选项，不计入首年总额" %}
-          </label>
+          <div class="grid gap-3 sm:grid-cols-4">
+            <div class="sm:col-span-2">
+              <span class="mb-1 block text-xs text-ink-muted">{{ line.label.label }}</span>{{ line.label }}
+            </div>
+            <div>
+              <span class="mb-1 block text-xs text-ink-muted">{{ line.amount.label }}</span>{{ line.amount }}
+            </div>
+            <div>
+              <span class="mb-1 block text-xs text-ink-muted">{{ line.unit.label }}</span>{{ line.unit }}
+            </div>
+            <div class="sm:col-span-2">
+              <span class="mb-1 block text-xs text-ink-muted">{{ line.custom_label.label }}</span>{{ line.custom_label }}
+            </div>
+            <div class="sm:col-span-2">
+              <span class="mb-1 block text-xs text-ink-muted">{{ line.note.label }}</span>{{ line.note }}
+            </div>
+            <label class="inline-flex items-center gap-2 text-xs text-ink-soft sm:col-span-4">
+              {{ line.is_optional }}{% translate "可选项，不计入首年总额" %}
+            </label>
+          </div>
         </div>
       {% endfor %}
     </fieldset>
 
     <button type="submit"
-            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 sm:w-auto">
       {% translate "提交报价（扣除一次额度）" %}
     </button>
   </form>

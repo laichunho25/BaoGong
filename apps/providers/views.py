@@ -26,6 +26,7 @@ from apps.providers.models import (
     Language,
     Provider,
     ProviderClaim,
+    ServiceCategory,
     Tier,
 )
 from apps.providers.tasks import scan_claim_evidence
@@ -83,6 +84,7 @@ def provider_list(request: HttpRequest) -> HttpResponse:
         "page": page,
         "filters": filters,
         "districts": selectors.available_districts(),
+        "services": ServiceCategory.choices,
         "languages": Language.choices,
         "bank_types": BankType.choices,
         "tiers": Tier.choices,

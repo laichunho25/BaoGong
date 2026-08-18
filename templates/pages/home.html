@@ -2,48 +2,332 @@
 {% load i18n %}
 
 {% block title %}{% translate "QS Matching — 香港持牌秘书公司比较平台" %}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}/">{% endblock %}
+
+{% comment %} Every number, tile and quotation on this page is read from the database by
+   ``apps.core.views.home``. There is no editorial slot and no illustrative
+   figure: on a comparison platform a statistic is a claim, and the page that
+   makes the platform's case is the last place a placeholder belongs. {% endcomment %}
+
+{% block hero %}
+  <section class="bg-brand-wash">
+    <div class="mx-auto max-w-6xl px-4 py-14 sm:py-20">
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-center">
+        <div class="stagger">
+          <p class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-brand-100 ring-1 ring-inset ring-white/20"
+             style="--i:0">
+            {% include "components/icon.html" with name="shield" class="h-3.5 w-3.5" %}
+            {% translate "只收录公司注册处公布的持牌名单" %}
+          </p>
+
+          <h1 class="mt-5 text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl" style="--i:1">
+            {% translate "在香港开公司，先看清楚再决定" %}
+          </h1>
+          <p class="mt-4 max-w-xl text-base leading-relaxed text-brand-100 sm:text-lg" style="--i:2">
+            {% translate "官方持牌名单每日同步，价格区间公开，评价须经文件核验。发一次需求，多家持牌公司按同一口径报价。" %}
+          </p>
+
+          {% comment %} A plain GET form, not HTMX: this is a navigation into another page,
+             and it has to keep working while the rest of the page is still
+             loading its scripts. {% endcomment %}
+          <form action="{% url 'providers:list' %}" method="get" class="mt-7 max-w-xl" style="--i:3">
+            <label class="sr-only" for="hero-search">{% translate "搜索公司名称或牌照号" %}</label>
+            <div class="flex flex-col gap-2 sm:flex-row">
+              <div class="relative flex-1">
+                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint">
+                  {% include "components/icon.html" with name="search" class="h-5 w-5" %}
+                </span>
+                <input id="hero-search" type="search" name="q"
+                       placeholder="{% translate '公司名称，或 TC 开头的牌照号' %}"
+                       class="w-full rounded-xl border-0 py-3 pl-10 pr-3 text-sm text-ink shadow-lift placeholder:text-ink-faint">
+              </div>
+              <button type="submit"
+                      class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-brand-800 shadow-lift transition hover:bg-brand-50">
+                {% translate "查目录" %}
+                {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+              </button>
+            </div>
+          </form>
+
+          <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-brand-100" style="--i:4">
+            <span class="inline-flex items-center gap-1.5">
+              {% include "components/icon.html" with name="lock" class="h-3.5 w-3.5" %}
+              {% translate "需求墙不显示您的联系方式" %}
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              {% include "components/icon.html" with name="coins" class="h-3.5 w-3.5" %}
+              {% translate "平台不代收服务费" %}
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              {% include "components/icon.html" with name="doc" class="h-3.5 w-3.5" %}
+              {% translate "评价须提交文件核验" %}
+            </span>
+          </div>
+        </div>
+
+        {% comment %} The counts sit in the hero rather than further down because they are
+           the reason to keep reading: the pitch above is a claim, and these are
+           the rows behind it. {% endcomment %}
+        <div class="rounded-2xl bg-white/10 p-6 ring-1 ring-inset ring-white/20 backdrop-blur">
+          <div class="grid grid-cols-2 gap-x-6 gap-y-6">
+            {% include "components/stat.html" with tone="dark" icon="building" label=_("在册持牌公司") value=market.total_on_register %}
+            {% include "components/stat.html" with tone="dark" icon="users" label=_("覆盖地区") value=market.districts %}
+            {% include "components/stat.html" with tone="dark" icon="chat" label=_("开放中的需求") value=matching.open_requests %}
+            {% include "components/stat.html" with tone="dark" icon="doc" label=_("已收录但已除名") value=market.deregistered %}
+          </div>
+          <p class="mt-6 border-t border-white/20 pt-4 text-xs leading-relaxed text-brand-200">
+            {% if market.last_synced_at %}
+              {% blocktranslate trimmed with synced=market.last_synced_at|date:"Y-m-d H:i" %}
+                数据最后同步 {{ synced }}（香港时间），来源为公司注册处持牌人登记册。
+              {% endblocktranslate %}
+            {% else %}
+              {% translate "尚未完成首次同步，以上数字暂以本平台现有收录为准。" %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
 
 {% block content %}
-  <section class="py-10">
-    <h1 class="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-      {% translate "找到合适的香港持牌秘书公司" %}
-    </h1>
-    <p class="mt-4 max-w-2xl text-base leading-relaxed text-slate-600">
-      {% translate "只列公司注册处官方持牌名单，每日同步。价格区间公开，评价须经文件核验。" %}
+  {% url 'providers:list' as providers_url %}
+  {% blocktranslate asvar window_hint with days=market.window_days %}最近 {{ days }} 天{% endblocktranslate %}
+
+  {# ---------------- 秘书公司的业务功能 ---------------------------------- #}
+  <section class="py-4">
+    {% include "components/section_heading.html" with eyebrow=_("业务功能") title=_("秘书公司能替你办什么") subtitle=_("每一项都可以直接筛出正在提供该服务的持牌公司。") link_url=providers_url link_label=_("看全部公司") %}
+
+    <div class="stagger mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {% for service in services %}
+        <a href="{{ service.url }}" style="--i:{{ forloop.counter0 }}"
+           class="group flex flex-col rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card">
+          <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 transition group-hover:bg-brand-600 group-hover:text-white">
+            {% include "components/icon.html" with name=service.icon class="h-5 w-5" %}
+          </span>
+          <span class="mt-4 text-sm font-semibold text-ink">{{ service.label }}</span>
+          <span class="tabular mt-1 text-xs text-ink-muted">
+            {% blocktranslate trimmed count counter=service.provider_count %}
+              {{ counter }} 间公司已公布
+            {% plural %}
+              {{ counter }} 间公司已公布
+            {% endblocktranslate %}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+
+    <p class="mt-4 text-xs leading-relaxed text-ink-faint">
+      {% translate "服务范围由各公司自行填写，不是官方登记内容；本平台不提供上述任何服务，也不代办注册。" %}
     </p>
-    <p class="mt-6">
-      <a class="inline-block rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-         href="{% url 'providers:list' %}">{% translate "浏览持牌公司目录" %}</a>
-    </p>
   </section>
 
-  <section class="grid gap-6 border-t border-slate-200 py-10 sm:grid-cols-3">
-    {# PRD section 1 - the three value propositions. #}
-    <div>
-      <h2 class="text-sm font-semibold text-slate-900">{% translate "透明" %}</h2>
-      <p class="mt-2 text-sm leading-relaxed text-slate-600">
-        {% translate "官方持牌名单每日同步，牌照状态与最后更新时间公开可查。" %}
-      </p>
-    </div>
-    <div>
-      <h2 class="text-sm font-semibold text-slate-900">{% translate "可信" %}</h2>
-      <p class="mt-2 text-sm leading-relaxed text-slate-600">
-        {% translate "评价须以文件核验「确有合作」为前提，才会标记为已验证。" %}
-      </p>
-    </div>
-    <div>
-      <h2 class="text-sm font-semibold text-slate-900">{% translate "撮合" %}</h2>
-      <p class="mt-2 text-sm leading-relaxed text-slate-600">
-        {% translate "发布需求，由秘书公司主动报价，平台生成同口径比较表。" %}
-      </p>
+  {# ---------------- 需要报价 -------------------------------------------- #}
+  <section class="mt-14 overflow-hidden rounded-3xl border border-brand-100 bg-brand-50">
+    <div class="grid gap-8 p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "需要报价" %}</p>
+        <h2 class="mt-1 text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+          {% translate "发一次需求，收到可以并排比的报价" %}
+        </h2>
+        <p class="mt-2 max-w-xl text-sm leading-relaxed text-ink-soft">
+          {% translate "各家的报价单口径不同，很难直接比较。平台把每份报价拆成同一组项目：谁没有列出某一项，那一格就留白，不会被当成免费。" %}
+        </p>
+
+        <ol class="mt-6 space-y-4">
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">1</span>
+            <div>
+              <p class="text-sm font-medium text-ink">{% translate "写下你的情况" %}</p>
+              <p class="mt-0.5 text-sm text-ink-muted">{% translate "公司类型、业务性质、需要哪些服务、什么时候要。不需要填联系方式。" %}</p>
+            </div>
+          </li>
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">2</span>
+            <div>
+              <p class="text-sm font-medium text-ink">{% translate "持牌公司来报价" %}</p>
+              <p class="mt-0.5 text-sm text-ink-muted">
+                {% blocktranslate trimmed with free=matching.free_quotes_per_day %}
+                  只有完成认领、且仍在官方名单上的公司可以报价，每家每日免费 {{ free }} 次。
+                {% endblocktranslate %}
+              </p>
+            </div>
+          </li>
+          <li class="flex gap-3">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">3</span>
+            <div>
+              <p class="text-sm font-medium text-ink">{% translate "同口径比较后再选" %}</p>
+              <p class="mt-0.5 text-sm text-ink-muted">{% translate "你选的是「跟谁谈」，合约与付款都在平台之外，平台不代收任何费用。" %}</p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="mt-7 flex flex-wrap items-center gap-3">
+          {% if user.is_authenticated %}
+            <a href="{% url 'rfq:create' %}"
+               class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+              {% translate "发布需求" %}
+              {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+            </a>
+            <a href="{% url 'rfq:wall' %}" class="text-sm font-medium text-brand-700 hover:text-brand-800">
+              {% translate "先看看需求墙" %}
+            </a>
+          {% else %}
+            <a href="{% url 'accounts:register' %}"
+               class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
+              {% translate "注册后发布需求" %}
+              {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+            </a>
+            <span class="text-xs text-ink-muted">{% translate "需求墙与需求内容须登录后才能查看。" %}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-brand-100 bg-white p-5">
+        {% if rfq_previews %}
+          <h3 class="text-sm font-semibold text-ink">{% translate "最新开放中的需求" %}</h3>
+          <ul class="mt-3 space-y-3">
+            {% for rfq in rfq_previews %}
+              <li class="rounded-xl border border-line p-3 transition hover:border-brand-200">
+                <a class="text-sm font-medium text-ink hover:text-brand-700" href="{% url 'rfq:detail' rfq.id %}">
+                  {{ rfq.title }}
+                </a>
+                <p class="mt-1 text-xs text-ink-muted">
+                  {{ rfq.get_company_type_display }} &middot; {{ rfq.get_timeline_display }}
+                  &middot;
+                  {% blocktranslate trimmed with n=rfq.quote_count %}已有 {{ n }} 家报价{% endblocktranslate %}
+                </p>
+              </li>
+            {% endfor %}
+          </ul>
+          <a href="{% url 'rfq:wall' %}" class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800">
+            {% translate "查看全部需求" %}
+            {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+          </a>
+        {% else %}
+          {% comment %} Signed-out visitors get the counts and never the requirements.
+             The wall is behind a login for a reason and the home page is not a
+             hole in it (COMPLIANCE section 4). {% endcomment %}
+          <h3 class="text-sm font-semibold text-ink">{% translate "目前的撮合情况" %}</h3>
+          <div class="mt-4 grid grid-cols-2 gap-5">
+            {% include "components/stat.html" with icon="chat" label=_("开放中的需求") value=matching.open_requests %}
+            {% include "components/stat.html" with icon="coins" label=_("近 30 天报价") value=matching.quotes_recently %}
+          </div>
+          <p class="mt-5 rounded-xl bg-surface-sunken p-3 text-xs leading-relaxed text-ink-muted">
+            {% translate "需求的内容只有登录用户看得到。需求墙上不会出现姓名、电话或邮箱——想联系你的公司，要先给出一份报价。" %}
+          </p>
+        {% endif %}
+      </div>
     </div>
   </section>
 
-  <section class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-    {% comment %} The directory is live; reviews, claiming and RFQ are not. Say which is
-       which rather than letting an empty review tab imply nobody reviews. {% endcomment %}
-    <p>{% translate "平台正在建设中：目录与官方名单同步已上线，评价核验、页面认领与报价撮合尚未开放。" %}</p>
+  {# ---------------- 市场资讯 -------------------------------------------- #}
+  <section class="mt-14">
+    {% include "components/section_heading.html" with eyebrow=_("市场资讯") title=_("这个市场现在的样子") subtitle=_("以下数字全部来自本平台对官方持牌人登记册的每日同步，不含估算。") %}
+
+    <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+        {% include "components/stat.html" with icon="building" label=_("在册持牌公司") value=market.total_on_register hint=_("当前仍在官方名单内") %}
+      </div>
+      <div class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+        {% include "components/stat.html" with icon="trend" label=_("本平台新收录") value=market.added_recently hint=window_hint %}
+      </div>
+      <div class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+        {% include "components/stat.html" with icon="alert" label=_("近期从名单消失") value=market.removed_recently hint=window_hint %}
+      </div>
+      <div class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+        {% include "components/stat.html" with icon="users" label=_("覆盖地区") value=market.districts hint=_("有持牌公司登记地址的地区") %}
+      </div>
+    </div>
+
+    <div class="mt-4 rounded-2xl border border-line bg-official-bg p-5">
+      <p class="text-sm leading-relaxed text-official-text">
+        {% translate "牌照会失效，公司也会从名单上消失。本平台不会因此删掉该公司的页面，而是保留并标注——你正准备联系的公司是否还在名单上，是最值得先知道的一件事。" %}
+      </p>
+      <div class="mt-3">{% include "components/data_source_notice.html" %}</div>
+    </div>
   </section>
 
-  <div class="mt-6">{% include "components/data_source_notice.html" %}</div>
+  {# ---------------- 精选用家评语 ---------------------------------------- #}
+  <section class="mt-14">
+    {% include "components/section_heading.html" with eyebrow=_("用家评语") title=_("经文件核验的真实评价") subtitle=_("以下评价的作者都提交过 NNC1 文件，并由审核员确认确有合作，才会带上「已验证」。未经核验的评价不会出现在这里。") %}
+
+    {% if reviews %}
+      <div class="stagger mt-6 grid gap-4 md:grid-cols-3">
+        {% for review in reviews %}
+          <figure class="flex flex-col rounded-2xl border border-line bg-white p-5 shadow-sm" style="--i:{{ forloop.counter0 }}">
+            <span class="text-brand-200">{% include "components/icon.html" with name="quote" class="h-6 w-6" %}</span>
+            <blockquote class="mt-3 flex-1 text-sm leading-relaxed text-ink-soft">
+              {{ review.body|truncatechars:140 }}
+            </blockquote>
+            <figcaption class="mt-4 border-t border-line pt-3">
+              <div class="flex items-center justify-between gap-2">
+                <a class="truncate text-sm font-medium text-ink hover:text-brand-700"
+                   href="{{ review.provider.get_absolute_url }}">{{ review.provider.display_name }}</a>
+                <span class="tabular shrink-0 text-sm font-semibold text-ink">{{ review.overall|floatformat:1 }}</span>
+              </div>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                {% include "components/badge.html" with tone="success" icon="check" label=_("已验证") %}
+                <span class="text-xs text-ink-faint">{{ review.published_at|date:"Y-m" }}</span>
+              </div>
+            </figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon="chat" title=_("还没有经核验的评价") hint=_("评价要先通过 NNC1 文件核验才会公开显示。在此之前这里宁可空着，也不放未经核验的内容。") action_url=providers_url action_label=_("浏览公司目录") only %}
+    {% endif %}
+  </section>
+
+  {# ---------------- 热门搜索 -------------------------------------------- #}
+  <section class="mt-14">
+    {% include "components/section_heading.html" with eyebrow=_("热门搜索") title=_("大家常用的筛选条件") subtitle=_("这些是目录里公司最多的几个条件，点一下直接筛出结果。数字是符合条件的公司数目。") %}
+
+    <div class="mt-5 flex flex-wrap gap-2">
+      {% for chip in chips %}
+        <a href="{{ chip.url }}"
+           class="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-soft shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:text-brand-700">
+          {% include "components/icon.html" with name="search" class="h-3.5 w-3.5" %}
+          {{ chip.label }}
+          <span class="tabular rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-ink-muted">{{ chip.count }}</span>
+        </a>
+      {% empty %}
+        <p class="text-sm text-ink-muted">{% translate "目录还在同步中，稍后再来。" %}</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ---------------- 三个核心价值 ---------------------------------------- #}
+  <section class="mt-14 rounded-3xl bg-surface-inverse px-6 py-10 sm:px-10">
+    <h2 class="text-xl font-semibold tracking-tight text-white sm:text-2xl">{% translate "这个平台的三条底线" %}</h2>
+    <div class="mt-6 grid gap-6 sm:grid-cols-3">
+      <div>
+        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-brand-200">
+          {% include "components/icon.html" with name="search" class="h-5 w-5" %}
+        </span>
+        <h3 class="mt-3 text-sm font-semibold text-white">{% translate "透明" %}</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-brand-100">
+          {% translate "只列公司注册处公布的持牌名单，每日同步，牌照状态与同步时间都写在页面上。" %}
+        </p>
+      </div>
+      <div>
+        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-brand-200">
+          {% include "components/icon.html" with name="shield" class="h-5 w-5" %}
+        </span>
+        <h3 class="mt-3 text-sm font-semibold text-white">{% translate "可信" %}</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-brand-100">
+          {% translate "评价须以文件核验「确有合作」为前提才标记为已验证，被评公司有回覆权与申诉权。" %}
+        </p>
+      </div>
+      <div>
+        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-brand-200">
+          {% include "components/icon.html" with name="scale" class="h-5 w-5" %}
+        </span>
+        <h3 class="mt-3 text-sm font-semibold text-white">{% translate "撮合" %}</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-brand-100">
+          {% translate "发布需求由公司主动报价，平台生成同口径比较表，并且不代收买卖双方的任何费用。" %}
+        </p>
+      </div>
+    </div>
+  </section>
 {% endblock %}

@@ -5,21 +5,27 @@
 
 {% block content %}
 <div class="mx-auto max-w-md">
-  <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "登录" %}</h1>
+  <div class="rounded-2xl border border-line bg-white p-6 shadow-sm sm:p-8">
+    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+      {% include "components/icon.html" with name="lock" class="h-5 w-5" %}
+    </span>
+    <h1 class="mt-4 text-2xl font-semibold tracking-tight text-ink">{% translate "登录" %}</h1>
+    <p class="mt-1 text-sm text-ink-muted">{% translate "浏览目录无需登录；发布需求、写评价与认领页面才需要。" %}</p>
 
-  <form method="post" class="mt-6 space-y-4">
-    {% csrf_token %}
-    {% include "accounts/_form.html" %}
-    <input type="hidden" name="next" value="{{ next }}">
-    <button type="submit"
-            class="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
-      {% translate "登录" %}
-    </button>
-  </form>
+    <form method="post" class="mt-6 space-y-4">
+      {% csrf_token %}
+      {% include "accounts/_form.html" %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit"
+              class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+        {% translate "登录" %}
+      </button>
+    </form>
+  </div>
 
-  <p class="mt-4 text-sm text-slate-600">
+  <p class="mt-4 text-center text-sm text-ink-muted">
     {% translate "还没有账号？" %}
-    <a href="{% url 'accounts:register' %}" class="font-medium text-slate-900 underline">{% translate "注册" %}</a>
+    <a href="{% url 'accounts:register' %}" class="font-medium text-brand-700 underline underline-offset-2">{% translate "注册" %}</a>
   </p>
 </div>
 {% endblock %}

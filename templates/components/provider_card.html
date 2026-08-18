@@ -1,46 +1,61 @@
 {% load i18n registry_tags %}
 {% comment %} One row of the directory. Official fields (name, licence number, district,
    register status) and platform fields (rating, tier, services) are visually
-   separated so the reader can tell which is which - COMPLIANCE section 1. {% endcomment %}
-<article class="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 hover:border-slate-300 sm:flex-row sm:items-start sm:justify-between">
-  <div class="min-w-0">
-    <h3 class="truncate text-base font-semibold text-slate-900">
-      <a class="hover:underline" href="{{ provider.get_absolute_url }}">{{ provider.display_name }}</a>
-    </h3>
-    {% if provider.licensee.name_zh %}
-      <p class="truncate text-sm text-slate-600">{{ provider.licensee.name_zh }}</p>
-    {% endif %}
+   separated so the reader can tell which is which - COMPLIANCE section 1.
 
-    <p class="mt-1 text-xs text-slate-500">
-      {% translate "牌照号" %} {{ provider.licensee.licence_no }}
-      {% if provider.licensee.district %}&middot; {{ provider.licensee.district }}{% endif %}
-    </p>
+   The whole card is not one big link: the company name, the rating and the
+   "compare" control are three different destinations, and wrapping them in a
+   single anchor would take the choice away from anyone using a keyboard. {% endcomment %}
+<article class="group relative flex flex-col gap-4 rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow-card sm:flex-row sm:items-start sm:justify-between">
+  <div class="min-w-0 flex-1">
+    <div class="flex items-start gap-3">
+      {% comment %} An initial, not a logo: most rows are unclaimed and have no artwork, and
+         a grid of identical placeholder boxes reads worse than nothing. {% endcomment %}
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-sm font-semibold uppercase text-brand-700">
+        {{ provider.display_name|slice:":1" }}
+      </span>
+      <div class="min-w-0">
+        <h3 class="truncate text-base font-semibold text-ink">
+          <a class="transition hover:text-brand-700" href="{{ provider.get_absolute_url }}">{{ provider.display_name }}</a>
+        </h3>
+        {% if provider.licensee.name_zh %}
+          <p class="truncate text-sm text-ink-muted">{{ provider.licensee.name_zh }}</p>
+        {% endif %}
+        <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-ink-faint">
+          <span class="tabular">{% translate "牌照号" %} {{ provider.licensee.licence_no }}</span>
+          {% if provider.licensee.district %}<span>&middot;</span><span>{{ provider.licensee.district }}</span>{% endif %}
+        </p>
+      </div>
+    </div>
 
     {% if not provider.is_on_register %}
-      <p class="mt-2 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
-        {% deregistration_headline provider.licensee %}
+      {% deregistration_headline provider.licensee as deregistration_label %}
+      <p class="mt-3">
+        {% include "components/badge.html" with tone="warning" icon="alert" label=deregistration_label %}
       </p>
     {% endif %}
 
-    <div class="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-600">
+    <div class="mt-3 flex flex-wrap gap-1.5">
       {% if provider.claim_status == "claimed" %}
-        <span class="rounded bg-slate-100 px-2 py-0.5">{% translate "已认领" %}</span>
+        {% include "components/badge.html" with tone="brand" icon="check" label=_("已认领") %}
       {% else %}
-        <span class="rounded bg-slate-50 px-2 py-0.5 text-slate-400">{% translate "尚未认领" %}</span>
+        {% include "components/badge.html" with tone="neutral" label=_("尚未认领") %}
       {% endif %}
       {% if provider.bank_account_support %}
-        <span class="rounded bg-slate-100 px-2 py-0.5">{% translate "协助银行开户" %}</span>
+        {% include "components/badge.html" with tone="neutral" icon="bank" label=_("协助银行开户") %}
       {% endif %}
       {% if provider.remote_onboarding %}
-        <span class="rounded bg-slate-100 px-2 py-0.5">{% translate "可远程办理" %}</span>
+        {% include "components/badge.html" with tone="neutral" icon="spark" label=_("可远程办理") %}
       {% endif %}
     </div>
   </div>
 
-  <div class="flex shrink-0 items-center gap-4 sm:flex-col sm:items-end sm:gap-2">
+  <div class="flex shrink-0 items-center justify-between gap-4 border-t border-line pt-3 sm:flex-col sm:items-end sm:gap-3 sm:border-0 sm:pt-0">
     {% include "components/rating_display.html" with provider=provider %}
-    <a class="text-sm text-slate-700 underline hover:text-slate-900" href="{{ provider.get_absolute_url }}">
+    <a class="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700"
+       href="{{ provider.get_absolute_url }}">
       {% translate "查看详情" %}
+      {% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}
     </a>
   </div>
 </article>

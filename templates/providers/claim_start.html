@@ -5,55 +5,62 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-6">
-  <div>
-    <a href="{{ provider.get_absolute_url }}" class="text-sm text-slate-500 underline">
-      &larr; {{ provider.display_name }}
+  <header>
+    <a href="{{ provider.get_absolute_url }}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {{ provider.display_name }}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">
       {% translate "认领此公司页面" %}
     </h1>
-  </div>
+  </header>
 
   {% comment %} The official row the applicant is claiming, shown before the form
      rather than after it: the commonest mistake is claiming the wrong company
-     out of a list of similar names. {% endcomment %}
-  <section class="rounded-lg border border-slate-200 p-4 text-sm">
-    <p class="font-medium text-slate-900">{{ licensee.name_zh|default:licensee.name_en }}</p>
-    <p class="text-slate-600">{{ licensee.name_en }}</p>
-    <dl class="mt-3 grid gap-2 sm:grid-cols-2">
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "牌照号码" %}</dt>
-        <dd class="text-slate-900">{{ licensee.licence_no }}</dd>
+     out of a list of similar names. Rendered in the official greys for the
+     same reason it is on the detail page. {% endcomment %}
+  <section class="rounded-2xl border border-official-border bg-official-bg p-5 text-sm">
+    <p class="font-semibold text-ink">{{ licensee.name_zh|default:licensee.name_en }}</p>
+    <p class="text-ink-muted">{{ licensee.name_en }}</p>
+    <dl class="mt-3 grid gap-3 sm:grid-cols-2">
+      <div class="rounded-lg bg-white/70 px-3 py-2">
+        <dt class="text-xs text-ink-muted">{% translate "牌照号码" %}</dt>
+        <dd class="tabular text-ink">{{ licensee.licence_no }}</dd>
       </div>
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "登记地址" %}</dt>
-        <dd class="text-slate-900">{{ licensee.business_address }}</dd>
+      <div class="rounded-lg bg-white/70 px-3 py-2">
+        <dt class="text-xs text-ink-muted">{% translate "登记地址" %}</dt>
+        <dd class="text-ink">{{ licensee.business_address }}</dd>
       </div>
     </dl>
-    <div class="mt-3 border-t border-slate-200 pt-3">
+    <div class="mt-4 border-t border-official-border pt-3">
       {% include "components/data_source_notice.html" %}
     </div>
   </section>
 
-  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-    <p class="font-medium text-slate-900">{% translate "审核流程" %}</p>
-    <ol class="mt-2 list-decimal space-y-1 pl-5">
-      <li>{% translate "提交联系人资料与证明文件。" %}</li>
-      <li>{% translate "（可选）在公司网站发布验证令牌，加快审核。" %}</li>
-      <li>{% translate "人工审核，与官方持牌名单核对。" %}</li>
-      <li>{% translate "通过后即可管理页面，并显示「持牌」标记。" %}</li>
+  <div class="rounded-2xl border border-line bg-surface-sunken p-4 text-sm text-ink-soft">
+    <p class="flex items-center gap-1.5 font-medium text-ink">
+      {% include "components/icon.html" with name="stamp" class="h-4 w-4" %}
+      {% translate "审核流程" %}
+    </p>
+    <ol class="mt-3 space-y-2">
+      {% comment %} Numbered as steps rather than bullets: the applicant is being asked
+         to start something with four stages, and the second one is optional. {% endcomment %}
+      <li class="flex gap-3"><span class="tabular shrink-0 text-xs font-semibold text-brand-600">01</span>{% translate "提交联系人资料与证明文件。" %}</li>
+      <li class="flex gap-3"><span class="tabular shrink-0 text-xs font-semibold text-brand-600">02</span>{% translate "（可选）在公司网站发布验证令牌，加快审核。" %}</li>
+      <li class="flex gap-3"><span class="tabular shrink-0 text-xs font-semibold text-brand-600">03</span>{% translate "人工审核，与官方持牌名单核对。" %}</li>
+      <li class="flex gap-3"><span class="tabular shrink-0 text-xs font-semibold text-brand-600">04</span>{% translate "通过后即可管理页面，并显示「持牌」标记。" %}</li>
     </ol>
-    <p class="mt-3 text-xs text-slate-500">
+    <p class="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-ink-muted">
       {% translate "本平台并非官方机构，认领只代表本平台已将此账号与官方名单上的该公司对应，不构成任何官方认可。" %}
     </p>
   </div>
 
-  <form method="post" enctype="multipart/form-data" class="space-y-4"
+  <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-line bg-white p-6 shadow-sm"
         x-data x-on:submit="$el.querySelector('button[type=submit]').disabled = true">
     {% csrf_token %}
-    {% include "accounts/_form.html" %}
+    {% include "components/form_fields.html" %}
     <button type="submit"
-            class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
+            class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60">
       {% translate "提交认领申请" %}
     </button>
   </form>

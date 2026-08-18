@@ -32,6 +32,24 @@ def published_reviews(provider: Provider) -> QuerySet[Review]:
     )
 
 
+def featured_reviews(*, limit: int = 3) -> QuerySet[Review]:
+    """Published, NNC1-verified reviews for the home page, newest first.
+
+    Verified only, and not for presentation: the home page is where the
+    platform makes its claim about reviews, so the reviews it shows there have
+    to be the ones that claim covers. A pending or unverified review on the
+    front page would advertise a standard the page itself does not meet.
+
+    Nothing here is picked by hand or by score - the ordering is time, so the
+    section cannot quietly become a place where flattering reviews live.
+    """
+    return (
+        Review.objects.filter(status=ReviewStatus.PUBLISHED, is_verified=True)
+        .select_related("provider__licensee", "score")
+        .order_by("-published_at", "-created_at")[:limit]
+    )
+
+
 def review_by_author(*, provider: Provider, author: User) -> Review | None:
     """The one review this account may have left for this company.
 

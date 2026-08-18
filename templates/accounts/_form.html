@@ -1,24 +1,2 @@
-{% load i18n %}
-{% comment %} Shared field rendering for the account forms. Errors are shown per
-   field so a failed registration does not force the visitor to guess which
-   box was wrong. {% endcomment %}
-{% if form.non_field_errors %}
-  <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
-  </div>
-{% endif %}
-
-{% for field in form %}
-  <div class="space-y-1">
-    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700">
-      {{ field.label }}
-    </label>
-    {{ field }}
-    {% if field.help_text %}
-      <p class="text-xs text-slate-500">{{ field.help_text }}</p>
-    {% endif %}
-    {% for error in field.errors %}
-      <p class="text-xs text-red-700">{{ error }}</p>
-    {% endfor %}
-  </div>
-{% endfor %}
+{% comment %} Kept as a path the accounts templates already include; the rendering itself is shared with every other form on the site. {% endcomment %}
+{% include "components/form_fields.html" %}

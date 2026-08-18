@@ -2,25 +2,81 @@
 {% comment %} COMPLIANCE.md section 7 - site-wide disclaimer. The msgid is the authoritative
    Traditional Chinese text, reproduced verbatim from docs/COMPLIANCE.md. The
    zh-Hans and en translations live in locale/ and MUST be signed off by the
-   project owner (and ultimately counsel) before launch - do not machine-convert. {% endcomment %}
-<footer class="mt-16 border-t border-slate-200 bg-slate-50">
-  <div class="mx-auto max-w-6xl px-4 py-8 text-xs leading-relaxed text-slate-600">
-    <p class="whitespace-pre-line">{% blocktranslate trimmed %}本平台為獨立資訊比較平台，並非香港公司註冊處或任何政府機構，亦非信託或公司服務持牌人。
+   project owner (and ultimately counsel) before launch - do not machine-convert.
+
+   The disclaimer keeps its own block at full contrast. Site navigation was
+   added around it, not on top of it: a footer that buries the "we are not the
+   Registry" paragraph under link columns has technically published it and
+   practically hidden it. {% endcomment %}
+<footer class="mt-16 border-t border-line bg-surface-sunken">
+  <div class="mx-auto max-w-6xl px-4 py-10">
+    <div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white">
+            {% include "components/icon.html" with name="scale" class="h-4 w-4" %}
+          </span>
+          <span class="text-sm font-semibold text-ink">QS Matching</span>
+        </div>
+        <p class="mt-3 text-xs leading-relaxed text-ink-muted">
+          {% translate "香港持牌秘书公司的中立比较、真实评价与报价撮合平台。" %}
+        </p>
+      </div>
+
+      <div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-ink">{% translate "查找" %}</h2>
+        <ul class="mt-3 space-y-2 text-xs text-ink-muted">
+          <li><a class="hover:text-brand-700" href="{% url 'providers:list' %}">{% translate "持牌公司目录" %}</a></li>
+          <li><a class="hover:text-brand-700" href="{% url 'compare' %}">{% translate "并排比较" %}</a></li>
+          <li><a class="hover:text-brand-700" href="{% url 'providers:list' %}?bank_support=1">{% translate "协助银行开户的公司" %}</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-ink">{% translate "撮合" %}</h2>
+        <ul class="mt-3 space-y-2 text-xs text-ink-muted">
+          {% if user.is_authenticated %}
+            <li><a class="hover:text-brand-700" href="{% url 'rfq:create' %}">{% translate "发布需求" %}</a></li>
+            <li><a class="hover:text-brand-700" href="{% url 'rfq:wall' %}">{% translate "需求墙" %}</a></li>
+            <li><a class="hover:text-brand-700" href="{% url 'rfq:my_rfqs' %}">{% translate "我的需求" %}</a></li>
+          {% else %}
+            <li><a class="hover:text-brand-700" href="{% url 'accounts:register' %}">{% translate "注册后发布需求" %}</a></li>
+            <li><a class="hover:text-brand-700" href="{% url 'accounts:login' %}">{% translate "登录" %}</a></li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-ink">{% translate "数据" %}</h2>
+        <ul class="mt-3 space-y-2 text-xs text-ink-muted">
+          <li>
+            <a class="hover:text-brand-700" href="{{ registry_source_url }}" rel="noopener" target="_blank">
+              {{ registry_source_name }}
+            </a>
+          </li>
+          <li>
+            <a class="hover:text-brand-700" href="https://data.gov.hk/en/terms-and-conditions" rel="noopener" target="_blank">
+              {% translate "data.gov.hk 開放數據條款" %}
+            </a>
+          </li>
+          {% if registry_last_synced_at %}
+            <li class="text-ink-faint">
+              {% blocktranslate trimmed with synced=registry_last_synced_at|date:"Y-m-d H:i" %}
+                最后同步 {{ synced }}（香港时间）
+              {% endblocktranslate %}
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-8 rounded-xl border border-line bg-white p-4">
+      <p class="whitespace-pre-line text-xs leading-relaxed text-ink-soft">{% blocktranslate trimmed %}本平台為獨立資訊比較平台，並非香港公司註冊處或任何政府機構，亦非信託或公司服務持牌人。
 平台所載資料僅供一般參考，不構成法律、稅務、會計或任何專業意見，亦不構成對任何服務商的推薦或保證。
 銀行開戶與否由銀行全權決定，本平台不對開戶結果作任何承諾。
 用戶應自行向官方登記冊核實牌照狀態，並在需要時諮詢持牌專業人士。{% endblocktranslate %}</p>
+    </div>
 
-    <p class="mt-4">
-      {% translate "資料來源" %}:
-      <a class="underline hover:text-slate-900" href="{{ registry_source_url }}" rel="noopener" target="_blank">
-        {{ registry_source_name }}
-      </a>
-      &middot;
-      <a class="underline hover:text-slate-900" href="https://data.gov.hk/en/terms-and-conditions" rel="noopener" target="_blank">
-        {% translate "data.gov.hk 開放數據條款" %}
-      </a>
-    </p>
-
-    <p class="mt-4 text-slate-400">&copy; {% now "Y" %} QS Matching Platform</p>
+    <p class="mt-6 text-xs text-ink-faint">&copy; {% now "Y" %} QS Matching Platform</p>
   </div>
 </footer>

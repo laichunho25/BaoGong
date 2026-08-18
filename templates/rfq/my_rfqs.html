@@ -6,34 +6,42 @@
 
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "我的需求" %}</h1>
+  <header class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-semibold tracking-tight text-ink">{% translate "我的需求" %}</h1>
     <a href="{% url 'rfq:create' %}"
-       class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+       class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+      {% include "components/icon.html" with name="plus" class="h-4 w-4" %}
       {% translate "发布新需求" %}
     </a>
-  </div>
+  </header>
 
   <ul class="space-y-3">
     {% for rfq in rfqs %}
-      <li class="rounded-lg border border-slate-200 p-4">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <a class="text-base font-medium text-slate-900 underline"
-             href="{% url 'rfq:detail' rfq.id %}">{{ rfq.title }}</a>
-          <span class="text-xs {% if rfq.is_open %}text-emerald-700{% else %}text-slate-500{% endif %}">
-            {{ rfq.get_status_display }}
-          </span>
+      <li class="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow-card">
+        <div class="min-w-0">
+          <h2 class="truncate text-base font-semibold text-ink">
+            <a class="transition hover:text-brand-700" href="{% url 'rfq:detail' rfq.id %}">{{ rfq.title }}</a>
+          </h2>
+          <p class="mt-1 text-sm text-ink-muted">
+            {% blocktranslate with n=rfq.quote_count %}收到 {{ n }} 份报价{% endblocktranslate %}
+            {% if rfq.expires_at %}
+              &middot; {% blocktranslate with expires=rfq.expires_at|date:"Y-m-d" %}{{ expires }} 截止{% endblocktranslate %}
+            {% endif %}
+          </p>
         </div>
-        <p class="mt-1 text-sm text-slate-600">
-          {% blocktranslate with n=rfq.quote_count %}收到 {{ n }} 份报价{% endblocktranslate %}
-          {% if rfq.expires_at %}
-            &middot; {% blocktranslate with expires=rfq.expires_at|date:"Y-m-d" %}{{ expires }} 截止{% endblocktranslate %}
+        <span class="shrink-0">
+          {% if rfq.is_open %}
+            {% include "components/badge.html" with tone="success" label=rfq.get_status_display %}
+          {% else %}
+            {% include "components/badge.html" with tone="neutral" label=rfq.get_status_display %}
           {% endif %}
-        </p>
+        </span>
       </li>
     {% empty %}
-      <li class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">
-        {% translate "您还没有发布过需求。" %}
+      <li>
+        {% url 'rfq:create' as rfq_create_url %}
+        {% blocktranslate asvar my_rfqs_hint %}填一次需求，多家持牌公司按同一口径报价；需求墙上不会显示你的联系方式。{% endblocktranslate %}
+        {% include "components/empty_state.html" with icon="chat" title=_("您还没有发布过需求") hint=my_rfqs_hint action_url=rfq_create_url action_label=_("发布第一个需求") %}
       </li>
     {% endfor %}
   </ul>

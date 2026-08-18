@@ -1,0 +1,35 @@
+{% load i18n %}
+{% comment %} Field rendering for every form on the site. Errors are shown per field so a
+   failed submission does not force the visitor to guess which box was wrong,
+   and required fields are marked before they are typed in rather than after.
+
+   Expects ``form`` in context. Widget classes come from
+   ``apps/core/form_styles.py``.
+
+   Widget classes come from the form definitions, not from here: this partial
+   renders whatever the field is, including checkboxes and file inputs, and a
+   blanket class would style all three the same. {% endcomment %}
+{% if form.non_field_errors %}
+  <div class="flex gap-2 rounded-xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700" role="alert">
+    <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+    <div>{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  </div>
+{% endif %}
+
+{% for field in form %}
+  <div class="space-y-1.5">
+    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-ink-soft">
+      {{ field.label }}
+      {% if field.field.required %}<span class="text-danger-600" aria-hidden="true">*</span>{% endif %}
+    </label>
+    {{ field }}
+    {% if field.help_text %}
+      <p class="text-xs leading-relaxed text-ink-muted">{{ field.help_text }}</p>
+    {% endif %}
+    {% for error in field.errors %}
+      <p class="flex items-center gap-1 text-xs text-danger-700">
+        {% include "components/icon.html" with name="alert" class="h-3.5 w-3.5" %}{{ error }}
+      </p>
+    {% endfor %}
+  </div>
+{% endfor %}

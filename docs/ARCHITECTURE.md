@@ -44,8 +44,8 @@ qs-platform/
 │   ├── agents/        # BaseAgent, registry, prompts/, tools/, AgentRun, evals/
 │   ├── billing/       # Plan, Subscription, CreditPack, Invoice, CommissionDisclosure
 │   └── content/       # Article, Faq, Embedding(pgvector), SeoMeta
-├── templates/         # base.html, components/, pages/
-├── static/            # tailwind input.css, alpine, self-hosted fonts
+├── templates/         # base.html, components/（共用元件）, pages/, 各 app 的頁面
+├── static/            # tailwind input.css → app.css（已進版控）, alpine, self-hosted fonts
 ├── tests/             # 跨 app 的 integration tests
 ├── docs/              # 本資料夾
 ├── .claude/skills/
@@ -66,6 +66,13 @@ qs-platform/
 | `api.py` | DRF viewsets/serializers | 同上 |
 | `tasks.py` | Celery tasks，只 orchestrate 呼叫 services | 不放邏輯 |
 | `admin.py` | 內部審核介面 | 規則不放這裡（見下） |
+
+**首頁是四個 app 的 selector 組出來的**：`apps/core/views.py::home` 只做組裝，不含查詢邏輯——
+`registry.market_snapshot`、`providers.service_summaries` / `popular_searches`、
+`reviews.featured_reviews`、`rfq.matching_snapshot` / `open_rfqs`。這樣做的理由是首頁上的每個
+數字都是一項對外宣稱：宣稱的定義留在擁有該資料的 app 裡（連同它的測試），首頁只負責排版。
+唯一與「誰在看」有關的是需求預覽——數字公開，需求內容須登入（COMPLIANCE §4）。
+介面本身的規範見 `docs/DESIGN_SYSTEM.md`。
 
 **授權**：不裝 django-guardian。全站只有兩個判斷——「是不是這間 provider 的成員」與「是不是
 moderator」——都由 `apps/accounts/permissions.py` 從 `ProviderMember` / `User.role` 回答。

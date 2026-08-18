@@ -8,12 +8,39 @@
 @layer base {
   html {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    scroll-behavior: smooth;
+  }
+
+  /* Anchored section links on the provider page would otherwise land under the
+     sticky header. Set once here rather than with a spacer element per anchor. */
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+
+  /* Every interactive element gets the same visible focus ring, so keyboard
+     users are never left guessing where they are (frontend-page skill). */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid theme("colors.brand.500");
+    outline-offset: 2px;
+    border-radius: 0.25rem;
   }
 
   /* Alpine sets x-cloak until it initialises. Without this rule the compare
      tray flashes on every page load before Alpine hides it. */
   [x-cloak] {
     display: none !important;
+  }
+
+  /* Figures that sit next to each other in a table or a stat strip must not
+     jitter as they change width. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -28,5 +55,27 @@
   .htmx-request .htmx-indicator,
   .htmx-request.htmx-indicator {
     opacity: 1;
+  }
+
+  /* Staggered entrance for a list of cards. The delay is set inline with a
+     custom property so a template can stagger N children without N classes. */
+  .stagger > * {
+    animation: rise-in 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--stagger-step, 60ms) * var(--i, 0));
+  }
+}
+
+/* Motion is decoration here, never information: with it switched off the page
+   must still say everything it said before. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

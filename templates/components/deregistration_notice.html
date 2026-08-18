@@ -6,13 +6,20 @@
    The copy comes from apps/registry/notices.py and must not be rewritten here:
    the register publishes no reason for a removal, so neither may this page. {% endcomment %}
 {% if not licensee.is_on_register %}
-  <div class="rounded-lg border border-amber-300 bg-amber-50 p-4" role="note">
-    <p class="text-sm font-semibold text-amber-900">{% deregistration_headline licensee %}</p>
-    <p class="mt-2 text-sm leading-relaxed text-amber-900">{% deregistration_notice licensee %}</p>
-    <p class="mt-2 text-xs">
-      <a class="underline hover:text-amber-950" href="{{ registry_source_url }}" rel="noopener" target="_blank">
-        {% translate "前往官方登记册核实" %}
-      </a>
-    </p>
+  <div class="mt-6 flex gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-4" role="note">
+    <span class="mt-0.5 shrink-0 text-warning-700">
+      {% include "components/icon.html" with name="alert" class="h-5 w-5" %}
+    </span>
+    <div>
+      <p class="text-sm font-semibold text-warning-900">{% deregistration_headline licensee %}</p>
+      <p class="mt-1.5 text-sm leading-relaxed text-warning-900">{% deregistration_notice licensee %}</p>
+      <p class="mt-2 text-xs">
+        <a class="inline-flex items-center gap-1 font-medium text-warning-900 underline underline-offset-2"
+           href="{{ registry_source_url }}" rel="noopener" target="_blank">
+          {% translate "前往官方登记册核实" %}
+          {% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}
+        </a>
+      </p>
+    </div>
   </div>
 {% endif %}

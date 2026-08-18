@@ -6,82 +6,96 @@
 
 {% block content %}
 <div class="space-y-8">
-  <div>
-    <a href="{% url 'rfq:my_rfqs' %}" class="text-sm text-slate-500 underline">&larr; {% translate "我的需求" %}</a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{{ rfq.title }}</h1>
-    <p class="mt-1 text-sm text-slate-600">
-      {{ rfq.get_status_display }}
-      {% if rfq.expires_at %}
-        &middot; {% blocktranslate with expires=rfq.expires_at|date:"Y-m-d" %}{{ expires }} 截止{% endblocktranslate %}
+  <header>
+    <a href="{% url 'rfq:my_rfqs' %}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {% translate "我的需求" %}
+    </a>
+    <div class="mt-2 flex flex-wrap items-center gap-3">
+      <h1 class="text-2xl font-semibold tracking-tight text-ink">{{ rfq.title }}</h1>
+      {% if rfq.is_open %}
+        {% include "components/badge.html" with tone="success" label=rfq.get_status_display %}
+      {% else %}
+        {% include "components/badge.html" with tone="neutral" label=rfq.get_status_display %}
       {% endif %}
-    </p>
-  </div>
+    </div>
+    {% if rfq.expires_at %}
+      <p class="tabular mt-1 text-sm text-ink-muted">
+        {% blocktranslate with expires=rfq.expires_at|date:"Y-m-d" %}{{ expires }} 截止{% endblocktranslate %}
+      </p>
+    {% endif %}
+  </header>
 
-  <section class="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
-    <h2 class="text-sm font-medium text-slate-900">{% translate "需求内容" %}</h2>
-    <p class="mt-2 whitespace-pre-line">{{ rfq.raw_input }}</p>
-    <dl class="mt-3 grid gap-2 sm:grid-cols-2">
-      <div><dt class="inline text-slate-500">{% translate "公司类型：" %}</dt><dd class="inline">{{ rfq.get_company_type_display }}</dd></div>
-      <div><dt class="inline text-slate-500">{% translate "时间要求：" %}</dt><dd class="inline">{{ rfq.get_timeline_display }}</dd></div>
-      <div><dt class="inline text-slate-500">{% translate "需要的服务：" %}</dt><dd class="inline">{% for label in rfq.service_labels %}{{ label }}{% if not forloop.last %} / {% endif %}{% endfor %}</dd></div>
+  <section class="rounded-2xl border border-line bg-white p-5 text-sm text-ink-soft shadow-sm">
+    <h2 class="flex items-center gap-1.5 text-sm font-semibold text-ink">
+      {% include "components/icon.html" with name="doc" class="h-4 w-4" %}
+      {% translate "需求内容" %}
+    </h2>
+    <p class="mt-2 whitespace-pre-line leading-relaxed">{{ rfq.raw_input }}</p>
+    <dl class="mt-4 grid gap-2 border-t border-line pt-4 sm:grid-cols-2">
+      <div><dt class="inline text-ink-muted">{% translate "公司类型：" %}</dt><dd class="inline text-ink">{{ rfq.get_company_type_display }}</dd></div>
+      <div><dt class="inline text-ink-muted">{% translate "时间要求：" %}</dt><dd class="inline text-ink">{{ rfq.get_timeline_display }}</dd></div>
+      <div><dt class="inline text-ink-muted">{% translate "需要的服务：" %}</dt><dd class="inline text-ink">{% for label in rfq.service_labels %}{{ label }}{% if not forloop.last %} / {% endif %}{% endfor %}</dd></div>
       {% if rfq.budget_min or rfq.budget_max %}
-        <div><dt class="inline text-slate-500">{% translate "预算：" %}</dt><dd class="inline">{{ rfq.budget_min|default_if_none:"—" }} ~ {{ rfq.budget_max|default_if_none:"—" }}</dd></div>
+        <div><dt class="inline text-ink-muted">{% translate "预算：" %}</dt><dd class="inline tabular text-ink">{{ rfq.budget_min|default_if_none:"—" }} ~ {{ rfq.budget_max|default_if_none:"—" }}</dd></div>
       {% endif %}
     </dl>
 
-    <div class="mt-4 flex flex-wrap gap-3">
-      {% if rfq.status == "draft" %}
-        <form method="post" action="{% url 'rfq:publish' rfq.id %}">
-          {% csrf_token %}
-          <button type="submit"
-                  class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-            {% translate "发布到需求墙" %}
-          </button>
-        </form>
-      {% endif %}
-      {% if rfq.is_open or rfq.status == "draft" %}
+    {% if rfq.status == "draft" or rfq.is_open %}
+      <div class="mt-5 flex flex-wrap gap-3 border-t border-line pt-4">
+        {% if rfq.status == "draft" %}
+          <form method="post" action="{% url 'rfq:publish' rfq.id %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700">
+              {% include "components/icon.html" with name="spark" class="h-4 w-4" %}
+              {% translate "发布到需求墙" %}
+            </button>
+          </form>
+        {% endif %}
         <form method="post" action="{% url 'rfq:close' rfq.id %}">
           {% csrf_token %}
-          <button type="submit" class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700">
+          <button type="submit" class="rounded-lg border border-line px-4 py-2 text-sm text-ink-soft transition hover:border-line-strong hover:text-ink">
             {% translate "关闭需求" %}
           </button>
         </form>
-      {% endif %}
-    </div>
+      </div>
+    {% endif %}
   </section>
 
   <section class="space-y-4">
-    <h2 class="text-lg font-semibold text-slate-900">
+    <h2 class="text-lg font-semibold text-ink">
       {% blocktranslate with n=quotes|length %}收到的报价（{{ n }}）{% endblocktranslate %}
     </h2>
 
     {% comment %} Said once, here, where the decision is made: choosing a company on
        this page is an introduction and nothing more. The platform holds no
        money and is not a party to what follows (COMPLIANCE section 6). {% endcomment %}
-    <p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+    <p class="rounded-xl border border-line bg-surface-sunken p-3 text-xs leading-relaxed text-ink-muted">
       {% translate "选择某一家只表示您选了这家公司；本平台不代收费用，也不参与您与该公司之间的委任或合同。" %}
     </p>
 
     {% for quote in quotes %}
-      <article class="rounded-lg border border-slate-200 p-4">
+      <article class="rounded-2xl border border-line bg-white p-5 shadow-sm">
         <div class="flex flex-wrap items-start justify-between gap-2">
-          <a class="text-base font-medium text-slate-900 underline"
+          <a class="text-base font-semibold text-ink transition hover:text-brand-700"
              href="{{ quote.provider.get_absolute_url }}">{{ quote.provider.display_name }}</a>
-          <span class="text-xs text-slate-500">{{ quote.get_status_display }}</span>
+          {% include "components/badge.html" with tone="neutral" label=quote.get_status_display %}
         </div>
 
-        <p class="mt-2 text-sm text-slate-800">
-          {% translate "首年总费用：" %}<span class="font-medium">{{ quote.first_year_total }}</span>
+        <div class="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span class="text-xs text-ink-muted">{% translate "首年总费用" %}</span>
+          <span class="tabular text-xl font-semibold text-ink">{{ quote.first_year_total }}</span>
           {% if quote.includes_govt_fee %}
-            <span class="text-xs text-slate-500">{% translate "（含政府费用）" %}</span>
+            {% include "components/badge.html" with tone="success" label=_("含政府费用") %}
           {% else %}
-            <span class="text-xs text-amber-700">{% translate "（不含政府费用）" %}</span>
+            {% include "components/badge.html" with tone="warning" label=_("不含政府费用") %}
           {% endif %}
-        </p>
+        </div>
         {% if quote.renewal_total %}
-          <p class="text-sm text-slate-700">{% translate "次年续期：" %}{{ quote.renewal_total }}</p>
+          <p class="tabular mt-1 text-sm text-ink-soft">{% translate "次年续期：" %}{{ quote.renewal_total }}</p>
         {% endif %}
-        <p class="text-xs text-slate-500">
+        <p class="tabular mt-1 text-xs text-ink-faint">
           {% blocktranslate with until=quote.valid_until|date:"Y-m-d" %}报价有效期至 {{ until }}{% endblocktranslate %}
           {% if quote.delivery_days %}
             &middot; {% blocktranslate with days=quote.delivery_days %}承诺 {{ days }} 个工作日交付{% endblocktranslate %}
@@ -89,19 +103,19 @@
         </p>
 
         {% if quote.message %}
-          <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ quote.message }}</p>
+          <p class="mt-3 whitespace-pre-line rounded-xl bg-surface-sunken p-3 text-sm leading-relaxed text-ink-soft">{{ quote.message }}</p>
         {% endif %}
 
         {% if quote.line_items.all %}
-          <ul class="mt-3 space-y-1 text-sm text-slate-700">
+          <ul class="mt-3 divide-y divide-line text-sm text-ink-soft">
             {% for item in quote.line_items.all %}
-              <li class="flex justify-between gap-4">
+              <li class="flex justify-between gap-4 py-1.5">
                 <span>
                   {{ item.display_label }}
-                  {% if item.is_optional %}<span class="text-xs text-slate-500">{% translate "（可选）" %}</span>{% endif %}
-                  {% if item.note %}<span class="text-xs text-slate-500">— {{ item.note }}</span>{% endif %}
+                  {% if item.is_optional %}<span class="text-xs text-ink-faint">{% translate "（可选）" %}</span>{% endif %}
+                  {% if item.note %}<span class="text-xs text-ink-faint">— {{ item.note }}</span>{% endif %}
                 </span>
-                <span>{{ item.amount }}</span>
+                <span class="tabular whitespace-nowrap text-ink">{{ item.amount }}</span>
               </li>
             {% endfor %}
           </ul>
@@ -109,23 +123,26 @@
 
         {% comment %} What the quote does not say, named rather than counted. {% endcomment %}
         {% if quote.missing_labels %}
-          <p class="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-            {% translate "这份报价未列明：" %}{% for label in quote.missing_labels %}{{ label }}{% if not forloop.last %}、{% endif %}{% endfor %}
-            — {% translate "建议向该公司确认这些项目是否另行收费。" %}
+          <p class="mt-3 flex gap-2 rounded-xl border border-warning-200 bg-warning-50 p-3 text-xs leading-relaxed text-warning-900">
+            <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+            <span>
+              {% translate "这份报价未列明：" %}{% for label in quote.missing_labels %}{{ label }}{% if not forloop.last %}、{% endif %}{% endfor %}
+              — {% translate "建议向该公司确认这些项目是否另行收费。" %}
+            </span>
           </p>
         {% endif %}
 
         {% if rfq.status == "open" and quote.is_live %}
-          <div class="mt-4 flex flex-wrap gap-3">
+          <div class="mt-4 flex flex-wrap gap-3 border-t border-line pt-4">
             <form method="post" action="{% url 'rfq:quote_shortlist' quote.id %}">
               {% csrf_token %}
-              <button type="submit" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700">
+              <button type="submit" class="rounded-lg border border-line px-3 py-1.5 text-sm text-ink-soft transition hover:border-brand-300 hover:text-brand-700">
                 {% translate "加入候选" %}
               </button>
             </form>
             <form method="post" action="{% url 'rfq:quote_accept' quote.id %}">
               {% csrf_token %}
-              <button type="submit" class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+              <button type="submit" class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700">
                 {% translate "选择这家" %}
               </button>
             </form>
@@ -133,45 +150,44 @@
         {% endif %}
       </article>
     {% empty %}
-      <p class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">
-        {% translate "还没有公司报价。" %}
-      </p>
+      {% blocktranslate asvar no_quotes_hint %}需求发布后会出现在需求墙上，已认领的持牌公司可以在这里报价。{% endblocktranslate %}
+      {% include "components/empty_state.html" with icon="coins" title=_("还没有公司报价") hint=no_quotes_hint %}
     {% endfor %}
   </section>
 
   {% if comparison_rows %}
     <section class="space-y-3">
-      <h2 class="text-lg font-semibold text-slate-900">{% translate "同口径比较" %}</h2>
+      <h2 class="text-lg font-semibold text-ink">{% translate "同口径比较" %}</h2>
       {% comment %} A blank cell is the point of this table: it means the company did
          not price that item, which is exactly what a cheap-looking quote hides.
          {% endcomment %}
-      <p class="text-xs text-slate-500">{% translate "空白表示该公司没有列出这一项，并不代表免费。" %}</p>
-      <div class="overflow-x-auto">
+      <p class="text-xs text-ink-muted">{% translate "空白表示该公司没有列出这一项，并不代表免费。" %}</p>
+      <div class="overflow-x-auto rounded-2xl border border-line bg-white shadow-sm">
         <table class="w-full min-w-[36rem] border-collapse text-sm">
           <thead>
-            <tr class="border-b border-slate-200 text-left text-slate-500">
-              <th class="py-2 pr-4 font-medium">{% translate "项目" %}</th>
+            <tr class="bg-surface-sunken text-left text-ink-muted">
+              <th class="sticky left-0 z-10 bg-surface-sunken p-3 font-medium">{% translate "项目" %}</th>
               {% for quote in quotes %}
-                <th class="py-2 pr-4 font-medium">{{ quote.provider.display_name }}</th>
+                <th class="border-l border-line p-3 font-medium text-ink">{{ quote.provider.display_name }}</th>
               {% endfor %}
             </tr>
           </thead>
           <tbody>
             {% for row in comparison_rows %}
-              <tr class="border-b border-slate-100">
-                <td class="py-2 pr-4 text-slate-700">{{ row.display_label }}</td>
+              <tr class="border-t border-line">
+                <td class="sticky left-0 z-10 bg-white p-3 text-ink-soft">{{ row.display_label }}</td>
                 {% for cell in row.cells %}
-                  <td class="py-2 pr-4 {% if not cell.display %}text-slate-300{% else %}text-slate-800{% endif %}">
+                  <td class="tabular border-l border-line p-3 {% if not cell.display %}text-ink-faint{% else %}text-ink{% endif %}">
                     {{ cell.display|default:"—" }}
-                    {% if cell.is_optional %}<span class="text-xs text-slate-500">{% translate "（可选）" %}</span>{% endif %}
+                    {% if cell.is_optional %}<span class="text-xs text-ink-muted">{% translate "（可选）" %}</span>{% endif %}
                   </td>
                 {% endfor %}
               </tr>
             {% endfor %}
-            <tr class="border-t-2 border-slate-300 font-medium">
-              <td class="py-2 pr-4">{% translate "首年总费用" %}</td>
+            <tr class="border-t-2 border-line-strong bg-surface-sunken font-semibold">
+              <td class="sticky left-0 z-10 bg-surface-sunken p-3">{% translate "首年总费用" %}</td>
               {% for quote in quotes %}
-                <td class="py-2 pr-4">{{ quote.first_year_total }}</td>
+                <td class="tabular border-l border-line p-3">{{ quote.first_year_total }}</td>
               {% endfor %}
             </tr>
           </tbody>

@@ -1,0 +1,28 @@
+{% comment %} The heading block that opens a home-page section.
+
+   Params: eyebrow, title, subtitle (optional), link_url + link_label
+   (optional), level ("h2" by default - pass "h3" where the outline needs it).
+
+   The eyebrow exists so a reader scrolling past can tell what a section is for
+   without reading the sentence under it; it is a label, not a slogan.
+{% endcomment %}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div class="max-w-2xl">
+    {% if eyebrow %}
+      <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{{ eyebrow }}</p>
+    {% endif %}
+    <h2 class="mt-1 text-xl font-semibold tracking-tight text-ink sm:text-2xl">{{ title }}</h2>
+    {% if subtitle %}
+      <p class="mt-2 text-sm leading-relaxed text-ink-muted">{{ subtitle }}</p>
+    {% endif %}
+  </div>
+  {% if link_url %}
+    <a href="{{ link_url }}"
+       class="group inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand-700 transition hover:text-brand-800">
+      {{ link_label }}
+      <span class="transition group-hover:translate-x-0.5">
+        {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+      </span>
+    </a>
+  {% endif %}
+</div>

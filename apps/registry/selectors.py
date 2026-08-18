@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import Case, IntegerField, Q, QuerySet, When
+from django.db.models import Case, Count, IntegerField, Q, QuerySet, When
 from django.utils import timezone
 
 from apps.registry.models import (
@@ -109,6 +110,66 @@ def registry_last_synced_at() -> datetime | None:
     """Timestamp every page showing registry data must display (COMPLIANCE section 1)."""
     run = last_successful_sync()
     return run.finished_at if run else None
+
+
+@dataclass(frozen=True, slots=True)
+class MarketSnapshot:
+    """The register in five numbers, for the home page's market section.
+
+    Every field is a count over the mirror as it stands, never an estimate and
+    never a rounded "over 7,000" - the whole reason a visitor trusts this
+    platform over a blog post is that the figures can be checked against the
+    register on the same day. ``last_synced_at`` travels with them for that
+    reason (COMPLIANCE section 1): a count with no date is not checkable.
+    """
+
+    total_on_register: int
+    deregistered: int
+    districts: int
+    added_recently: int
+    removed_recently: int
+    window_days: int
+    last_synced_at: datetime | None
+
+
+def market_snapshot(*, window_days: int = 30, now: datetime | None = None) -> MarketSnapshot:
+    """Counts over the licence register for the public market section.
+
+    "Recently added" is measured by ``first_seen_at``, which is when *this
+    platform* first saw the licence, not when the Registry granted it - the
+    open data publishes no grant date. The wording on the page has to match
+    that: it says 本平台新收录, not 新获发牌.
+    """
+    moment = now or timezone.now()
+    since = moment - timedelta(days=window_days)
+    return MarketSnapshot(
+        total_on_register=active_licensees().count(),
+        deregistered=Licensee.objects.filter(status=LicenceStatus.INACTIVE).count(),
+        districts=(active_licensees().exclude(district="").values("district").distinct().count()),
+        added_recently=active_licensees().filter(first_seen_at__gte=since).count(),
+        removed_recently=Licensee.objects.filter(
+            status=LicenceStatus.INACTIVE, last_seen_at__gte=since
+        ).count(),
+        window_days=window_days,
+        last_synced_at=registry_last_synced_at(),
+    )
+
+
+def top_districts(*, limit: int = 8) -> list[tuple[str, int]]:
+    """Districts with the most licensees on the register, biggest first.
+
+    Feeds the home page's popular-search chips. These are counts of companies,
+    not of searches: the platform keeps no search log, so a chip that claimed
+    to be "what people search for" would be describing traffic nobody measured.
+    """
+    rows = (
+        active_licensees()
+        .exclude(district="")
+        .values("district")
+        .annotate(count=Count("pk"))
+        .order_by("-count", "district")[:limit]
+    )
+    return [(row["district"], row["count"]) for row in rows]
 
 
 def changes_for_run(sync_run: SyncRun) -> QuerySet[LicenseeChange]:

@@ -44,11 +44,17 @@ apps/
   agents/            # 全部 AI Agent（見 docs/AI_AGENTS.md）
   billing/           # 訂閱、額度包、發票
   content/           # 教育文章、CMS、SEO
-  core/              # 共用 model mixin、middleware、utils
+  core/              # 共用 model mixin、middleware、utils、首頁、表單 widget class
+templates/
+  components/        # 全站共用元件（見 docs/DESIGN_SYSTEM.md）
 ```
 
 每個 app 的分層：`models.py` → `selectors.py`（讀）→ `services.py`（寫／business logic）→ `views.py` → `api.py`。
 **View 不准直接寫 ORM 寫入邏輯**，一律經 `services.py`。
+
+前端：介面語言與元件清單見 `docs/DESIGN_SYSTEM.md`，動手前的檢查表見
+`.claude/skills/frontend-page`。**改完 template 的 class 一定要重建 CSS**
+（`powershell -NoProfile -File scripts/tailwind.ps1`），`static/css/app.css` 有進版控。
 
 ## 4. 不可違反的規則
 

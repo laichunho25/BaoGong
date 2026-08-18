@@ -6,70 +6,85 @@
 
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
-  <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "我的评价" %}</h1>
+  <h1 class="text-2xl font-semibold tracking-tight text-ink">{% translate "我的评价" %}</h1>
 
   {% comment %} Authors see their own reviews in every status, including the ones
      nobody else can see, with the moderator's reason attached. Someone who
      wrote something and had it withheld is owed the reason. {% endcomment %}
   <ul class="space-y-4">
     {% for review in reviews %}
-      <li class="rounded-lg border border-slate-200 p-4">
+      <li class="rounded-2xl border border-line bg-white p-5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <a class="text-sm font-medium text-slate-900 underline" href="{{ review.provider.get_absolute_url }}">
+          <a class="text-sm font-semibold text-ink transition hover:text-brand-700" href="{{ review.provider.get_absolute_url }}">
             {{ review.provider.display_name }}
           </a>
-          <span class="text-xs
-            {% if review.status == 'published' %}text-emerald-700{% else %}text-slate-500{% endif %}">
-            {{ review.get_status_display }}
-          </span>
+          {% if review.status == "published" %}
+            {% include "components/badge.html" with tone="success" label=review.get_status_display %}
+          {% else %}
+            {% include "components/badge.html" with tone="neutral" label=review.get_status_display %}
+          {% endif %}
         </div>
 
-        <p class="mt-1 text-sm text-slate-500">
-          {{ review.overall|floatformat:1 }}
+        <p class="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+          <span class="tabular font-semibold text-ink">{{ review.overall|floatformat:1 }}</span>
           {% if review.is_verified %}
-            &middot; {% translate "已验证" %}
+            {% include "components/badge.html" with tone="success" icon="check" label=_("已验证") %}
           {% else %}
-            &middot; {% translate "未验证，不计入公司评分" %}
+            {% include "components/badge.html" with tone="neutral" label=_("未验证，不计入公司评分") %}
           {% endif %}
         </p>
 
-        <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ review.body }}</p>
+        <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">{{ review.body }}</p>
 
         {% comment %} The verification prompt, in the one place the author will look.
            An unverified review is published but weightless (RATING_SYSTEM
            section 4), so saying "not counted" without saying what to do about
            it would be half the message. {% endcomment %}
         {% if not review.is_verified %}
-          <div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <div class="mt-3 rounded-xl border border-line bg-surface-sunken p-3 text-xs leading-relaxed text-ink-soft">
             {% with verification=review.verification %}
               {% if verification.result == "passed" %}
                 {% translate "核验已通过。" %}
               {% elif verification.result == "failed" %}
-                <p>{% translate "核验未通过：" %}{{ verification.review_note }}</p>
-                <a class="mt-1 inline-block underline"
+                <p class="flex items-center gap-1.5 text-danger-700">
+                  {% include "components/icon.html" with name="alert" class="h-3.5 w-3.5" %}
+                  {% translate "核验未通过：" %}{{ verification.review_note }}
+                </p>
+                <a class="mt-2 inline-flex items-center gap-1 font-medium text-brand-700 underline underline-offset-2"
                    href="{% url 'reviews:nnc1_upload' review.id %}">{% translate "重新上传" %}</a>
               {% elif verification %}
-                {% translate "核验文件已提交，审核人员处理中。" %}
+                <p class="flex items-center gap-1.5">
+                  {% include "components/icon.html" with name="clock" class="h-3.5 w-3.5" %}
+                  {% translate "核验文件已提交，审核人员处理中。" %}
+                </p>
               {% else %}
                 <p>{% translate "上传 NNC1 文件核验合作关系后，这条评价才会计入公司评分。" %}</p>
-                <a class="mt-1 inline-block underline"
-                   href="{% url 'reviews:nnc1_upload' review.id %}">{% translate "上传 NNC1" %}</a>
+                <a class="mt-2 inline-flex items-center gap-1 font-medium text-brand-700 underline underline-offset-2"
+                   href="{% url 'reviews:nnc1_upload' review.id %}">
+                  {% translate "上传 NNC1" %}
+                  {% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}
+                </a>
               {% endif %}
             {% endwith %}
           </div>
         {% endif %}
 
         {% if review.status == "pending_moderation" %}
-          <p class="mt-2 text-xs text-slate-500">{% translate "审核中，通过后会公开显示。" %}</p>
+          <p class="mt-2 flex items-center gap-1.5 text-xs text-ink-muted">
+            {% include "components/icon.html" with name="clock" class="h-3.5 w-3.5" %}
+            {% translate "审核中，通过后会公开显示。" %}
+          </p>
         {% elif review.moderation_note and review.status != "published" %}
-          <p class="mt-2 rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
+          <p class="mt-2 rounded-xl border border-line bg-surface-sunken p-3 text-xs leading-relaxed text-ink-soft">
             {% translate "审核说明：" %}{{ review.moderation_note }}
           </p>
         {% endif %}
       </li>
     {% empty %}
-      <li class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">
-        {% translate "你还没有写过评价。" %}
+      <li>
+        {% url 'providers:list' as providers_url %}
+        {% blocktranslate asvar my_reviews_hint %}在公司页面上可以写评价；上传 NNC1 核验合作关系后，评价才会计入该公司评分。{% endblocktranslate %}
+        {% include "components/empty_state.html" with icon="quote" title=_("你还没有写过评价") hint=my_reviews_hint action_url=providers_url action_label=_("去目录找合作过的公司") %}
       </li>
     {% endfor %}
   </ul>

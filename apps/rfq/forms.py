@@ -25,14 +25,10 @@ from typing import Any
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.form_styles import INPUT_CLASSES
 from apps.core.money import Money, MoneyError
 from apps.providers.models import BankType, ServiceCategory
 from apps.rfq.models import CompanyType, LineItemLabel, LineItemUnit, Timeline
-
-INPUT_CLASSES = (
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-500 focus:outline-none"
-)
 
 #: The currencies a buyer or a company may quote in. Narrower than
 #: ``core.money`` supports on purpose: every extra currency is another column

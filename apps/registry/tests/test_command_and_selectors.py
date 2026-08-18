@@ -1,14 +1,23 @@
 """The operator-facing surfaces: management command, selectors, Celery task."""
 
+from datetime import timedelta
 from io import StringIO
 from pathlib import Path
+from typing import Any
 
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.utils import timezone
 
 from apps.registry import selectors
-from apps.registry.models import LicenceStatus, Licensee, SyncRun, SyncStatus
+from apps.registry.models import (
+    LicenceStatus,
+    Licensee,
+    SyncRun,
+    SyncStatus,
+    allow_registry_writes,
+)
 from apps.registry.services import sync_registry
 from apps.registry.tasks import sync_tcsp_registry
 
@@ -155,3 +164,86 @@ class TestTask:
         assert entry["schedule"].hour == {6}
         assert entry["schedule"].minute == {0}
         assert settings.CELERY_TIMEZONE == "Asia/Hong_Kong"
+
+
+class TestMarketSnapshot:
+    """The counts the public home page prints.
+
+    Every field here ends up on the landing page as a bare number, so what
+    each one means has to be pinned down: 本平台新收录 is measured by when this
+    platform first saw the licence, not by a grant date the open data does not
+    publish (COMPLIANCE section 1).
+    """
+
+    @staticmethod
+    def _make(licence_no: str, *, district: str = "Central and Western", **overrides: Any) -> None:
+        now = timezone.now()
+        fields: dict[str, Any] = {
+            "licence_no": licence_no,
+            "name_en": f"{licence_no} Limited",
+            "business_address": "1/F, Test Building",
+            "district": district,
+            "status": LicenceStatus.ACTIVE,
+            "first_seen_at": now,
+            "last_seen_at": now,
+            "last_synced_at": now,
+            "raw": {},
+        }
+        fields.update(overrides)
+        with allow_registry_writes():
+            Licensee.objects.create(**fields)
+
+    def test_it_counts_rows_rather_than_estimating(self) -> None:
+        self._make("TC900001")
+        self._make("TC900002", district="Sha Tin")
+        self._make("TC900003", status=LicenceStatus.INACTIVE)
+
+        snapshot = selectors.market_snapshot()
+
+        assert snapshot.total_on_register == 2
+        assert snapshot.deregistered == 1
+        assert snapshot.districts == 2
+
+    def test_a_blank_district_is_not_a_district(self) -> None:
+        self._make("TC900004", district="")
+
+        assert selectors.market_snapshot().districts == 0
+
+    def test_the_recent_window_is_the_window_it_reports(self) -> None:
+        now = timezone.now()
+        self._make("TC900005", first_seen_at=now - timedelta(days=5))
+        self._make("TC900006", first_seen_at=now - timedelta(days=90))
+        self._make("TC900007", status=LicenceStatus.INACTIVE, last_seen_at=now - timedelta(days=5))
+        self._make("TC900008", status=LicenceStatus.INACTIVE, last_seen_at=now - timedelta(days=90))
+
+        snapshot = selectors.market_snapshot(window_days=30, now=now)
+
+        assert snapshot.window_days == 30
+        assert snapshot.added_recently == 1
+        assert snapshot.removed_recently == 1
+
+    def test_it_carries_the_sync_time_beside_the_counts(self, baseline_csv: Path) -> None:
+        # A count with no date is not checkable, so the timestamp travels with
+        # the numbers instead of being fetched separately by the template.
+        assert selectors.market_snapshot().last_synced_at is None
+
+        sync_registry(file_path=baseline_csv)
+
+        assert selectors.market_snapshot().last_synced_at is not None
+
+
+class TestTopDistricts:
+    def test_biggest_first_and_deregistered_licensees_excluded(self) -> None:
+        for index in range(3):
+            TestMarketSnapshot._make(f"TC910{index:03d}", district="Kwun Tong")
+        TestMarketSnapshot._make("TC911000", district="Sham Shui Po")
+        TestMarketSnapshot._make("TC911001", district="Sham Shui Po", status=LicenceStatus.INACTIVE)
+        TestMarketSnapshot._make("TC911002", district="")
+
+        assert selectors.top_districts() == [("Kwun Tong", 3), ("Sham Shui Po", 1)]
+
+    def test_it_respects_the_limit(self) -> None:
+        for index in range(4):
+            TestMarketSnapshot._make(f"TC912{index:03d}", district=f"District {index}")
+
+        assert len(selectors.top_districts(limit=2)) == 2

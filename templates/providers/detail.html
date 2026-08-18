@@ -13,178 +13,288 @@
 {% endblock %}
 
 {% block content %}
-  <nav class="text-sm text-slate-500">
-    <a class="underline hover:text-slate-800" href="{% url 'providers:list' %}">{% translate "持牌秘书公司目录" %}</a>
-    <span class="mx-1">/</span>{{ provider.display_name }}
+  <nav class="flex items-center gap-1.5 text-sm text-ink-muted" aria-label="{% translate '面包屑' %}">
+    <a class="transition hover:text-brand-700" href="{% url 'providers:list' %}">{% translate "持牌秘书公司目录" %}</a>
+    <span class="text-ink-faint">/</span>
+    <span class="truncate text-ink-soft">{{ provider.display_name }}</span>
   </nav>
 
-  <header class="mt-4">
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ provider.display_name }}</h1>
-    {% if licensee.name_zh %}<p class="mt-1 text-base text-slate-600">{{ licensee.name_zh }}</p>{% endif %}
-    <div class="mt-3">{% include "components/rating_display.html" with provider=provider %}</div>
+  <header class="mt-4 flex flex-col gap-5 rounded-2xl border border-line bg-white p-6 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+    <div class="flex min-w-0 items-start gap-4">
+      <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-xl font-semibold uppercase text-brand-700">
+        {{ provider.display_name|slice:":1" }}
+      </span>
+      <div class="min-w-0">
+        <h1 class="text-2xl font-semibold tracking-tight text-ink">{{ provider.display_name }}</h1>
+        {% if licensee.name_zh %}<p class="mt-0.5 text-base text-ink-muted">{{ licensee.name_zh }}</p>{% endif %}
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          {% if provider.claim_status == "claimed" %}
+            {% include "components/badge.html" with tone="brand" icon="check" label=_("已认领") %}
+          {% else %}
+            {% include "components/badge.html" with tone="neutral" label=_("尚未认领") %}
+          {% endif %}
+          {% if licensee.is_on_register %}
+            {% include "components/badge.html" with tone="official" icon="shield" label=_("在官方名单内") %}
+          {% else %}
+            {% include "components/badge.html" with tone="warning" icon="alert" label=_("已不在官方名单内") %}
+          {% endif %}
+          {% if provider.bank_account_support %}
+            {% include "components/badge.html" with tone="neutral" icon="bank" label=_("协助银行开户") %}
+          {% endif %}
+          {% if provider.remote_onboarding %}
+            {% include "components/badge.html" with tone="neutral" icon="spark" label=_("可远程办理") %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="shrink-0 sm:text-right">
+      {% include "components/rating_display.html" with provider=provider %}
+    </div>
   </header>
 
   {% include "components/deregistration_notice.html" with licensee=licensee %}
 
-  {# ---------------- official block: verbatim from the register ------------- #}
-  <section class="mt-6 rounded-lg border border-slate-300 bg-slate-50 p-5">
-    <h2 class="text-sm font-semibold text-slate-900">{% translate "官方登记资料" %}</h2>
-    <p class="mt-1 text-xs text-slate-500">
-      {% translate "以下字段直接来自官方登记册，本平台不作修改。" %}
-    </p>
-    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "牌照号" %}</dt>
-        <dd class="text-slate-900">{{ licensee.licence_no }}</dd>
-      </div>
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "牌照状态" %}</dt>
-        <dd class="text-slate-900">
-          {% if licensee.is_on_register %}{% translate "在官方名单内" %}{% else %}{% translate "已不在官方名单内" %}{% endif %}
-        </dd>
-      </div>
-      <div class="sm:col-span-2">
-        <dt class="text-xs text-slate-500">{% translate "登记地址" %}</dt>
-        <dd class="text-slate-900">{{ licensee.business_address }}</dd>
-      </div>
-      {% if licensee.district %}
-        <div>
-          <dt class="text-xs text-slate-500">{% translate "地区" %}</dt>
-          <dd class="text-slate-900">{{ licensee.district }}</dd>
+  {% comment %} In-page nav. The page is long and its four parts answer four different
+     questions; a reader who came for the price list should not have to scroll
+     past the register extract to find it. {% endcomment %}
+  <nav class="sticky top-16 z-20 -mx-4 mt-6 overflow-x-auto border-y border-line bg-surface/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
+    <ul class="flex items-center gap-1 whitespace-nowrap text-sm">
+      <li><a class="inline-block rounded-lg px-3 py-1.5 text-ink-soft transition hover:bg-surface-sunken hover:text-brand-700" href="#official">{% translate "官方登记" %}</a></li>
+      <li><a class="inline-block rounded-lg px-3 py-1.5 text-ink-soft transition hover:bg-surface-sunken hover:text-brand-700" href="#platform">{% translate "平台补充" %}</a></li>
+      <li><a class="inline-block rounded-lg px-3 py-1.5 text-ink-soft transition hover:bg-surface-sunken hover:text-brand-700" href="#services">{% translate "服务与价格" %}</a></li>
+      <li><a class="inline-block rounded-lg px-3 py-1.5 text-ink-soft transition hover:bg-surface-sunken hover:text-brand-700" href="#reviews">{% translate "用户评价" %}</a></li>
+    </ul>
+  </nav>
+
+  <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div class="min-w-0 space-y-6">
+      {% comment %} Official block. Grey, bordered, and labelled as a verbatim extract: the
+         one part of this page the platform did not write - COMPLIANCE section 1. {% endcomment %}
+      <section id="official" class="rounded-2xl border border-official-border bg-official-bg p-5">
+        <div class="flex items-center gap-2">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-official-text">
+            {% include "components/icon.html" with name="shield" class="h-4 w-4" %}
+          </span>
+          <div>
+            <h2 class="text-sm font-semibold text-ink">{% translate "官方登记资料" %}</h2>
+            <p class="text-xs text-ink-muted">{% translate "以下字段直接来自官方登记册，本平台不作修改。" %}</p>
+          </div>
         </div>
-      {% endif %}
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "本平台首次收录" %}</dt>
-        <dd class="text-slate-900">{{ licensee.first_seen_at|date:"Y-m-d" }}</dd>
-      </div>
-      {% if licensee.remarks_en or licensee.remarks_zh %}
-        <div class="sm:col-span-2">
-          <dt class="text-xs text-slate-500">{% translate "备注" %}</dt>
-          <dd class="text-slate-900">{{ licensee.remarks_zh|default:licensee.remarks_en }}</dd>
+        <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div class="rounded-lg bg-white/70 px-3 py-2">
+            <dt class="text-xs text-ink-muted">{% translate "牌照号" %}</dt>
+            <dd class="tabular text-ink">{{ licensee.licence_no }}</dd>
+          </div>
+          <div class="rounded-lg bg-white/70 px-3 py-2">
+            <dt class="text-xs text-ink-muted">{% translate "牌照状态" %}</dt>
+            <dd class="text-ink">
+              {% if licensee.is_on_register %}{% translate "在官方名单内" %}{% else %}{% translate "已不在官方名单内" %}{% endif %}
+            </dd>
+          </div>
+          <div class="rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
+            <dt class="text-xs text-ink-muted">{% translate "登记地址" %}</dt>
+            <dd class="text-ink">{{ licensee.business_address }}</dd>
+          </div>
+          {% if licensee.district %}
+            <div class="rounded-lg bg-white/70 px-3 py-2">
+              <dt class="text-xs text-ink-muted">{% translate "地区" %}</dt>
+              <dd class="text-ink">{{ licensee.district }}</dd>
+            </div>
+          {% endif %}
+          <div class="rounded-lg bg-white/70 px-3 py-2">
+            <dt class="text-xs text-ink-muted">{% translate "本平台首次收录" %}</dt>
+            <dd class="tabular text-ink">{{ licensee.first_seen_at|date:"Y-m-d" }}</dd>
+          </div>
+          {% if licensee.remarks_en or licensee.remarks_zh %}
+            <div class="rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
+              <dt class="text-xs text-ink-muted">{% translate "备注" %}</dt>
+              <dd class="text-ink">{{ licensee.remarks_zh|default:licensee.remarks_en }}</dd>
+            </div>
+          {% endif %}
+        </dl>
+        <div class="mt-4 border-t border-official-border pt-3">{% include "components/data_source_notice.html" %}</div>
+      </section>
+
+      {% comment %} Platform block: white, so the eye can tell at a glance that it is a
+         different kind of claim from the grey one above. {% endcomment %}
+      <section id="platform" class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+        <div class="flex items-center gap-2">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+            {% include "components/icon.html" with name="building" class="h-4 w-4" %}
+          </span>
+          <div>
+            <h2 class="text-sm font-semibold text-ink">{% translate "平台补充资料" %}</h2>
+            <p class="text-xs text-ink-muted">{% translate "以下资料由公司自行提供或由本平台整理，非官方登记内容。" %}</p>
+          </div>
         </div>
-      {% endif %}
-    </dl>
-    <div class="mt-4 border-t border-slate-200 pt-3">{% include "components/data_source_notice.html" %}</div>
-  </section>
 
-  {# ---------------- platform block: self-declared or staff-verified -------- #}
-  <section class="mt-6 rounded-lg border border-slate-200 p-5">
-    <h2 class="text-sm font-semibold text-slate-900">{% translate "平台补充资料" %}</h2>
-    <p class="mt-1 text-xs text-slate-500">
-      {% translate "以下资料由公司自行提供或由本平台整理，非官方登记内容。" %}
-    </p>
-
-    {% if provider.claim_status != "claimed" %}
-      {% comment %} Unclaimed page CTA. It says the company has not filled the page in -
-         not that it declined to, which the platform has no way of knowing. {% endcomment %}
-      <div class="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4 text-sm">
-        <p class="font-medium text-slate-800">{% translate "此页面尚未被认领" %}</p>
-        <p class="mt-1 text-slate-600">
-          {% translate "该公司尚未在本平台补充服务范围与价格资料。若您是该公司的负责人，可认领此页面并完善资料。" %}
-        </p>
-        {% if provider.claim_status == "pending" %}
-          {% comment %} Stated rather than hidden: a visitor comparing companies
-             should be able to see that someone is already answering for this
-             one, and it explains why the claim button is gone. {% endcomment %}
-          <p class="mt-2 text-slate-500">{% translate "已有认领申请正在审核中。" %}</p>
-        {% elif licensee %}
-          <a href="{% url 'providers:claim_start' provider.slug %}"
-             class="mt-3 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-            {% translate "认领此页面" %}
-          </a>
-        {% endif %}
-      </div>
-    {% endif %}
-
-    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "网站" %}</dt>
-        <dd>
-          {% if provider.website %}
-            <a class="underline text-slate-900" href="{{ provider.website }}" rel="nofollow noopener" target="_blank">{{ provider.website }}</a>
-          {% else %}<span class="text-slate-400">{% translate "未提供" %}</span>{% endif %}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "服务语言" %}</dt>
-        <dd class="text-slate-900">
-          {% for language in provider.language_labels %}{{ language }}{% if not forloop.last %}、{% endif %}{% empty %}
-            <span class="text-slate-400">{% translate "未提供" %}</span>
-          {% endfor %}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "协助银行开户" %}</dt>
-        <dd class="text-slate-900">{{ provider.bank_account_support|yesno:_("是,未提供") }}</dd>
-      </div>
-      <div>
-        <dt class="text-xs text-slate-500">{% translate "可远程办理" %}</dt>
-        <dd class="text-slate-900">{{ provider.remote_onboarding|yesno:_("是,未提供") }}</dd>
-      </div>
-    </dl>
-
-    {% if certifications %}
-      <div class="mt-5">
-        <h3 class="text-xs font-semibold text-slate-700">{% translate "平台认证" %}</h3>
-        <ul class="mt-2 flex flex-wrap gap-2 text-xs">
-          {% for certification in certifications %}
-            <li class="rounded bg-slate-100 px-2 py-0.5 text-slate-700">
-              {{ certification.get_type_display }}
-              <span class="text-slate-400">{{ certification.verified_at|date:"Y-m" }}</span>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-
-    {% if provider.commission_agreement %}
-      {% comment %} COMPLIANCE section 6: a referral arrangement is disclosed on the page
-         it affects, not only in the site footer. {% endcomment %}
-      <p class="mt-5 rounded border border-slate-300 bg-white p-3 text-xs text-slate-700">
-        {% translate "披露：本平台与该公司有导流合作关系，若您经本平台联系并成交，本平台可能收取佣金。此关系不影响该公司在目录中的排序或评分。" %}
-      </p>
-    {% endif %}
-  </section>
-
-  {# ---------------- services and prices ----------------------------------- #}
-  <section class="mt-6">
-    <h2 class="text-sm font-semibold text-slate-900">{% translate "服务与价格" %}</h2>
-    {% if offerings %}
-      <div class="mt-3 space-y-4">
-        {% for offering in offerings %}
-          <div class="rounded-lg border border-slate-200 p-4">
-            <h3 class="text-sm font-medium text-slate-900">{{ offering.get_category_display }}</h3>
-            {% if offering.description %}
-              <p class="mt-1 text-sm text-slate-600">{{ offering.description }}</p>
-            {% endif %}
-            {% if offering.prices.all %}
-              <ul class="mt-3 space-y-1 text-sm">
-                {% for price in offering.prices.all %}
-                  <li class="flex justify-between gap-4 border-b border-slate-100 py-1 last:border-0">
-                    <span class="text-slate-700">
-                      {{ price.label }}
-                      <span class="text-xs text-slate-400">
-                        {{ price.get_unit_display }}
-                        {% if price.includes_govt_fee %}&middot; {% translate "已含政府费用" %}{% endif %}
-                      </span>
-                    </span>
-                    <span class="whitespace-nowrap text-slate-900">{{ price.display }}</span>
-                  </li>
-                {% endfor %}
-              </ul>
-              <p class="mt-2 text-xs text-slate-400">
-                {% translate "价格由该公司提供或由本平台整理，仅供参考，最终以正式报价为准。" %}
-              </p>
+        {% if provider.claim_status != "claimed" %}
+          {% comment %} Unclaimed page CTA. It says the company has not filled the page in -
+             not that it declined to, which the platform has no way of knowing. {% endcomment %}
+          <div class="mt-4 rounded-xl border border-dashed border-line-strong bg-surface-sunken p-4 text-sm">
+            <p class="font-medium text-ink">{% translate "此页面尚未被认领" %}</p>
+            <p class="mt-1 text-ink-muted">
+              {% translate "该公司尚未在本平台补充服务范围与价格资料。若您是该公司的负责人，可认领此页面并完善资料。" %}
+            </p>
+            {% if provider.claim_status == "pending" %}
+              {% comment %} Stated rather than hidden: a visitor comparing companies
+                 should be able to see that someone is already answering for this
+                 one, and it explains why the claim button is gone. {% endcomment %}
+              <p class="mt-2 text-ink-faint">{% translate "已有认领申请正在审核中。" %}</p>
+            {% elif licensee %}
+              <a href="{% url 'providers:claim_start' provider.slug %}"
+                 class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-ink-soft">
+                {% translate "认领此页面" %}
+                {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+              </a>
             {% endif %}
           </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="mt-3 rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
-        {% translate "该公司尚未在本平台公布服务与价格。" %}
-      </p>
-    {% endif %}
-  </section>
+        {% endif %}
 
-  {% include "reviews/_review_list.html" %}
+        <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="text-xs text-ink-muted">{% translate "网站" %}</dt>
+            <dd>
+              {% if provider.website %}
+                <a class="text-brand-700 underline underline-offset-2" href="{{ provider.website }}" rel="nofollow noopener" target="_blank">{{ provider.website }}</a>
+              {% else %}<span class="text-ink-faint">{% translate "未提供" %}</span>{% endif %}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-ink-muted">{% translate "服务语言" %}</dt>
+            <dd class="text-ink">
+              {% for language in provider.language_labels %}{{ language }}{% if not forloop.last %}、{% endif %}{% empty %}
+                <span class="text-ink-faint">{% translate "未提供" %}</span>
+              {% endfor %}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-ink-muted">{% translate "协助银行开户" %}</dt>
+            <dd class="text-ink">{{ provider.bank_account_support|yesno:_("是,未提供") }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-ink-muted">{% translate "可远程办理" %}</dt>
+            <dd class="text-ink">{{ provider.remote_onboarding|yesno:_("是,未提供") }}</dd>
+          </div>
+        </dl>
+
+        {% if certifications %}
+          <div class="mt-5">
+            <h3 class="text-xs font-semibold text-ink-soft">{% translate "平台认证" %}</h3>
+            <ul class="mt-2 flex flex-wrap gap-2">
+              {% for certification in certifications %}
+                <li>
+                  {% blocktranslate asvar certification_label with name=certification.get_type_display month=certification.verified_at|date:"Y-m" %}{{ name }}（{{ month }}）{% endblocktranslate %}
+                  {% include "components/badge.html" with tone="success" icon="check" label=certification_label %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        {% if provider.commission_agreement %}
+          {% comment %} COMPLIANCE section 6: a referral arrangement is disclosed on the page
+             it affects, not only in the site footer. {% endcomment %}
+          <p class="mt-5 rounded-xl border border-warning-200 bg-warning-50 p-3 text-xs leading-relaxed text-warning-900">
+            {% translate "披露：本平台与该公司有导流合作关系，若您经本平台联系并成交，本平台可能收取佣金。此关系不影响该公司在目录中的排序或评分。" %}
+          </p>
+        {% endif %}
+      </section>
+
+      <section id="services" class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+        <div class="flex items-center gap-2">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+            {% include "components/icon.html" with name="coins" class="h-4 w-4" %}
+          </span>
+          <h2 class="text-sm font-semibold text-ink">{% translate "服务与价格" %}</h2>
+        </div>
+        {% if offerings %}
+          <div class="mt-4 space-y-3">
+            {% for offering in offerings %}
+              <details class="group rounded-xl border border-line" {% if forloop.first %}open{% endif %}>
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                  <span class="text-sm font-medium text-ink">{{ offering.get_category_display }}</span>
+                  <span class="text-ink-faint transition group-open:rotate-90">
+                    {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+                  </span>
+                </summary>
+                <div class="border-t border-line px-4 py-3">
+                  {% if offering.description %}
+                    <p class="text-sm leading-relaxed text-ink-muted">{{ offering.description }}</p>
+                  {% endif %}
+                  {% if offering.prices.all %}
+                    <ul class="mt-3 space-y-1 text-sm">
+                      {% for price in offering.prices.all %}
+                        <li class="flex justify-between gap-4 border-b border-line py-1.5 last:border-0">
+                          <span class="text-ink-soft">
+                            {{ price.label }}
+                            <span class="text-xs text-ink-faint">
+                              {{ price.get_unit_display }}
+                              {% if price.includes_govt_fee %}&middot; {% translate "已含政府费用" %}{% endif %}
+                            </span>
+                          </span>
+                          <span class="tabular whitespace-nowrap font-medium text-ink">{{ price.display }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                    <p class="mt-2 text-xs text-ink-faint">
+                      {% translate "价格由该公司提供或由本平台整理，仅供参考，最终以正式报价为准。" %}
+                    </p>
+                  {% endif %}
+                </div>
+              </details>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="mt-4">
+            {% blocktranslate asvar no_price_hint %}可以直接发布需求，让这间及其他持牌公司按你的情况报价。{% endblocktranslate %}
+            {% url 'rfq:create' as rfq_url %}
+            {% include "components/empty_state.html" with icon="coins" title=_("该公司尚未在本平台公布服务与价格") hint=no_price_hint action_url=rfq_url action_label=_("发布需求拿报价") %}
+          </div>
+        {% endif %}
+      </section>
+
+      <div id="reviews">{% include "reviews/_review_list.html" %}</div>
+    </div>
+
+    {% comment %} Aside. Repeats nothing the sections do not already say - it only keeps
+       the two actions a reader arrives wanting within reach on a long page. {% endcomment %}
+    <aside class="lg:sticky lg:top-32 lg:self-start">
+      <div class="rounded-2xl border border-line bg-surface-sunken p-5">
+        <h2 class="text-sm font-semibold text-ink">{% translate "下一步" %}</h2>
+        <p class="mt-1 text-xs leading-relaxed text-ink-muted">
+          {% translate "本平台不代办任何注册手续，只帮你把持牌公司放在一起比较，并把你的需求转给它们报价。" %}
+        </p>
+        <div class="mt-4 space-y-2">
+          <a href="{% url 'rfq:create' %}"
+             class="flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+            {% include "components/icon.html" with name="chat" class="h-4 w-4" %}
+            {% translate "发布需求拿报价" %}
+          </a>
+          <a href="{% url 'compare' %}?ids={{ provider.slug }}"
+             class="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700">
+            {% include "components/icon.html" with name="scale" class="h-4 w-4" %}
+            {% translate "加入并排比较" %}
+          </a>
+        </div>
+
+        <dl class="mt-5 space-y-3 border-t border-line pt-4 text-sm">
+          <div class="flex items-center justify-between gap-3">
+            <dt class="text-xs text-ink-muted">{% translate "牌照号" %}</dt>
+            <dd class="tabular text-ink">{{ licensee.licence_no }}</dd>
+          </div>
+          {% if licensee.district %}
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-xs text-ink-muted">{% translate "地区" %}</dt>
+              <dd class="text-ink">{{ licensee.district }}</dd>
+            </div>
+          {% endif %}
+          <div class="flex items-center justify-between gap-3">
+            <dt class="text-xs text-ink-muted">{% translate "已验证评价" %}</dt>
+            <dd class="tabular text-ink">{{ provider.verified_review_count }}</dd>
+          </div>
+        </dl>
+      </div>
+    </aside>
+  </div>
 {% endblock %}

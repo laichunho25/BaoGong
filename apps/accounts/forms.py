@@ -17,11 +17,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import Role
 from apps.core import turnstile
-
-INPUT_CLASSES = (
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-500 focus:outline-none"
-)
+from apps.core.form_styles import INPUT_CLASSES
 
 
 class TurnstileMixin(forms.Form):

@@ -8,98 +8,121 @@
 {% block extra_head %}<meta name="robots" content="noindex,follow">{% endblock %}
 
 {% block content %}
-  <header>
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "并排比较" %}</h1>
-    <p class="mt-2 text-sm text-slate-600">
+  <header class="rounded-2xl border border-line bg-surface-sunken p-6">
+    <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "决策工具" %}</p>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "并排比较" %}</h1>
+    <p class="mt-2 text-sm text-ink-muted">
       {% blocktranslate trimmed with limit=max_compare %}
-        最多可同时比较 {{ limit }} 间公司。
+        最多可同时比较 {{ limit }} 间公司。左侧是比较项目，横向对齐同一行即可看出差别。
       {% endblocktranslate %}
     </p>
-    <div class="mt-2">{% include "components/data_source_notice.html" %}</div>
+    <div class="mt-3">{% include "components/data_source_notice.html" %}</div>
   </header>
 
   {% if providers %}
-    <div class="mt-6 overflow-x-auto">
-      <table class="w-full min-w-[40rem] border-collapse text-sm">
+    {% comment %} The item column is pinned so a row keeps its meaning after the table is
+       scrolled sideways on a phone; without it the reader sees three values and
+       no idea what they are values of. {% endcomment %}
+    <div class="mt-6 overflow-x-auto rounded-2xl border border-line bg-white shadow-sm">
+      <table class="w-full min-w-[44rem] border-collapse text-sm">
         <thead>
-          <tr>
-            <th class="w-40 border-b border-slate-200 p-3 text-left text-xs font-medium text-slate-500">
+          <tr class="bg-surface-sunken">
+            <th class="sticky left-0 z-10 w-36 bg-surface-sunken p-3 text-left text-xs font-medium text-ink-muted">
               {% translate "项目" %}
             </th>
             {% for provider in providers %}
-              <th class="border-b border-slate-200 p-3 text-left align-top">
-                <a class="font-semibold text-slate-900 hover:underline" href="{{ provider.get_absolute_url }}">
+              <th class="border-l border-line p-3 text-left align-top">
+                <a class="font-semibold text-ink transition hover:text-brand-700" href="{{ provider.get_absolute_url }}">
                   {{ provider.display_name }}
                 </a>
+                <p class="tabular mt-0.5 text-xs font-normal text-ink-faint">{{ provider.licensee.licence_no }}</p>
                 {% if not provider.is_on_register %}
-                  <span class="mt-1 block rounded bg-amber-100 px-2 py-0.5 text-xs font-normal text-amber-900">
-                    {% translate "已不在官方持牌名单内" %}
-                  </span>
+                  <p class="mt-1.5">
+                    {% include "components/badge.html" with tone="warning" icon="alert" label=_("已不在官方持牌名单内") %}
+                  </p>
                 {% endif %}
               </th>
             {% endfor %}
           </tr>
         </thead>
         <tbody class="align-top">
-          <tr>
-            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "牌照号" %}</th>
+          <tr class="border-t border-line">
+            <th class="sticky left-0 z-10 bg-white p-3 text-left text-xs font-medium text-ink-muted">{% translate "地区" %}</th>
             {% for provider in providers %}
-              <td class="border-b border-slate-100 p-3">{{ provider.licensee.licence_no }}</td>
+              <td class="border-l border-line p-3 text-ink">{{ provider.licensee.district|default:"—" }}</td>
             {% endfor %}
           </tr>
-          <tr>
-            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "地区" %}</th>
+          <tr class="border-t border-line bg-surface-sunken/40">
+            <th class="sticky left-0 z-10 bg-surface-sunken/40 p-3 text-left text-xs font-medium text-ink-muted">{% translate "评分" %}</th>
             {% for provider in providers %}
-              <td class="border-b border-slate-100 p-3">{{ provider.licensee.district|default:"—" }}</td>
-            {% endfor %}
-          </tr>
-          <tr>
-            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "评分" %}</th>
-            {% for provider in providers %}
-              <td class="border-b border-slate-100 p-3">
+              <td class="border-l border-line p-3">
                 {% include "components/rating_display.html" with provider=provider %}
               </td>
             {% endfor %}
           </tr>
-          <tr>
-            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "协助银行开户" %}</th>
+          <tr class="border-t border-line">
+            <th class="sticky left-0 z-10 bg-white p-3 text-left text-xs font-medium text-ink-muted">{% translate "协助银行开户" %}</th>
             {% for provider in providers %}
-              <td class="border-b border-slate-100 p-3">{{ provider.bank_account_support|yesno:_("是,未提供") }}</td>
+              <td class="border-l border-line p-3">
+                {% if provider.bank_account_support %}
+                  <span class="inline-flex items-center gap-1 text-success-700">
+                    {% include "components/icon.html" with name="check" class="h-4 w-4" %}{% translate "是" %}
+                  </span>
+                {% else %}<span class="text-ink-faint">{% translate "未提供" %}</span>{% endif %}
+              </td>
             {% endfor %}
           </tr>
-          <tr>
-            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "可远程办理" %}</th>
+          <tr class="border-t border-line bg-surface-sunken/40">
+            <th class="sticky left-0 z-10 bg-surface-sunken/40 p-3 text-left text-xs font-medium text-ink-muted">{% translate "可远程办理" %}</th>
             {% for provider in providers %}
-              <td class="border-b border-slate-100 p-3">{{ provider.remote_onboarding|yesno:_("是,未提供") }}</td>
+              <td class="border-l border-line p-3">
+                {% if provider.remote_onboarding %}
+                  <span class="inline-flex items-center gap-1 text-success-700">
+                    {% include "components/icon.html" with name="check" class="h-4 w-4" %}{% translate "是" %}
+                  </span>
+                {% else %}<span class="text-ink-faint">{% translate "未提供" %}</span>{% endif %}
+              </td>
             {% endfor %}
           </tr>
-          <tr>
-            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "服务语言" %}</th>
+          <tr class="border-t border-line">
+            <th class="sticky left-0 z-10 bg-white p-3 text-left text-xs font-medium text-ink-muted">{% translate "服务语言" %}</th>
             {% for provider in providers %}
-              <td class="border-b border-slate-100 p-3">
+              <td class="border-l border-line p-3 text-ink">
                 {% for language in provider.language_labels %}{{ language }}{% if not forloop.last %}、{% endif %}{% empty %}
-                  <span class="text-slate-400">{% translate "未提供" %}</span>
+                  <span class="text-ink-faint">{% translate "未提供" %}</span>
                 {% endfor %}
               </td>
             {% endfor %}
           </tr>
-          <tr>
-            <th class="p-3 text-left text-xs font-medium text-slate-500">{% translate "服务与价格" %}</th>
+          <tr class="border-t border-line bg-surface-sunken/40">
+            <th class="sticky left-0 z-10 bg-surface-sunken/40 p-3 text-left text-xs font-medium text-ink-muted">{% translate "服务与价格" %}</th>
             {% for provider in providers %}
-              <td class="border-b border-slate-100 p-3">
+              <td class="border-l border-line p-3">
                 {% for offering in provider.offerings.all %}
-                  <p class="font-medium text-slate-800">{{ offering.get_category_display }}</p>
-                  <ul class="mb-2 text-xs text-slate-600">
+                  <p class="font-medium text-ink-soft">{{ offering.get_category_display }}</p>
+                  <ul class="mb-2 text-xs text-ink-muted">
                     {% for price in offering.prices.all %}
-                      <li>{{ price.label }}: {{ price.display }}</li>
+                      <li class="tabular">{{ price.label }}: {{ price.display }}</li>
                     {% empty %}
                       {# An empty cell would read as "free" - say what is true. #}
-                      <li class="text-slate-400">{% translate "未公布价格" %}</li>
+                      <li class="text-ink-faint">{% translate "未公布价格" %}</li>
                     {% endfor %}
                   </ul>
                 {% empty %}
-                  <span class="text-slate-400">{% translate "未公布服务与价格" %}</span>
+                  <span class="text-ink-faint">{% translate "未公布服务与价格" %}</span>
                 {% endfor %}
+              </td>
+            {% endfor %}
+          </tr>
+          <tr class="border-t border-line">
+            <th class="sticky left-0 z-10 bg-white p-3 text-left text-xs font-medium text-ink-muted">{% translate "下一步" %}</th>
+            {% for provider in providers %}
+              <td class="border-l border-line p-3">
+                <a class="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700"
+                   href="{{ provider.get_absolute_url }}">
+                  {% translate "查看详情" %}
+                  {% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}
+                </a>
               </td>
             {% endfor %}
           </tr>
@@ -107,13 +130,21 @@
       </table>
     </div>
 
-    <p class="mt-4 text-xs text-slate-500">
-      {% translate "官方登记字段来自公司注册处登记册；服务与价格由公司提供或由本平台整理，仅供参考。" %}
-    </p>
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+      <p class="max-w-xl text-xs leading-relaxed text-ink-faint">
+        {% translate "官方登记字段来自公司注册处登记册；服务与价格由公司提供或由本平台整理，仅供参考。" %}
+      </p>
+      <a href="{% url 'rfq:create' %}"
+         class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+        {% include "components/icon.html" with name="chat" class="h-4 w-4" %}
+        {% translate "让它们按你的情况报价" %}
+      </a>
+    </div>
   {% else %}
-    <p class="mt-6 rounded-lg border border-slate-200 p-6 text-sm text-slate-600">
-      {% translate "尚未选择要比较的公司。" %}
-      <a class="underline" href="{% url 'providers:list' %}">{% translate "回到目录挑选" %}</a>
-    </p>
+    {% url 'providers:list' as providers_url %}
+    {% blocktranslate asvar compare_hint %}回到目录，勾选公司左侧的方框，再点右下角的「并排比较」。{% endblocktranslate %}
+    <div class="mt-6">
+      {% include "components/empty_state.html" with icon="scale" title=_("尚未选择要比较的公司") hint=compare_hint action_url=providers_url action_label=_("回到目录挑选") %}
+    </div>
   {% endif %}
 {% endblock %}

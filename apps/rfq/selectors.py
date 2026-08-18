@@ -14,6 +14,8 @@ point, and it is the cell a free-text price list can never produce.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, NamedTuple
 
 from django.db.models import Count, Q
@@ -32,7 +34,7 @@ from apps.rfq.models import (
 )
 
 if TYPE_CHECKING:
-    from datetime import date
+    from datetime import date, datetime
 
     from django.db.models import QuerySet
 
@@ -60,6 +62,36 @@ def open_rfqs() -> QuerySet[Rfq]:
         )
         .annotate(quote_count=Count("quotes", filter=Q(quotes__status__in=LIVE_QUOTE_STATUSES)))
         .order_by("-published_at")
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class MatchingSnapshot:
+    """How busy the matching side is, in numbers safe to show anonymously.
+
+    Counts only. The home page is public, and a requirement is only ever a
+    requirement here - who wrote it, and anything that could identify them,
+    stops at the login (COMPLIANCE section 4). The requirement cards
+    themselves are rendered for signed-in visitors from ``open_rfqs``.
+    """
+
+    open_requests: int
+    quotes_recently: int
+    window_days: int
+    free_quotes_per_day: int
+
+
+def matching_snapshot(*, window_days: int = 30, now: datetime | None = None) -> MatchingSnapshot:
+    from django.conf import settings
+
+    moment = now or timezone.now()
+    return MatchingSnapshot(
+        open_requests=open_rfqs().count(),
+        quotes_recently=Quote.objects.filter(
+            submitted_at__gte=moment - timedelta(days=window_days)
+        ).count(),
+        window_days=window_days,
+        free_quotes_per_day=settings.RFQ_FREE_QUOTES_PER_DAY,
     )
 
 

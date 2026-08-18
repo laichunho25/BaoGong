@@ -1,19 +1,25 @@
 {% load i18n %}
 {% comment %} COMPLIANCE.md section 1: any page showing registry data must name the source
    and say when it was last synced. Include this on every such page - the sync
-   time is the reader's only way to judge how current the licence status is. {% endcomment %}
-<p class="text-xs leading-relaxed text-slate-500">
+   time is the reader's only way to judge how current the licence status is.
+
+   Rendered in the ``official`` greys, never in the brand colour: this line is
+   about someone else's data and should not look like a platform feature. {% endcomment %}
+<p class="inline-flex flex-wrap items-center gap-1.5 rounded-lg bg-white/60 px-2.5 py-1.5 text-xs leading-relaxed text-official-text ring-1 ring-official-border">
+  <span class="text-ink-muted">{% include "components/icon.html" with name="shield" class="h-3.5 w-3.5" %}</span>
   {% translate "官方数据来源" %}:
-  <a class="underline hover:text-slate-700" href="{{ registry_source_url }}" rel="noopener" target="_blank">
+  <a class="underline underline-offset-2 hover:text-ink" href="{{ registry_source_url }}" rel="noopener" target="_blank">
     {{ registry_source_name }}
   </a>
-  &middot;
+  <span class="text-ink-faint">&middot;</span>
   {% if registry_last_synced_at %}
-    {% blocktranslate trimmed with synced=registry_last_synced_at|date:"Y-m-d H:i" %}
-      最后同步 {{ synced }}（香港时间）
-    {% endblocktranslate %}
+    <span class="tabular">
+      {% blocktranslate trimmed with synced=registry_last_synced_at|date:"Y-m-d H:i" %}
+        最后同步 {{ synced }}（香港时间）
+      {% endblocktranslate %}
+    </span>
   {% else %}
     {# Never imply freshness the platform cannot evidence. #}
-    {% translate "尚未完成首次同步" %}
+    <span>{% translate "尚未完成首次同步" %}</span>
   {% endif %}
 </p>

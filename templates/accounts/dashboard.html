@@ -4,77 +4,116 @@
 {% block title %}{% translate "我的账号" %} - QS Matching{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl space-y-6">
-  <div>
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "我的账号" %}</h1>
-    <p class="mt-1 text-sm text-slate-600">{{ user.email }}</p>
-  </div>
+<div class="mx-auto max-w-3xl space-y-6">
+  <header class="flex items-center gap-4 rounded-2xl border border-line bg-surface-sunken p-6">
+    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-lg font-semibold uppercase text-white">
+      {{ user.email|slice:":1" }}
+    </span>
+    <div class="min-w-0">
+      <h1 class="text-2xl font-semibold tracking-tight text-ink">{% translate "我的账号" %}</h1>
+      <p class="truncate text-sm text-ink-muted">{{ user.email }}</p>
+    </div>
+    <span class="ml-auto shrink-0">
+      {% if user.is_email_verified %}
+        {% include "components/badge.html" with tone="success" icon="check" label=_("邮箱已验证") %}
+      {% else %}
+        {% include "components/badge.html" with tone="warning" icon="alert" label=_("邮箱未验证") %}
+      {% endif %}
+    </span>
+  </header>
 
   {% if not user.is_email_verified %}
-    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      <p class="font-medium">{% translate "邮箱尚未验证" %}</p>
-      <p class="mt-1">{% translate "认领公司页面、发布评价与发送需求单需要先验证邮箱。" %}</p>
-      <form method="post" action="{% url 'accounts:resend_verification' %}" class="mt-3">
-        {% csrf_token %}
-        <button type="submit" class="text-sm font-medium underline">{% translate "重新发送验证邮件" %}</button>
-      </form>
+    <div class="flex gap-3 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-900">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+      <div>
+        <p class="font-medium">{% translate "邮箱尚未验证" %}</p>
+        <p class="mt-1">{% translate "认领公司页面、发布评价与发送需求单需要先验证邮箱。" %}</p>
+        <form method="post" action="{% url 'accounts:resend_verification' %}" class="mt-3">
+          {% csrf_token %}
+          <button type="submit" class="text-sm font-medium underline underline-offset-2">{% translate "重新发送验证邮件" %}</button>
+        </form>
+      </div>
     </div>
   {% endif %}
 
   {% if claims %}
-    <div class="rounded-lg border border-slate-200 p-4">
-      <h2 class="text-sm font-semibold text-slate-900">{% translate "我的认领申请" %}</h2>
+    <section class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+      <h2 class="flex items-center gap-2 text-sm font-semibold text-ink">
+        {% include "components/icon.html" with name="stamp" class="h-4 w-4" %}
+        {% translate "我的认领申请" %}
+      </h2>
       <ul class="mt-3 space-y-2 text-sm">
         {% for claim in claims %}
-          <li class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-0">
+          <li class="flex items-center justify-between gap-3 border-b border-line pb-2 last:border-0">
             <div class="min-w-0">
-              <a href="{% url 'providers:claim_detail' claim.pk %}" class="truncate text-slate-900 underline">
+              <a href="{% url 'providers:claim_detail' claim.pk %}" class="truncate font-medium text-ink transition hover:text-brand-700">
                 {{ claim.provider.display_name }}
               </a>
-              <p class="text-xs text-slate-500">{{ claim.created_at|date:"Y-m-d" }}</p>
+              <p class="tabular text-xs text-ink-faint">{{ claim.created_at|date:"Y-m-d" }}</p>
             </div>
-            <span class="shrink-0 text-xs text-slate-600">{{ claim.get_status_display }}</span>
+            <span class="shrink-0">
+              {% include "components/badge.html" with tone="neutral" label=claim.get_status_display %}
+            </span>
           </li>
         {% endfor %}
       </ul>
-    </div>
+    </section>
   {% endif %}
 
-  <div class="rounded-lg border border-slate-200 p-4">
-    <h2 class="text-sm font-semibold text-slate-900">{% translate "我的评价" %}</h2>
-    <p class="mt-2 text-sm text-slate-600">
-      {% translate "查看你写过的评价，包括审核中与未公开的。" %}
-    </p>
-    <a href="{% url 'reviews:my_reviews' %}" class="mt-3 inline-block text-sm font-medium text-slate-900 underline">
-      {% translate "查看我的评价" %}
-    </a>
-  </div>
-
-  <div class="rounded-lg border border-slate-200 p-4">
-    <h2 class="text-sm font-semibold text-slate-900">{% translate "我的需求" %}</h2>
-    <p class="mt-2 text-sm text-slate-600">
-      {% translate "发布一次需求，多家持牌公司按同一口径向您报价。需求墙上不会显示您的联系方式。" %}
-    </p>
-    <div class="mt-3 flex flex-wrap gap-4 text-sm font-medium">
-      <a href="{% url 'rfq:my_rfqs' %}" class="text-slate-900 underline">{% translate "查看我的需求" %}</a>
-      <a href="{% url 'rfq:create' %}" class="text-slate-900 underline">{% translate "发布新需求" %}</a>
-    </div>
-  </div>
-
-  <div class="rounded-lg border border-slate-200 p-4">
-    <h2 class="text-sm font-semibold text-slate-900">{% translate "接下来" %}</h2>
-    {% if is_provider_member %}
-      <p class="mt-2 text-sm text-slate-600">
-        {% translate "在目录中找到贵公司页面，即可提交认领申请。" %}
+  {% comment %} Three cards, one per thing this account can do. Each says what the page
+     behind it is for, because "我的评价" alone does not tell a first-time
+     visitor whether they have any. {% endcomment %}
+  <div class="grid gap-4 sm:grid-cols-2">
+    <section class="group rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow-card">
+      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+        {% include "components/icon.html" with name="chat" class="h-4 w-4" %}
+      </span>
+      <h2 class="mt-3 text-sm font-semibold text-ink">{% translate "我的需求" %}</h2>
+      <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+        {% translate "发布一次需求，多家持牌公司按同一口径向您报价。需求墙上不会显示您的联系方式。" %}
       </p>
-    {% else %}
-      <p class="mt-2 text-sm text-slate-600">
-        {% translate "浏览持牌公司目录，比较服务范围与价格。" %}
+      <div class="mt-3 flex flex-wrap gap-3 text-sm font-medium">
+        <a href="{% url 'rfq:create' %}" class="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-white transition hover:bg-brand-700">
+          {% translate "发布新需求" %}
+        </a>
+        <a href="{% url 'rfq:my_rfqs' %}" class="inline-flex items-center gap-1 text-ink-soft underline underline-offset-2 hover:text-brand-700">
+          {% translate "查看我的需求" %}
+        </a>
+      </div>
+    </section>
+
+    <section class="group rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow-card">
+      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+        {% include "components/icon.html" with name="quote" class="h-4 w-4" %}
+      </span>
+      <h2 class="mt-3 text-sm font-semibold text-ink">{% translate "我的评价" %}</h2>
+      <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+        {% translate "查看你写过的评价，包括审核中与未公开的。" %}
       </p>
-    {% endif %}
-    <a href="{% url 'providers:list' %}" class="mt-3 inline-block text-sm font-medium text-slate-900 underline">
-      {% translate "浏览持牌公司目录" %}
-    </a>
+      <a href="{% url 'reviews:my_reviews' %}" class="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ink-soft underline underline-offset-2 hover:text-brand-700">
+        {% translate "查看我的评价" %}
+      </a>
+    </section>
+
+    <section class="group rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow-card sm:col-span-2">
+      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+        {% include "components/icon.html" with name="search" class="h-4 w-4" %}
+      </span>
+      <h2 class="mt-3 text-sm font-semibold text-ink">{% translate "接下来" %}</h2>
+      {% if is_provider_member %}
+        <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+          {% translate "在目录中找到贵公司页面，即可提交认领申请。" %}
+        </p>
+      {% else %}
+        <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+          {% translate "浏览持牌公司目录，比较服务范围与价格。" %}
+        </p>
+      {% endif %}
+      <a href="{% url 'providers:list' %}" class="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ink-soft underline underline-offset-2 hover:text-brand-700">
+        {% translate "浏览持牌公司目录" %}
+        {% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}
+      </a>
+    </section>
   </div>
 </div>
 {% endblock %}

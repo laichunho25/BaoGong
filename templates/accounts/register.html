@@ -5,30 +5,53 @@
 
 {% block content %}
 <div class="mx-auto max-w-md">
-  <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "注册账号" %}</h1>
-  <p class="mt-2 text-sm text-slate-600">
-    {% translate "浏览目录无需注册。注册后才能认领公司页面、发布评价与发送需求单。" %}
-  </p>
+  <div class="rounded-2xl border border-line bg-white p-6 shadow-sm sm:p-8">
+    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+      {% include "components/icon.html" with name="users" class="h-5 w-5" %}
+    </span>
+    <h1 class="mt-4 text-2xl font-semibold tracking-tight text-ink">{% translate "注册账号" %}</h1>
+    <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+      {% translate "浏览目录无需注册。注册后才能认领公司页面、发布评价与发送需求单。" %}
+    </p>
 
-  <form method="post" class="mt-6 space-y-4">
-    {% csrf_token %}
-    {% include "accounts/_form.html" %}
+    <form method="post" class="mt-6 space-y-4">
+      {% csrf_token %}
+      {% include "accounts/_form.html" %}
 
-    {% if turnstile_enabled %}
-      {% comment %} Cloudflare rather than reCAPTCHA: Google's endpoints are not
-         reachable from the mainland, where our buyers are (PRD section 4). {% endcomment %}
-      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
-    {% endif %}
+      {% if turnstile_enabled %}
+        {% comment %} Cloudflare rather than reCAPTCHA: Google's endpoints are not
+           reachable from the mainland, where our buyers are (PRD section 4). {% endcomment %}
+        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+      {% endif %}
 
-    <button type="submit"
-            class="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
-      {% translate "注册" %}
-    </button>
-  </form>
+      <button type="submit"
+              class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+        {% translate "注册" %}
+      </button>
+    </form>
+  </div>
 
-  <p class="mt-4 text-sm text-slate-600">
+  <ul class="mt-6 space-y-2 text-sm text-ink-muted">
+    {% comment %} What an account is for, in the order a buyer meets it. Written as
+       outcomes, not features - "免费" is a fact about the quotes, and the daily
+       cap belongs on the RFQ pages where it applies, not here. {% endcomment %}
+    <li class="flex items-start gap-2">
+      <span class="mt-0.5 text-success-600">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>
+      {% translate "一次填写需求，多家持牌公司按同一口径报价" %}
+    </li>
+    <li class="flex items-start gap-2">
+      <span class="mt-0.5 text-success-600">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>
+      {% translate "上传 NNC1 核验合作关系后，评价可获「已验证」标记" %}
+    </li>
+    <li class="flex items-start gap-2">
+      <span class="mt-0.5 text-success-600">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>
+      {% translate "需求墙上不会显示你的姓名与联系方式" %}
+    </li>
+  </ul>
+
+  <p class="mt-6 text-center text-sm text-ink-muted">
     {% translate "已有账号？" %}
-    <a href="{% url 'accounts:login' %}" class="font-medium text-slate-900 underline">{% translate "登录" %}</a>
+    <a href="{% url 'accounts:login' %}" class="font-medium text-brand-700 underline underline-offset-2">{% translate "登录" %}</a>
   </p>
 </div>
 {% endblock %}

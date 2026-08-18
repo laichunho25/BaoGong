@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}QS Matching Platform{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{% translate '香港持牌秘书公司比较、真实评价与报价撮合平台' %}{% endblock %}">
+  <meta name="theme-color" content="#1f706e">
   {% block canonical %}{% endblock %}
 
   {% comment %} Self-hosted assets only. PRD section 4: no Google Fonts / reCAPTCHA / GA -
@@ -14,31 +15,74 @@
   <script src="{% static 'vendor/alpine-3.14.8.min.js' %}" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-white font-sans text-slate-800 antialiased">
-  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:p-3">{% translate "跳到主要内容" %}</a>
+<body class="flex min-h-screen flex-col bg-surface font-sans text-ink-soft antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-white">
+    {% translate "跳到主要内容" %}
+  </a>
 
-  <header class="border-b border-slate-200">
-    <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-      <a href="/" class="text-lg font-semibold tracking-tight">QS Matching</a>
+  {% comment %} Sticky, because the directory and the request wall are long pages and the
+     way back out should not require scrolling to the top first. {% endcomment %}
+  <header class="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur"
+          x-data="{ open: false }">
+    <nav class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+      <a href="/" class="flex shrink-0 items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
+          {% include "components/icon.html" with name="scale" class="h-5 w-5" %}
+        </span>
+        <span class="text-base font-semibold tracking-tight text-ink">QS Matching</span>
+      </a>
 
-      <div class="flex items-center gap-4 text-sm">
+      <div class="ml-2 hidden items-center gap-1 text-sm md:flex">
+        <a href="{% url 'providers:list' %}"
+           class="rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-brand-50 hover:text-brand-700">
+          {% translate "公司目录" %}
+        </a>
+        <a href="{% url 'compare' %}"
+           class="rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-brand-50 hover:text-brand-700">
+          {% translate "并排比较" %}
+        </a>
         {% if user.is_authenticated %}
-          <a href="{% url 'rfq:wall' %}" class="text-slate-700 hover:text-slate-900">{% translate "需求墙" %}</a>
-          <a href="{% url 'accounts:dashboard' %}" class="text-slate-700 hover:text-slate-900">{% translate "我的账号" %}</a>
-          <form action="{% url 'accounts:logout' %}" method="post">
+          <a href="{% url 'rfq:wall' %}"
+             class="rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-brand-50 hover:text-brand-700">
+            {% translate "需求墙" %}
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="ml-auto flex items-center gap-2 text-sm">
+        {% if user.is_authenticated %}
+          <a href="{% url 'rfq:create' %}"
+             class="hidden items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 font-medium text-white shadow-sm transition hover:bg-brand-700 sm:inline-flex">
+            {% include "components/icon.html" with name="spark" class="h-4 w-4" %}
+            {% translate "发布需求" %}
+          </a>
+          <a href="{% url 'accounts:dashboard' %}"
+             class="hidden rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-surface-sunken hover:text-ink md:inline-block">
+            {% translate "我的账号" %}
+          </a>
+          <form action="{% url 'accounts:logout' %}" method="post" class="hidden md:block">
             {% csrf_token %}
-            <button type="submit" class="text-slate-500 hover:text-slate-900">{% translate "退出" %}</button>
+            <button type="submit" class="rounded-lg px-3 py-2 text-ink-muted transition hover:text-ink">
+              {% translate "退出" %}
+            </button>
           </form>
         {% else %}
-          <a href="{% url 'accounts:login' %}" class="text-slate-700 hover:text-slate-900">{% translate "登录" %}</a>
+          <a href="{% url 'accounts:login' %}"
+             class="hidden rounded-lg px-3 py-2 font-medium text-ink-soft transition hover:bg-surface-sunken hover:text-ink md:inline-block">
+            {% translate "登录" %}
+          </a>
           <a href="{% url 'accounts:register' %}"
-             class="rounded-lg bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700">{% translate "注册" %}</a>
+             class="rounded-lg bg-brand-600 px-3 py-2 font-medium text-white shadow-sm transition hover:bg-brand-700">
+            {% translate "免费注册" %}
+          </a>
         {% endif %}
 
-        <form action="{% url 'set_language' %}" method="post">
+        <form action="{% url 'set_language' %}" method="post" class="hidden sm:block">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.path }}">
-          <select name="language" onchange="this.form.submit()" class="rounded border-slate-300 text-sm">
+          <label class="sr-only" for="language-picker">{% translate "界面语言" %}</label>
+          <select id="language-picker" name="language" onchange="this.form.submit()"
+                  class="rounded-lg border-line bg-white py-1.5 pl-2 pr-7 text-xs text-ink-muted">
             {% get_current_language as CURRENT %}
             {% get_available_languages as LANGUAGES %}
             {% for code, name in LANGUAGES %}
@@ -46,19 +90,54 @@
             {% endfor %}
           </select>
         </form>
+
+        <button type="button" class="rounded-lg p-2 text-ink-soft md:hidden"
+                @click="open = !open" :aria-expanded="open" aria-controls="mobile-nav">
+          <span class="sr-only">{% translate "打开菜单" %}</span>
+          <span x-show="!open">{% include "components/icon.html" with name="menu" class="h-5 w-5" %}</span>
+          <span x-show="open" x-cloak>{% include "components/icon.html" with name="close" class="h-5 w-5" %}</span>
+        </button>
       </div>
     </nav>
+
+    <div id="mobile-nav" class="border-t border-line bg-white px-4 py-3 md:hidden" x-show="open" x-cloak>
+      <div class="flex flex-col gap-1 text-sm">
+        <a href="{% url 'providers:list' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "公司目录" %}</a>
+        <a href="{% url 'compare' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "并排比较" %}</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'rfq:wall' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "需求墙" %}</a>
+          <a href="{% url 'rfq:my_rfqs' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "我的需求" %}</a>
+          <a href="{% url 'accounts:dashboard' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "我的账号" %}</a>
+          <form action="{% url 'accounts:logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit" class="w-full rounded-lg px-3 py-2 text-left text-ink-muted hover:bg-surface-sunken">{% translate "退出" %}</button>
+          </form>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="rounded-lg px-3 py-2 font-medium text-ink-soft hover:bg-surface-sunken">{% translate "登录" %}</a>
+        {% endif %}
+      </div>
+    </div>
   </header>
 
-  <main id="main" class="mx-auto max-w-6xl px-4 py-8">
+  {% block hero %}{% endblock %}
+
+  <main id="main" class="{% block main_class %}mx-auto w-full max-w-6xl flex-1 px-4 py-8{% endblock %}">
     {% if messages %}
-      <div class="mb-6 space-y-2">
+      <div class="mb-6 space-y-2" aria-live="polite">
         {% for message in messages %}
-          <div class="rounded-lg border px-4 py-3 text-sm
-                      {% if message.level_tag == 'error' %}border-red-200 bg-red-50 text-red-800
-                      {% elif message.level_tag == 'warning' %}border-amber-200 bg-amber-50 text-amber-900
-                      {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
-            {{ message }}
+          <div class="flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm
+                      {% if message.level_tag == 'error' %}border-danger-200 bg-danger-50 text-danger-900
+                      {% elif message.level_tag == 'warning' %}border-warning-200 bg-warning-50 text-warning-900
+                      {% elif message.level_tag == 'success' %}border-success-200 bg-success-50 text-success-900
+                      {% else %}border-line bg-surface-sunken text-ink-soft{% endif %}">
+            <span class="mt-0.5 shrink-0">
+              {% if message.level_tag == 'error' or message.level_tag == 'warning' %}
+                {% include "components/icon.html" with name="alert" class="h-4 w-4" %}
+              {% else %}
+                {% include "components/icon.html" with name="check" class="h-4 w-4" %}
+              {% endif %}
+            </span>
+            <span>{{ message }}</span>
           </div>
         {% endfor %}
       </div>

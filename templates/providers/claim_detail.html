@@ -5,78 +5,92 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-6">
-  <div>
-    <a href="{{ provider.get_absolute_url }}" class="text-sm text-slate-500 underline">
-      &larr; {{ provider.display_name }}
+  <header>
+    <a href="{{ provider.get_absolute_url }}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {{ provider.display_name }}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">
       {% translate "认领申请" %}
     </h1>
-    <p class="mt-1 text-sm text-slate-600">
+    <p class="tabular mt-1 text-sm text-ink-muted">
       {% translate "提交于" %} {{ claim.created_at|date:"Y-m-d H:i" }}
     </p>
-  </div>
+  </header>
 
   {# Status. A decided claim always shows the reason it was decided on - a
      rejection the applicant cannot act on is not a decision they can answer. #}
   {% if claim.status == "pending" %}
-    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      <p class="font-medium">{% translate "审核中" %}</p>
-      <p class="mt-1">{% translate "我们会在 3 个工作日内以邮件回复审核结果。" %}</p>
+    <div class="flex gap-3 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-900">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="clock" class="h-4 w-4" %}</span>
+      <div>
+        <p class="font-medium">{% translate "审核中" %}</p>
+        <p class="mt-1">{% translate "我们会在 3 个工作日内以邮件回复审核结果。" %}</p>
+      </div>
     </div>
   {% elif claim.status == "approved" %}
-    <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-      <p class="font-medium">{% translate "认领已通过" %}</p>
-      <p class="mt-1">{{ claim.decision_reason }}</p>
+    <div class="flex gap-3 rounded-2xl border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-900">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>
+      <div>
+        <p class="font-medium">{% translate "认领已通过" %}</p>
+        <p class="mt-1">{{ claim.decision_reason }}</p>
+      </div>
     </div>
   {% elif claim.status == "rejected" %}
-    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-      <p class="font-medium">{% translate "认领未通过" %}</p>
-      <p class="mt-1">{{ claim.decision_reason }}</p>
-      <p class="mt-2 text-xs">{% translate "补充资料后可重新提交申请。" %}</p>
+    <div class="flex gap-3 rounded-2xl border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-900">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+      <div>
+        <p class="font-medium">{% translate "认领未通过" %}</p>
+        <p class="mt-1">{{ claim.decision_reason }}</p>
+        <p class="mt-2 text-xs">{% translate "补充资料后可重新提交申请。" %}</p>
+      </div>
     </div>
   {% else %}
-    <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+    <div class="rounded-2xl border border-line bg-surface-sunken px-4 py-3 text-sm text-ink-soft">
       <p class="font-medium">{% translate "申请已撤回" %}</p>
     </div>
   {% endif %}
 
   {# ---------------- website ownership ------------------------------------- #}
-  <section class="rounded-lg border border-slate-200 p-4 text-sm">
-    <h2 class="font-semibold text-slate-900">{% translate "网站所有权验证（可选）" %}</h2>
+  <section class="rounded-2xl border border-line bg-white p-5 text-sm shadow-sm">
+    <h2 class="flex items-center gap-1.5 font-semibold text-ink">
+      {% include "components/icon.html" with name="shield" class="h-4 w-4" %}
+      {% translate "网站所有权验证（可选）" %}
+    </h2>
     {% if claim.is_website_verified %}
-      <p class="mt-2 text-emerald-700">
+      <p class="tabular mt-2 flex flex-wrap items-center gap-1.5 text-success-700">
+        {% include "components/icon.html" with name="check" class="h-4 w-4" %}
         {% translate "已验证" %} · {{ claim.website_verification_method }} ·
         {{ claim.website_verified_at|date:"Y-m-d H:i" }}
       </p>
     {% elif claim.website %}
-      <p class="mt-2 text-slate-600">
+      <p class="mt-2 leading-relaxed text-ink-muted">
         {% blocktranslate with site=claim.website %}
           在 {{ site }} 上以下任一位置发布此令牌，然后点击验证。验证并非通过认领的必要条件，但可加快审核。
         {% endblocktranslate %}
       </p>
-      <div class="mt-3 rounded bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100 break-all">
+      <div class="mt-3 break-all rounded-xl bg-surface-inverse px-3 py-2.5 font-mono text-xs text-white">
         {{ claim.expected_token_value }}
       </div>
-      <ul class="mt-3 space-y-2 text-slate-700">
+      <ul class="mt-3 space-y-2 text-ink-soft">
         <li>
           <span class="font-medium">{% translate "方式一：DNS TXT 记录" %}</span>
-          <span class="text-slate-500">{% translate "（最快被接受）" %}</span>
+          <span class="text-ink-faint">{% translate "（最快被接受）" %}</span>
         </li>
         <li>
           <span class="font-medium">{% translate "方式二：上传文件" %}</span>
-          <code class="ml-1 text-xs">{{ well_known_path }}</code>
+          <code class="ml-1 rounded bg-surface-sunken px-1.5 py-0.5 text-xs">{{ well_known_path }}</code>
         </li>
         <li>
           <span class="font-medium">{% translate "方式三：首页 meta 标签" %}</span>
-          <code class="ml-1 block text-xs break-all">
+          <code class="mt-1 block break-all rounded bg-surface-sunken px-1.5 py-1 text-xs">
             &lt;meta name="{{ site_verification_key }}" content="{{ claim.website_verification_token }}"&gt;
           </code>
         </li>
       </ul>
       {% if claim.website_verification_log %}
-        <div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-          <p class="font-medium text-slate-700">{% translate "上次检查结果" %}</p>
+        <div class="mt-3 rounded-xl border border-line bg-surface-sunken p-3 text-xs text-ink-muted">
+          <p class="font-medium text-ink-soft">{% translate "上次检查结果" %}</p>
           <ul class="mt-1 space-y-1">
             {% for entry in claim.website_verification_log %}
               <li>{{ entry.method }}: {{ entry.detail }}</li>
@@ -88,43 +102,46 @@
         <form method="post" action="{% url 'providers:claim_verify' claim.pk %}" class="mt-3">
           {% csrf_token %}
           <button type="submit"
-                  class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+                  class="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700">
             {% translate "立即验证" %}
           </button>
         </form>
       {% endif %}
     {% else %}
-      <p class="mt-2 text-slate-500">{% translate "此申请未填写公司网站，将仅以证明文件审核。" %}</p>
+      <p class="mt-2 text-ink-muted">{% translate "此申请未填写公司网站，将仅以证明文件审核。" %}</p>
     {% endif %}
   </section>
 
   {# ---------------- evidence ---------------------------------------------- #}
-  <section class="rounded-lg border border-slate-200 p-4 text-sm">
-    <h2 class="font-semibold text-slate-900">{% translate "证明文件" %}</h2>
+  <section class="rounded-2xl border border-line bg-white p-5 text-sm shadow-sm">
+    <h2 class="flex items-center gap-1.5 font-semibold text-ink">
+      {% include "components/icon.html" with name="doc" class="h-4 w-4" %}
+      {% translate "证明文件" %}
+    </h2>
     <ul class="mt-3 space-y-2">
       {% for item in evidence %}
-        <li class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-0">
+        <li class="flex items-center justify-between gap-3 border-b border-line pb-2 last:border-0">
           <div class="min-w-0">
-            <p class="truncate text-slate-900">{{ item.original_filename }}</p>
-            <p class="text-xs text-slate-500">{{ item.get_kind_display }}</p>
+            <p class="truncate text-ink">{{ item.original_filename }}</p>
+            <p class="text-xs text-ink-muted">{{ item.get_kind_display }}</p>
           </div>
           {% comment %} A file that no scanner has cleared is not linked, not even
              for the person who uploaded it: the same rule that keeps it out of a
              moderator's browser applies here. {% endcomment %}
           {% if item.is_readable %}
-            <a class="shrink-0 text-xs underline"
+            <a class="shrink-0 text-xs font-medium text-brand-700 underline underline-offset-2"
                href="{% url 'providers:claim_evidence' item.pk %}">{% translate "查看" %}</a>
           {% elif item.purged_at %}
-            <span class="shrink-0 text-xs text-slate-400">{% translate "已按保留期删除" %}</span>
+            <span class="shrink-0 text-xs text-ink-faint">{% translate "已按保留期删除" %}</span>
           {% else %}
-            <span class="shrink-0 text-xs text-slate-400">{% translate "安全检查中" %}</span>
+            <span class="shrink-0 text-xs text-ink-faint">{% translate "安全检查中" %}</span>
           {% endif %}
         </li>
       {% empty %}
-        <li class="text-slate-500">{% translate "未上传文件。" %}</li>
+        <li class="text-ink-muted">{% translate "未上传文件。" %}</li>
       {% endfor %}
     </ul>
-    <p class="mt-3 text-xs text-slate-500">
+    <p class="mt-3 text-xs leading-relaxed text-ink-faint">
       {% translate "文件存放于私有存储，仅审核人员可查看，审核结束 90 日后自动删除。" %}
     </p>
   </section>
@@ -132,7 +149,7 @@
   {% if claim.status == "pending" %}
     <form method="post" action="{% url 'providers:claim_withdraw' claim.pk %}">
       {% csrf_token %}
-      <button type="submit" class="text-sm text-slate-500 underline">
+      <button type="submit" class="text-sm text-ink-muted underline underline-offset-2 hover:text-ink">
         {% translate "撤回申请" %}
       </button>
     </form>

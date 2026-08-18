@@ -6,23 +6,27 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-6">
-  <div>
-    <a href="{% url 'reviews:my_reviews' %}" class="text-sm text-slate-500 underline">
-      &larr; {% translate "我的评价" %}
+  <header>
+    <a href="{% url 'reviews:my_reviews' %}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {% translate "我的评价" %}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">
       {% translate "上传 NNC1 核验合作关系" %}
     </h1>
-    <p class="mt-1 text-sm text-slate-600">{{ provider.display_name }}</p>
-  </div>
+    <p class="mt-1 text-sm text-ink-muted">{{ provider.display_name }}</p>
+  </header>
 
   {% comment %} What happens to the document is stated before the file input, not in
      a policy page nobody opens. An NNC1 carries more personal data than
      anything else the platform accepts (COMPLIANCE section 4), and someone
      about to upload one is owed the retention rule up front. {% endcomment %}
-  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-    <p class="font-medium text-slate-900">{% translate "关于这份文件" %}</p>
-    <ul class="mt-2 list-disc space-y-1 pl-5">
+  <div class="rounded-2xl border border-line bg-surface-sunken p-4 text-sm text-ink-soft">
+    <p class="flex items-center gap-1.5 font-medium text-ink">
+      {% include "components/icon.html" with name="lock" class="h-4 w-4" %}
+      {% translate "关于这份文件" %}
+    </p>
+    <ul class="mt-2 list-disc space-y-1 pl-5 leading-relaxed">
       <li>{% translate "NNC1（法团成立表格）上列明公司秘书。若与被评价公司一致，即可证明确有合作。" %}</li>
       <li>{% translate "文件存放于私有存储，只有审核人员可以查看，不会公开、不会展示给被评价公司。" %}</li>
       <li>{% translate "核验有结论后 90 日，我们会自动删除文件本身，只保留核验结论与文件指纹。" %}</li>
@@ -32,36 +36,21 @@
   </div>
 
   {% if verification %}
-    <div class="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
-      <p>{% translate "你已提交过文件，当前状态：" %}{{ verification.get_result_display }}</p>
-      <p class="mt-1 text-xs text-slate-500">
-        {% translate "重新上传会覆盖之前的文件。" %}
-      </p>
+    <div class="flex items-center gap-3 rounded-2xl border border-line bg-white p-4 text-sm text-ink-soft shadow-sm">
+      <span class="shrink-0 text-ink-muted">{% include "components/icon.html" with name="clock" class="h-5 w-5" %}</span>
+      <div>
+        <p>{% translate "你已提交过文件，当前状态：" %}<span class="font-medium text-ink">{{ verification.get_result_display }}</span></p>
+        <p class="mt-0.5 text-xs text-ink-faint">{% translate "重新上传会覆盖之前的文件。" %}</p>
+      </div>
     </div>
   {% endif %}
 
-  <form method="post" enctype="multipart/form-data" class="space-y-5">
+  <form method="post" enctype="multipart/form-data" class="space-y-5 rounded-2xl border border-line bg-white p-6 shadow-sm">
     {% csrf_token %}
-
-    {% if form.non_field_errors %}
-      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-        {{ form.non_field_errors }}
-      </div>
-    {% endif %}
-
-    {% for field in form %}
-      <div>
-        <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
-          {{ field.label }}
-        </label>
-        <div class="mt-1">{{ field }}</div>
-        {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
-        {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
-      </div>
-    {% endfor %}
+    {% include "components/form_fields.html" %}
 
     <button type="submit"
-            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 sm:w-auto">
       {% translate "提交核验" %}
     </button>
   </form>

@@ -14,13 +14,9 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.form_styles import FILE_CLASSES, INPUT_CLASSES
 from apps.core.uploads import MAX_UPLOAD_BYTES, InspectedUpload, inspect_upload
 from apps.providers.models import EvidenceKind
-
-INPUT_CLASSES = (
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-500 focus:outline-none"
-)
 
 #: Enough for a BR certificate, an address proof and a letter of authorisation.
 MAX_EVIDENCE_FILES = 5
@@ -97,7 +93,7 @@ class ClaimSubmissionForm(forms.Form):
             "文件将加密存放于私有存储，仅审核人员可查看，审核结束 90 日后自动删除。"
         )
         % {"limit": MAX_UPLOAD_BYTES // (1024 * 1024), "count": MAX_EVIDENCE_FILES},
-        widget=MultipleFileInput(attrs={"class": "text-sm", "multiple": True}),
+        widget=MultipleFileInput(attrs={"class": FILE_CLASSES, "multiple": True}),
     )
     applicant_note = forms.CharField(
         label=_("补充说明（选填）"),

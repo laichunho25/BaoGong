@@ -8,28 +8,35 @@
      the number look like it came from more evidence than it did;
    * with no verified reviews there is no score anywhere on the page, so this
      block leads with the empty state instead of a zero.
+
+   The dimension bars are drawn with widthratio from the same numbers printed
+   beside them, so the picture cannot drift from the figures.
 {% endcomment %}
 
-<section id="reviews" class="mt-6">
-  <div class="flex flex-wrap items-baseline justify-between gap-2">
-    <h2 class="text-sm font-semibold text-slate-900">{% translate "用户评价" %}</h2>
+<section class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 class="flex items-center gap-2 text-sm font-semibold text-ink">
+      {% include "components/icon.html" with name="chat" class="h-4 w-4" %}
+      {% translate "用户评价" %}
+    </h2>
     {% if own_review %}
-      <a href="{% url 'reviews:my_reviews' %}" class="text-xs text-slate-500 underline">
+      <a href="{% url 'reviews:my_reviews' %}" class="text-xs text-ink-muted underline underline-offset-2 hover:text-brand-700">
         {% translate "查看我的评价" %}
       </a>
     {% else %}
       <a href="{% url 'reviews:create' provider.slug %}"
-         class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50">
+         class="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700">
+        {% include "components/icon.html" with name="quote" class="h-3.5 w-3.5" %}
         {% translate "写评价" %}
       </a>
     {% endif %}
   </div>
 
   {% if provider.has_verified_reviews %}
-    <div class="mt-3 rounded-lg border border-slate-200 p-4">
+    <div class="mt-4 rounded-xl border border-line bg-surface-sunken p-4">
       <div class="flex items-baseline gap-2">
-        <span class="text-2xl font-semibold text-slate-900">{{ provider.rating_cached|floatformat:2 }}</span>
-        <span class="text-xs text-slate-500">
+        <span class="tabular text-3xl font-semibold text-ink">{{ provider.rating_cached|floatformat:2 }}</span>
+        <span class="text-xs text-ink-muted">
           {% blocktranslate trimmed count counter=provider.verified_review_count %}
             基于 {{ counter }} 条已验证评价
           {% plural %}
@@ -37,58 +44,64 @@
           {% endblocktranslate %}
         </span>
       </div>
-      <p class="mt-1 text-xs text-slate-400">
+      <p class="mt-1 text-xs leading-relaxed text-ink-faint">
         {% translate "本分数采用贝叶斯先验（10 条 5 分基准）计算，避免少量评价造成极端分数；未验证评价不计入。" %}
       </p>
 
-      <dl class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+      <dl class="mt-4 grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
         {% for label, value in dimension_rows %}
-          <div class="flex justify-between gap-3 border-b border-slate-100 py-1">
-            <dt class="text-slate-600">{{ label }}</dt>
-            <dd class="text-slate-900">
+          <div class="flex items-center gap-3">
+            <dt class="w-24 shrink-0 text-ink-soft">{{ label }}</dt>
+            <dd class="flex flex-1 items-center gap-2">
               {% if value is None %}
-                <span class="text-slate-400">{% translate "暂无" %}</span>
-              {% else %}{{ value|floatformat:2 }}{% endif %}
+                <span class="text-ink-faint">{% translate "暂无" %}</span>
+              {% else %}
+                <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
+                  <div class="h-full rounded-full bg-brand-500" style="width: {% widthratio value 5 100 %}%"></div>
+                </div>
+                <span class="tabular w-8 text-right text-ink">{{ value|floatformat:2 }}</span>
+              {% endif %}
             </dd>
           </div>
         {% endfor %}
       </dl>
     </div>
   {% else %}
-    <p class="mt-3 rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-      {% translate "暂无已验证评价。已验证评价需上传 NNC1 文件证明确有合作关系。" %}
-    </p>
+    <div class="mt-4">
+      {% blocktranslate asvar no_review_hint %}已验证评价需上传 NNC1 文件证明确有合作关系，因此这里宁可留白，也不显示未经核验的分数。{% endblocktranslate %}
+      {% include "components/empty_state.html" with icon="shield" title=_("暂无已验证评价") hint=no_review_hint %}
+    </div>
   {% endif %}
 
   <ul class="mt-4 space-y-4">
     {% for review in reviews %}
-      <li class="rounded-lg border border-slate-200 p-4">
+      <li class="rounded-xl border border-line p-4">
         <div class="flex flex-wrap items-center gap-2 text-sm">
-          <span class="font-semibold text-slate-900">{{ review.overall|floatformat:1 }}</span>
+          <span class="tabular font-semibold text-ink">{{ review.overall|floatformat:1 }}</span>
           {% if review.is_verified %}
-            <span class="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-              {% translate "已验证" %}
-            </span>
+            {% include "components/badge.html" with tone="success" icon="check" label=_("已验证") %}
           {% else %}
-            <span class="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
-                  title="{% translate '该评价未经 NNC1 核验，不计入公司评分。' %}">
-              {% translate "未验证 · 不计入评分" %}
+            <span title="{% translate '该评价未经 NNC1 核验，不计入公司评分。' %}">
+              {% include "components/badge.html" with tone="neutral" label=_("未验证 · 不计入评分") %}
             </span>
           {% endif %}
-          <span class="text-xs text-slate-400">{{ review.published_at|date:"Y-m-d" }}</span>
+          <span class="tabular text-xs text-ink-faint">{{ review.published_at|date:"Y-m-d" }}</span>
           {% if review.engagement_year %}
-            <span class="text-xs text-slate-400">
+            <span class="text-xs text-ink-faint">
               {% blocktranslate with year=review.engagement_year %}{{ year }} 年合作{% endblocktranslate %}
             </span>
           {% endif %}
         </div>
 
-        <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ review.body }}</p>
+        <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">{{ review.body }}</p>
 
         {% if review.reply.is_public %}
-          <div class="mt-3 rounded border-l-2 border-slate-300 bg-slate-50 p-3 text-sm">
-            <p class="text-xs font-medium text-slate-700">{% translate "公司回复" %}</p>
-            <p class="mt-1 whitespace-pre-line text-slate-700">{{ review.reply.body }}</p>
+          <div class="mt-3 rounded-xl border-l-2 border-brand-300 bg-brand-50/60 p-3 text-sm">
+            <p class="flex items-center gap-1.5 text-xs font-medium text-brand-700">
+              {% include "components/icon.html" with name="building" class="h-3.5 w-3.5" %}
+              {% translate "公司回复" %}
+            </p>
+            <p class="mt-1 whitespace-pre-line leading-relaxed text-ink-soft">{{ review.reply.body }}</p>
           </div>
         {% elif is_member %}
           {% comment %} COMPLIANCE section 3 gives the company a right of reply, so the
@@ -97,7 +110,7 @@
             {% csrf_token %}
             {{ reply_form.body }}
             <button type="submit"
-                    class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">
+                    class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-700">
               {% translate "发布回复" %}
             </button>
           </form>
@@ -108,8 +121,8 @@
              reply box, and worded as "申诉" rather than "举报": answering in public is
              the response the platform wants companies to reach for first, and the
              appeal is for the cases where the review should not be there at all. {% endcomment %}
-          <p class="mt-2 text-xs text-slate-400">
-            <a href="{% url 'reviews:dispute' review.pk %}" class="underline hover:text-slate-600">
+          <p class="mt-2 text-xs text-ink-faint">
+            <a href="{% url 'reviews:dispute' review.pk %}" class="underline underline-offset-2 hover:text-ink-soft">
               {% translate "对这条评价提出申诉" %}
             </a>
             <span class="ml-1">{% translate "（不会立即隐藏评价）" %}</span>
@@ -117,7 +130,7 @@
         {% endif %}
       </li>
     {% empty %}
-      <li class="rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+      <li class="rounded-xl border border-dashed border-line-strong p-4 text-sm text-ink-muted">
         {% translate "该公司还没有公开的评价。" %}
       </li>
     {% endfor %}

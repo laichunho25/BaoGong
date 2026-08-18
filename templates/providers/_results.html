@@ -1,25 +1,31 @@
 {% load i18n %}
 {% comment %} HTMX swaps this element by outerHTML, so the id must live on the root node
    here and nowhere else. The same view renders it standalone for the fragment
-   request and inside list.html for the full page. {% endcomment %}
-<section id="results" class="mt-6">
-  <div class="flex items-baseline justify-between">
-    <p class="text-sm text-slate-600">
+   request and inside list.html for the full page.
+
+   ``aria-busy`` is bound to the HTMX request class so a screen reader is told
+   the list is being replaced; the visible indicator alone says nothing. {% endcomment %}
+<section id="results" class="mt-6 scroll-mt-24">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-ink-soft">
       {% blocktranslate trimmed count counter=total %}
-        共 {{ counter }} 间公司
+        共 <span class="tabular font-semibold text-ink">{{ counter }}</span> 间公司
       {% plural %}
-        共 {{ counter }} 间公司
+        共 <span class="tabular font-semibold text-ink">{{ counter }}</span> 间公司
       {% endblocktranslate %}
     </p>
-    <span id="results-indicator" class="htmx-indicator text-xs text-slate-400">{% translate "载入中…" %}</span>
+    <span id="results-indicator" class="htmx-indicator inline-flex items-center gap-2 text-xs text-ink-muted">
+      <span class="h-3 w-3 animate-spin rounded-full border-2 border-line-strong border-t-brand-600"></span>
+      {% translate "载入中…" %}
+    </span>
   </div>
 
   {% if page.object_list %}
-    <ul class="mt-4 space-y-3">
+    <ul class="stagger mt-4 space-y-3">
       {% for provider in page.object_list %}
-        <li class="flex items-start gap-3">
-          <label class="mt-4 shrink-0" title="{% translate '加入比较' %}">
-            <input type="checkbox" class="rounded border-slate-300" value="{{ provider.slug }}"
+        <li class="flex items-start gap-3 animate-rise-in" style="--i: {{ forloop.counter0 }}">
+          <label class="mt-5 shrink-0 cursor-pointer" title="{% translate '加入比较' %}">
+            <input type="checkbox" class="rounded border-line-strong text-brand-600 focus:ring-brand-500" value="{{ provider.slug }}"
                    x-model="compare"
                    :disabled="compare.length >= {{ max_compare }} && !compare.includes('{{ provider.slug }}')">
             <span class="sr-only">{% translate "加入比较" %}</span>
@@ -32,38 +38,47 @@
     </ul>
 
     {% if page.has_other_pages %}
-      <nav class="mt-6 flex items-center justify-between text-sm" aria-label="{% translate '分页' %}">
+      <nav class="mt-6 flex items-center justify-between gap-4 rounded-xl border border-line bg-white px-4 py-3 text-sm" aria-label="{% translate '分页' %}">
         {% if page.has_previous %}
-          <a class="underline text-slate-700 hover:text-slate-900"
+          <a class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-medium text-ink-soft transition hover:bg-surface-sunken hover:text-brand-700"
              href="{% querystring page=page.previous_page_number %}"
              hx-get="{% querystring page=page.previous_page_number %}"
              hx-target="#results" hx-select="#results" hx-swap="outerHTML"
-             hx-push-url="true" hx-indicator="#results-indicator">{% translate "上一页" %}</a>
-        {% else %}<span></span>{% endif %}
+             hx-push-url="true" hx-indicator="#results-indicator">
+            <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+            {% translate "上一页" %}
+          </a>
+        {% else %}<span class="text-ink-faint">{% translate "上一页" %}</span>{% endif %}
 
-        <span class="text-slate-500">
+        <span class="tabular text-ink-muted">
           {% blocktranslate trimmed with current=page.number total_pages=page.paginator.num_pages %}
             第 {{ current }} / {{ total_pages }} 页
           {% endblocktranslate %}
         </span>
 
         {% if page.has_next %}
-          <a class="underline text-slate-700 hover:text-slate-900"
+          <a class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-medium text-ink-soft transition hover:bg-surface-sunken hover:text-brand-700"
              href="{% querystring page=page.next_page_number %}"
              hx-get="{% querystring page=page.next_page_number %}"
              hx-target="#results" hx-select="#results" hx-swap="outerHTML"
-             hx-push-url="true" hx-indicator="#results-indicator">{% translate "下一页" %}</a>
-        {% else %}<span></span>{% endif %}
+             hx-push-url="true" hx-indicator="#results-indicator">
+            {% translate "下一页" %}
+            {% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}
+          </a>
+        {% else %}<span class="text-ink-faint">{% translate "下一页" %}</span>{% endif %}
       </nav>
     {% endif %}
   {% else %}
-    <div class="mt-4 rounded-lg border border-slate-200 p-6 text-sm text-slate-600">
-      <p>{% translate "没有符合条件的公司。" %}</p>
-      {% if not filters.include_deregistered %}
-        <p class="mt-2 text-slate-500">
-          {% translate "提示：已不在官方持牌名单内的公司预设不显示，可在上方勾选后一并查看。" %}
-        </p>
-      {% endif %}
+    {% comment %} An empty result is a dead end unless the page says how to leave it, so
+       the hint names the filter most likely to be responsible. {% endcomment %}
+    {% url 'providers:list' as providers_url %}
+    {% if not filters.include_deregistered %}
+      {% blocktranslate asvar empty_hint %}已不在官方持牌名单内的公司预设不显示；放宽条件或勾选上方选项后可一并查看。{% endblocktranslate %}
+    {% else %}
+      {% blocktranslate asvar empty_hint %}试着减少几个筛选条件，或直接用公司名称搜索。{% endblocktranslate %}
+    {% endif %}
+    <div class="mt-4">
+      {% include "components/empty_state.html" with icon="search" title=_("没有符合条件的公司") hint=empty_hint action_url=providers_url action_label=_("清除全部筛选") %}
     </div>
   {% endif %}
 </section>

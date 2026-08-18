@@ -1,0 +1,24 @@
+{% comment %} One figure in a statistics strip.
+
+   Params: value, label, hint (optional), icon (optional), tone ("dark" on a
+   dark background, anything else on paper).
+
+   Every figure rendered through this component must be a real count from the
+   database. A statistic on a comparison platform is a claim, and an
+   illustrative one is a false claim (COMPLIANCE section 2) - if a number is
+   not available yet, leave the block out rather than invent a placeholder.
+{% endcomment %}
+<div class="{% if tone == 'dark' %}text-white{% else %}text-ink{% endif %}">
+  <div class="flex items-center gap-2">
+    {% if icon %}
+      <span class="{% if tone == 'dark' %}text-brand-200{% else %}text-brand-600{% endif %}">
+        {% include "components/icon.html" with name=icon class="h-4 w-4" %}
+      </span>
+    {% endif %}
+    <span class="text-xs font-medium {% if tone == 'dark' %}text-brand-100{% else %}text-ink-muted{% endif %}">{{ label }}</span>
+  </div>
+  <p class="tabular mt-1 text-2xl font-semibold tracking-tight">{{ value }}</p>
+  {% if hint %}
+    <p class="mt-0.5 text-xs {% if tone == 'dark' %}text-brand-200{% else %}text-ink-faint{% endif %}">{{ hint }}</p>
+  {% endif %}
+</div>

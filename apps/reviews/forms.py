@@ -19,14 +19,10 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.core import turnstile
+from apps.core.form_styles import FILE_CLASSES, INPUT_CLASSES
 from apps.core.uploads import MAX_UPLOAD_BYTES, InspectedUpload, inspect_upload
 from apps.providers.models import ServiceCategory
 from apps.reviews.models import SCORE_FIELDS, DisputeGround
-
-INPUT_CLASSES = (
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm "
-    "focus:border-slate-500 focus:outline-none"
-)
 
 #: 1 - 5 in halves (RATING_SYSTEM section 3), highest first so the radio row
 #: reads the way a star rating does.
@@ -192,7 +188,7 @@ class Nnc1UploadForm(forms.Form):
             "核验结束 %(days)s 日后自动删除，我们只保留核验结论与文件指纹。"
         )
         % {"limit": MAX_UPLOAD_BYTES // (1024 * 1024), "days": 90},
-        widget=forms.ClearableFileInput(attrs={"class": "text-sm"}),
+        widget=forms.ClearableFileInput(attrs={"class": FILE_CLASSES}),
     )
     declared_company_name = forms.CharField(
         label=_("你的公司名称（NNC1 上的名称）"),

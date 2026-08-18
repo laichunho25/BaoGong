@@ -18,6 +18,8 @@ your-project/
 │   ├── RATING_SYSTEM.md            # 評分演算法規格
 │   ├── AI_AGENTS.md                # 7 個 AI Agent 的完整規格
 │   ├── COMPLIANCE.md               # 合規／免責／PDPO 紅線
+│   ├── DESIGN_SYSTEM.md            # 介面語言：token、元件、首頁結構
+│   ├── DEPLOY_RENDER.md            # 部署
 │   ├── ROADMAP.md                  # 分階段交付計劃
 │   └── PROMPT_LIBRARY.md           # 每階段可直接複製的 prompts
 └── .claude/skills/

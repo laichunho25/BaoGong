@@ -2,18 +2,33 @@
 {% comment %} RATING_SYSTEM.md section 4: a provider with no verified reviews has no score.
    The Bayesian prior would render it as 5.00, which is the one number this
    platform must never show for a company nobody has reviewed. Empty state
-   instead - and it says "not yet reviewed", not "0 分". {% endcomment %}
+   instead - and it says "not yet reviewed", not "0 分".
+
+   The bar is drawn from the same number as the text and never on its own: a
+   visual that can be read at a glance must not be able to disagree with the
+   figure it illustrates. {% endcomment %}
 {% if provider.has_verified_reviews %}
-  <span class="inline-flex items-baseline gap-1">
-    <span class="text-base font-semibold text-slate-900">{{ provider.rating_cached|floatformat:2 }}</span>
-    <span class="text-xs text-slate-500">
-      {% blocktranslate trimmed count counter=provider.verified_review_count %}
-        {{ counter }} 条已验证评价
-      {% plural %}
-        {{ counter }} 条已验证评价
-      {% endblocktranslate %}
-    </span>
-  </span>
+  <div class="flex items-center gap-2.5">
+    <div class="flex items-baseline gap-1">
+      <span class="tabular text-lg font-semibold leading-none text-ink">{{ provider.rating_cached|floatformat:2 }}</span>
+      <span class="text-xs text-ink-faint">/ 5</span>
+    </div>
+    <div class="min-w-0">
+      <div class="h-1.5 w-20 overflow-hidden rounded-full bg-surface-sunken" aria-hidden="true">
+        <div class="h-full rounded-full bg-brand-500" style="width: {% widthratio provider.rating_cached 5 100 %}%"></div>
+      </div>
+      <p class="mt-1 text-xs text-ink-muted">
+        {% blocktranslate trimmed count counter=provider.verified_review_count %}
+          {{ counter }} 条已验证评价
+        {% plural %}
+          {{ counter }} 条已验证评价
+        {% endblocktranslate %}
+      </p>
+    </div>
+  </div>
 {% else %}
-  <span class="text-xs text-slate-400">{% translate "暂无已验证评价" %}</span>
+  <span class="inline-flex items-center gap-1.5 text-xs text-ink-faint">
+    {% include "components/icon.html" with name="chat" class="h-3.5 w-3.5" %}
+    {% translate "暂无已验证评价" %}
+  </span>
 {% endif %}

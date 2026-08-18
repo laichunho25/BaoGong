@@ -6,22 +6,26 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-6">
-  <div>
-    <a href="{{ provider.get_absolute_url }}" class="text-sm text-slate-500 underline">
-      &larr; {{ provider.display_name }}
+  <header>
+    <a href="{{ provider.get_absolute_url }}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {{ provider.display_name }}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">
       {% translate "对这条评价提出申诉" %}
     </h1>
-  </div>
+  </header>
 
   {% comment %} What filing does and does not do, stated before the form rather than
      after it. A company arriving here wants the review gone; if the page does
      not say plainly that submitting is not a takedown, the form gets used as
      one and the answer feels like a broken promise. {% endcomment %}
-  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-    <p class="font-medium text-slate-900">{% translate "关于申诉" %}</p>
-    <ul class="mt-2 list-disc space-y-1 pl-5">
+  <div class="rounded-2xl border border-line bg-surface-sunken p-4 text-sm text-ink-soft">
+    <p class="flex items-center gap-1.5 font-medium text-ink">
+      {% include "components/icon.html" with name="scale" class="h-4 w-4" %}
+      {% translate "关于申诉" %}
+    </p>
+    <ul class="mt-2 list-disc space-y-1 pl-5 leading-relaxed">
       <li>{% translate "提交申诉不会隐藏或删除该评价。评价在审核人员作出结论前维持原状。" %}</li>
       <li>
         {% blocktranslate trimmed with days=sla_days %}
@@ -34,41 +38,25 @@
     </ul>
   </div>
 
-  <div class="rounded-lg border border-slate-200 p-4">
-    <div class="flex items-baseline gap-2 text-sm">
-      <span class="font-semibold text-slate-900">{{ review.overall|floatformat:1 }}</span>
+  {% comment %} The review being disputed, quoted on the page, so the form is filled in
+     against the words it is about rather than from memory. {% endcomment %}
+  <figure class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+    <figcaption class="flex flex-wrap items-center gap-2 text-sm">
+      <span class="tabular font-semibold text-ink">{{ review.overall|floatformat:1 }}</span>
       {% if review.is_verified %}
-        <span class="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-          {% translate "已验证" %}
-        </span>
+        {% include "components/badge.html" with tone="success" icon="check" label=_("已验证") %}
       {% endif %}
-      <span class="text-xs text-slate-400">{{ review.published_at|date:"Y-m-d" }}</span>
-    </div>
-    <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ review.body }}</p>
-  </div>
+      <span class="tabular text-xs text-ink-faint">{{ review.published_at|date:"Y-m-d" }}</span>
+    </figcaption>
+    <blockquote class="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">{{ review.body }}</blockquote>
+  </figure>
 
-  <form method="post" class="space-y-5">
+  <form method="post" class="space-y-5 rounded-2xl border border-line bg-white p-6 shadow-sm">
     {% csrf_token %}
-
-    {% if form.non_field_errors %}
-      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-        {{ form.non_field_errors }}
-      </div>
-    {% endif %}
-
-    {% for field in form %}
-      <div>
-        <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
-          {{ field.label }}
-        </label>
-        <div class="mt-1 text-sm text-slate-700">{{ field }}</div>
-        {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
-        {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
-      </div>
-    {% endfor %}
+    {% include "components/form_fields.html" %}
 
     <button type="submit"
-            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 sm:w-auto">
       {% translate "提交申诉" %}
     </button>
   </form>

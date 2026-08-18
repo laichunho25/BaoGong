@@ -6,49 +6,53 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-6">
-  <div>
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{% translate "发布需求" %}</h1>
-    <p class="mt-1 text-sm text-slate-600">
+  <header>
+    <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "第 1 步，共 3 步" %}</p>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink">{% translate "发布需求" %}</h1>
+    <p class="mt-1 text-sm text-ink-muted">
       {% translate "填一次，多家持牌公司按同一口径向您报价。" %}
     </p>
-  </div>
+  </header>
+
+  {% comment %} The three steps, shown before the form: a buyer deciding whether to type
+     is deciding about the whole flow, not about this page. Static markers, not
+     a live progress bar - the later steps happen on other pages. {% endcomment %}
+  <ol class="grid gap-3 text-sm sm:grid-cols-3">
+    <li class="rounded-xl border border-brand-200 bg-brand-50 p-3">
+      <span class="tabular text-xs font-semibold text-brand-700">01</span>
+      <p class="mt-0.5 font-medium text-ink">{% translate "填写需求并确认发布" %}</p>
+    </li>
+    <li class="rounded-xl border border-line bg-white p-3">
+      <span class="tabular text-xs font-semibold text-ink-faint">02</span>
+      <p class="mt-0.5 font-medium text-ink-soft">{% translate "持牌公司在需求墙上报价" %}</p>
+    </li>
+    <li class="rounded-xl border border-line bg-white p-3">
+      <span class="tabular text-xs font-semibold text-ink-faint">03</span>
+      <p class="mt-0.5 font-medium text-ink-soft">{% translate "按同一口径比较后自行联系" %}</p>
+    </li>
+  </ol>
 
   {% comment %} The privacy promise is stated before the form, because it is what
      the buyer is deciding when they decide whether to type. {% endcomment %}
-  <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-    <p class="font-medium text-slate-900">{% translate "关于您的隐私" %}</p>
-    <ul class="mt-2 list-disc space-y-1 pl-5">
-      <li>{% translate "需求墙上只显示需求内容，不显示您的姓名、电话或邮箱。" %}</li>
-      <li>{% translate "秘书公司通过平台报价，不会直接拿到您的联系方式。" %}</li>
-      <li>{% translate "需求先保存为草稿，您确认后才会公开。" %}</li>
-      <li>{% translate "本平台不代收代付服务费，选择哪一家、如何签约由您与该公司自行决定。" %}</li>
+  <div class="rounded-2xl border border-line bg-surface-sunken p-4 text-sm text-ink-soft">
+    <p class="flex items-center gap-1.5 font-medium text-ink">
+      {% include "components/icon.html" with name="lock" class="h-4 w-4" %}
+      {% translate "关于您的隐私" %}
+    </p>
+    <ul class="mt-2 space-y-1.5">
+      <li class="flex gap-2"><span class="mt-0.5 shrink-0 text-success-600">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>{% translate "需求墙上只显示需求内容，不显示您的姓名、电话或邮箱。" %}</li>
+      <li class="flex gap-2"><span class="mt-0.5 shrink-0 text-success-600">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>{% translate "秘书公司通过平台报价，不会直接拿到您的联系方式。" %}</li>
+      <li class="flex gap-2"><span class="mt-0.5 shrink-0 text-success-600">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>{% translate "需求先保存为草稿，您确认后才会公开。" %}</li>
+      <li class="flex gap-2"><span class="mt-0.5 shrink-0 text-success-600">{% include "components/icon.html" with name="check" class="h-4 w-4" %}</span>{% translate "本平台不代收代付服务费，选择哪一家、如何签约由您与该公司自行决定。" %}</li>
     </ul>
   </div>
 
-  <form method="post" class="space-y-5">
+  <form method="post" class="space-y-5 rounded-2xl border border-line bg-white p-6 shadow-sm">
     {% csrf_token %}
-
-    {% if form.non_field_errors %}
-      <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-        {{ form.non_field_errors }}
-      </div>
-    {% endif %}
-
-    {% for field in form %}
-      <div>
-        <label class="block text-sm font-medium text-slate-800" for="{{ field.id_for_label }}">
-          {{ field.label }}
-        </label>
-        <div class="mt-1 {% if field.field.widget.input_type == 'checkbox' %}text-sm text-slate-700{% endif %}">
-          {{ field }}
-        </div>
-        {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
-        {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|striptags }}</p>{% endif %}
-      </div>
-    {% endfor %}
+    {% include "components/form_fields.html" %}
 
     <button type="submit"
-            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 sm:w-auto">
       {% translate "保存草稿" %}
     </button>
   </form>
