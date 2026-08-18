@@ -25,5 +25,10 @@ COPY . .
 
 RUN python -c "import compileall,sys; sys.exit(0 if compileall.compile_dir('apps', quiet=1) else 1)"
 
+# The message catalogue is compiled here rather than committed: a `.mo` is a
+# build artefact, and a stale one serves the wrong words without saying so.
+# Without this step every model choice label falls back to its English msgid.
+RUN django-admin compilemessages --locale zh_Hans
+
 EXPOSE 8000
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]

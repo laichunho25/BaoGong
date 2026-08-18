@@ -63,6 +63,24 @@ Tailwind is built with the standalone CLI (no npm tree in the repo):
 ./scripts/tailwind.ps1 -Watch   # during development
 ```
 
+## Translations
+
+Most user-facing copy is written in Simplified Chinese at the source. Model
+choice labels are not: they are English msgids, and an untranslated one reaches
+the page, so `locale/zh_Hans/LC_MESSAGES/django.po` translates every label a
+buyer or a company can see. Internal-console strings are left blank on purpose.
+
+`.mo` files are build output and are not committed. After changing a `.po` (and
+once, on a fresh checkout) run:
+
+```bash
+uv run python manage.py makemessages -l zh_Hans   # after adding new strings
+uv run django-admin compilemessages --locale zh_Hans
+```
+
+Both need GNU gettext on `PATH` (Windows: `gettext-iconv/bin`). The Docker image
+and CI compile the catalogue themselves.
+
 ## Definition of done
 
 Every task must satisfy `CLAUDE.md` section 7 before it counts as finished:

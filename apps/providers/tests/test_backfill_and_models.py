@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 from django.core.management import call_command
 from django.db.utils import IntegrityError
+from django.utils import translation
 
 from apps.providers.models import (
     PriceItem,
@@ -95,5 +96,10 @@ class TestProviderDisplayHelpers:
     def test_array_choices_render_as_labels(self, make_provider: Callable[..., Provider]) -> None:
         provider = make_provider(languages=["mandarin", "bogus"], bank_types=["virtual"])
 
-        assert provider.language_labels == ["Mandarin"]
-        assert provider.bank_type_labels == ["Virtual bank"]
+        # A value the enum does not know is dropped rather than printed raw, and
+        # what is printed is printed in the reader's language: these labels are
+        # English msgids in the source, so an untranslated one reaches a buyer's
+        # screen as "Virtual bank" in the middle of a Simplified Chinese page.
+        with translation.override("zh-hans"):
+            assert provider.language_labels == ["普通话"]
+            assert provider.bank_type_labels == ["虚拟银行"]

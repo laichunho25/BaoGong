@@ -55,5 +55,12 @@ jobs:
       - run: uv sync --group dev
       - name: missing migrations
         run: uv run python manage.py makemigrations --check --dry-run
+      # `.mo` files are build output and are not committed, so the catalogue is
+      # compiled here too - otherwise the suite would assert against English
+      # msgids that production never shows.
+      - name: compile messages
+        run: |
+          sudo apt-get update && sudo apt-get install -y gettext
+          uv run django-admin compilemessages --locale zh_Hans
       - name: pytest
         run: uv run pytest -m "not eval"

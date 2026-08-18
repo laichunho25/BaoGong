@@ -49,7 +49,7 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P2] responsiveness_score 恆為 0` — 排序權重 §5 的 0.08 目前對所有公司同值，等於少了一個維度 — P5 RFQ 落地後由回覆時間寫入。
 - ~~`[P2] rating_cached / verified_review_count 尚無寫入者`~~ — P4-1 已由 `reviews.services.recompute_provider_rating` 回寫，並接著重算排序輸入；沒有已驗證評價時寫 **null 而非 5.00**（RATING_SYSTEM §4）。在 P4-2 上線前 `is_verified` 仍無人寫入，因此全站分數實際上還是空狀態。
 - ~~`[P2] 認領 CTA 只是靜態文字`~~ — P3 已接上 `providers:claim_start`，已有待審申請的頁面改顯示「審核中」。
-- `[P2] UI 文案只有簡中硬字串（gettext 已包，locale/ 仍空）` — 切到繁中／英文會落回簡中 — 與 P0 的免責文案一併處理，法律相關文字須人手翻譯。
+- `[P2] 只有 zh_Hans 一本目錄，且內部後台仍是英文` — 切到繁中／英文會落回簡中；`locale/zh_Hans` 已建立並翻完面向用戶的 choice label，但**內部後台的 msgid 刻意留空**（給員工看的，翻了反而看不出哪些字還沒人審過），`zh_Hant` / `en` 兩本尚未產生 — 與 P0 的免責文案一併處理，法律相關文字須人手翻譯不得機器轉換。
 - `[P2] Provider.logo 用 FileField 而非 ImageField，且未接 core.uploads / 掃描器` — P3 的 `ClaimEvidence` 已有 magic-byte 嗅探、大小上限與病毒掃描，但 logo 尚未開放上傳，也還沒走同一條路 — P7 開放公司自助編輯 profile 時，logo 必須改走 `inspect_upload` + 掃描，且沒裝 Pillow 就不驗尺寸。
 - `[P2] 目錄頁沒有快取` — 7,457 列每次都打 DB，查詢數已測 < 15 但仍是每請求全打 — 有真實流量後再加 Redis 片段快取。
 - `[P3] 手機號碼只收不驗` — `User.phone` 是選填自由文字，沒有 SMS 驗證，因此不可作為身分證據 — P5 RFQ 需要可聯絡的買家時再接簡訊供應商（內地號碼須先確認 COMPLIANCE §2 的跨境限制）。
@@ -103,7 +103,7 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P5] 需求牆沒有分頁、沒有篩選` — 上限寫死 100 則（`views.WALL_LIMIT`） — 牆上超過一頁的量出現之前，多給幾則比多一個分頁器有用；到時篩選要按服務類別與公司類型，不是按買家。
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。
 - ~~`[UI] 首頁的業務功能與精選評語在空資料庫上是空的`~~ — 已補：`manage.py seed_demo`（`apps/core/management/commands/seed_demo.py`）造出服務、價格、三種狀態的評價、一張開放中的需求與三份報價，全部走 services，`--reset` 收回。**沒有 `DEBUG` 就拒跑**：它把虛構的評價與價格掛在真實持牌公司的名字下面，不得進生產。唯一繞過 service 的是掃毒——本機沒有掃描器，NNC1 永遠不可讀，所以 seed 自己把檔案標成 clean 再交給 `decide_verification` 決定。
-- `[UI] seed 出來的頁面會露出英文服務名稱` — A2 的 fallback 句子用 `ServiceCategory` 的 gettext label，`locale/` 是空的，所以簡中頁面上會出現「提供你需要的服务：Company incorporation」 — 與 `[P2] locale/ 仍空` 是同一件事，補翻譯時一併解決；在那之前這是本機看得最清楚的一個提醒。
+- ~~`[UI] seed 出來的頁面會露出英文服務名稱`~~ — 已補：`locale/zh_Hans/LC_MESSAGES/django.po` 翻好了所有**面向用戶**的 choice label（服務類別、銀行類型、語言、需求／報價狀態、報價項目、申訴理由等），「提供你需要的服务：Company incorporation」不會再出現。`.mo` 是建置產物、不進版控，因此 Dockerfile 與 CI 各自跑一次 `compilemessages`。
 - `[UI] 沒有視覺回歸測試` — 現在只斷言「區塊在不在、數字對不對」，版面跑掉不會有人知道 — 頁面數穩定下來再考慮 Playwright 截圖比對；在那之前，改 template 後務必手動看一次並重建 `app.css`。
 
 ---
