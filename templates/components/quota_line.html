@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %} What the company has left, said with the clock it resets on: a free page
+   counts by month and a subscribed one by day (PRD 3.7), and "剩 1 次" is a
+   different decision depending on which. Takes ``quota`` (rfq.selectors.QuotaState).
+{% endcomment %}
+<span class="tabular">
+  {% if quota.is_monthly %}
+    {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}本月剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+  {% else %}
+    {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+  {% endif %}
+</span>

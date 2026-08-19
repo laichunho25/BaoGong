@@ -62,8 +62,8 @@
           <p class="mt-1.5 text-xs text-ink-faint">{% translate "撤回不会退回已用掉的报价额度。" %}</p>
         {% endif %}
       {% elif entry.quota.can_quote %}
-        <p class="tabular mt-2 text-ink-muted">
-          {% blocktranslate with free=entry.quota.free_remaining paid=entry.quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
+        <p class="mt-2 text-ink-muted">
+          {% include "components/quota_line.html" with quota=entry.quota %}
         </p>
         <a href="{% url 'rfq:quote' rfq.id entry.provider.slug %}"
            class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700">

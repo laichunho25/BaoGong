@@ -392,10 +392,7 @@ class QuotaLedger(BaseModel):
     def __str__(self) -> str:
         return f"{self.provider.slug} {self.date} free={self.free_used} paid={self.paid_used}"
 
-    @property
-    def free_remaining(self) -> int:
-        return max(int(settings.RFQ_FREE_QUOTES_PER_DAY) - self.free_used, 0)
-
-    @property
-    def can_quote(self) -> bool:
-        return self.free_remaining > 0 or self.paid_balance > 0
+    # No ``free_remaining`` here on purpose: how much is left depends on the
+    # company's tier and, for the free tier, on the other rows of the same
+    # month. One row cannot answer that question - ``rfq.allowances`` and
+    # ``selectors.quota_state`` can.

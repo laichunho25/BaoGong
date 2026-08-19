@@ -37,11 +37,11 @@
         {{ provider.display_name }}
       </span>
       <span class="text-ink-faint">&middot;</span>
-      <span class="tabular">
-        {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
-      </span>
+      {% include "components/quota_line.html" with quota=quota %}
       {% if not quota.can_quote %}
-        <span class="text-warning-700">{% translate "（额度已用完，明日恢复或购买额度）" %}</span>
+        <span class="text-warning-700">
+          {% if quota.is_monthly %}{% translate "（额度已用完，下月恢复、购买额度或升级方案）" %}{% else %}{% translate "（额度已用完，明日恢复或购买额度）" %}{% endif %}
+        </span>
       {% endif %}
     </div>
   {% endfor %}

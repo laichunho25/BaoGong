@@ -327,8 +327,20 @@ NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評�
 
 ### QuotaLedger（P5-1 已實作）
 `provider(FK)`, `date`, `free_used(int)`, `paid_used(int)`, `paid_balance(int)`
-規則：每日 `RFQ_FREE_QUOTES_PER_DAY = 3`；先扣免費再扣付費；`unique(provider, date)`
+規則：先扣免費再扣付費；`unique(provider, date)`。免費額度的大小與週期由
+`rfq/allowances.py` 依 **`provider.effective_tier`** 決定（PRD §3.7）：
 
+| tier | 免費額度 | 週期 |
+|---|---|---|
+| `free`（已認領） | `RFQ_FREE_QUOTES_PER_MONTH = 5` | 月 |
+| `verified` | `RFQ_QUOTES_PER_DAY_VERIFIED = 5` | 日 |
+| `premium` | `RFQ_QUOTES_PER_DAY_PREMIUM = 20` | 日 |
+
+- **流水帳仍然是每日一列**，只是免費已用量改成「當期內所有列的 `free_used` 總和」
+  （`allowances.period_bounds`）。這樣升降方案不需要改帳，也保住「哪一天花了幾次」的紀錄。
+- 上鎖只鎖**當日那一列**：同一期內更早的列已經封存、不會再變，
+  並發的兩筆送出只可能在當日那一列上衝突。
+- `paid_balance` **不分週期**：買來的額度賣的時候沒說會過期，跨日跨月都結轉。
 - 是**流水帳**不是計數器：`paid_balance` 為當日結餘，新的一天由 `services._ledger_for`
   從最近一列結轉。「我公司那天為什麼不能報價」因此有一個帶日期的答案。
 - 只有花掉或買入才會產生一列。讀取（`selectors.quota_state`）**永不寫入**，

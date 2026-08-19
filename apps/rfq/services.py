@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.db import IntegrityError, models, transaction
+from django.db.models import Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -42,6 +43,7 @@ from apps.agents import tasks as agent_tasks
 from apps.core.money import Money, MoneyError
 from apps.core.notifications import absolute_url, notify
 from apps.providers.models import ClaimStatus
+from apps.rfq.allowances import Allowance, allowance_for, period_bounds
 from apps.rfq.models import (
     QUOTABLE_STATUSES,
     LineItemLabel,
@@ -208,10 +210,25 @@ def _ledger_for(provider: Provider, day: date) -> QuotaLedger:
         return QuotaLedger.objects.select_for_update().get(provider=provider, date=day)
 
 
+def _free_used_in_period(provider: Provider, allowance: Allowance, day: date) -> int:
+    """Free quotes already spent in the period ``day`` falls in.
+
+    Read after ``_ledger_for`` has taken the lock on today's row: earlier rows
+    in the period are closed and never change again, so the only row two
+    concurrent submissions could disagree about is the one already locked.
+    """
+    start, end = period_bounds(allowance.period, day)
+    total = QuotaLedger.objects.filter(provider=provider, date__gte=start, date__lte=end).aggregate(
+        used=Sum("free_used")
+    )["used"]
+    return int(total or 0)
+
+
 def _spend_quote(provider: Provider, day: date) -> str:
     """Consume one quote from the free allowance, then from purchased credit."""
     ledger = _ledger_for(provider, day)
-    if ledger.free_remaining > 0:
+    allowance = allowance_for(provider)
+    if _free_used_in_period(provider, allowance, day) < allowance.limit:
         ledger.free_used += 1
         ledger.save(update_fields=["free_used", "updated_at"])
         return "free"
@@ -221,7 +238,9 @@ def _spend_quote(provider: Provider, day: date) -> str:
         ledger.save(update_fields=["paid_used", "paid_balance", "updated_at"])
         return "paid"
     raise QuotaExceeded(
-        _("今日免费报价额度已用完，购买额度后可继续报价。"),
+        _("本月免费报价额度已用完，购买额度或升级方案后可继续报价。")
+        if allowance.is_monthly
+        else _("今日免费报价额度已用完，购买额度后可继续报价。"),
     )
 
 

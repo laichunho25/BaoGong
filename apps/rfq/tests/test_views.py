@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from django.conf import settings
 from django.urls import reverse
 
 from apps.providers.models import ClaimStatus
@@ -382,7 +383,7 @@ def test_a_company_out_of_quota_is_sent_somewhere_it_can_do_something(
     """The one refusal on the platform that ends in an offer to buy something,
     so it must not look like a validation error on the form."""
     provider, member = make_quoting_provider()
-    for index in range(3):
+    for index in range(settings.RFQ_FREE_QUOTES_PER_MONTH):
         other = services.create_rfq(
             buyer=buyer, title=f"Other request {index}", services_needed=["incorporation"]
         )

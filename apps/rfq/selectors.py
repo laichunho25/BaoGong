@@ -18,12 +18,13 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from django.db.models import Aggregate, Count, Exists, FloatField, OuterRef, Q
+from django.db.models import Aggregate, Count, Exists, FloatField, OuterRef, Q, Sum
 from django.utils import timezone
 
 from apps.core.money import Money
 from apps.providers.models import ClaimStatus, Provider
 from apps.reviews.models import Review, ReviewStatus
+from apps.rfq.allowances import MONTHLY, allowance_for, period_bounds
 from apps.rfq.models import (
     LineItemLabel,
     QuotaLedger,
@@ -100,7 +101,7 @@ class MatchingSnapshot:
     open_requests: int
     quotes_recently: int
     window_days: int
-    free_quotes_per_day: int
+    free_quotes_per_month: int
 
 
 def matching_snapshot(*, window_days: int = 30, now: datetime | None = None) -> MatchingSnapshot:
@@ -113,7 +114,7 @@ def matching_snapshot(*, window_days: int = 30, now: datetime | None = None) -> 
             submitted_at__gte=moment - timedelta(days=window_days)
         ).count(),
         window_days=window_days,
-        free_quotes_per_day=settings.RFQ_FREE_QUOTES_PER_DAY,
+        free_quotes_per_month=settings.RFQ_FREE_QUOTES_PER_MONTH,
     )
 
 
@@ -181,33 +182,46 @@ def todays_ledger(provider: Provider, day: date | None = None) -> QuotaLedger | 
 
 
 class QuotaState(NamedTuple):
-    """What the company has left today, safe to render without writing."""
+    """What the company has left in the current period, safe to render.
+
+    Carries the period as well as the number, because 「3 left」 means one thing
+    until midnight and another until the first of next month, and the company
+    reading it is deciding whether to spend one now.
+    """
 
     free_remaining: int
     paid_balance: int
+    limit: int
+    period: str
 
     @property
     def can_quote(self) -> bool:
         return self.free_remaining > 0 or self.paid_balance > 0
 
+    @property
+    def is_monthly(self) -> bool:
+        return self.period == MONTHLY
+
 
 def quota_state(provider: Provider, day: date | None = None) -> QuotaState:
-    from django.conf import settings
-
-    ledger = todays_ledger(provider, day)
-    if ledger is None:
-        # No row today. The balance still carries forward from the last day the
-        # company spent or bought anything.
-        previous = (
-            QuotaLedger.objects.filter(provider=provider, date__lt=day or timezone.localdate())
-            .order_by("-date")
-            .first()
-        )
-        return QuotaState(
-            free_remaining=settings.RFQ_FREE_QUOTES_PER_DAY,
-            paid_balance=previous.paid_balance if previous else 0,
-        )
-    return QuotaState(free_remaining=ledger.free_remaining, paid_balance=ledger.paid_balance)
+    """What the company may still spend, without writing a ledger row."""
+    today = day or timezone.localdate()
+    allowance = allowance_for(provider)
+    start, end = period_bounds(allowance.period, today)
+    used = QuotaLedger.objects.filter(provider=provider, date__gte=start, date__lte=end).aggregate(
+        used=Sum("free_used")
+    )["used"]
+    # The purchased balance is not periodic: it carries forward from the last
+    # day the company spent or bought anything, which may be months ago.
+    latest = (
+        QuotaLedger.objects.filter(provider=provider, date__lte=today).order_by("-date").first()
+    )
+    return QuotaState(
+        free_remaining=max(allowance.limit - int(used or 0), 0),
+        paid_balance=latest.paid_balance if latest else 0,
+        limit=allowance.limit,
+        period=allowance.period,
+    )
 
 
 class ComparisonCell(NamedTuple):

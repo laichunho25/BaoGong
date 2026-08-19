@@ -412,13 +412,13 @@ class TestMatchingSnapshot:
         assert selectors.matching_snapshot(window_days=30).quotes_recently == 0
 
     def test_it_reports_the_free_allowance_the_page_quotes(self) -> None:
-        # The home page prints "每家每日免费 N 次" from this field; a hard-coded
+        # The home page prints "每家每月免费 N 次" from this field; a hard-coded
         # number in the template would drift from the setting that enforces it.
         from django.conf import settings
 
         snapshot = selectors.matching_snapshot()
 
-        assert snapshot.free_quotes_per_day == settings.RFQ_FREE_QUOTES_PER_DAY
+        assert snapshot.free_quotes_per_month == settings.RFQ_FREE_QUOTES_PER_MONTH
 
     def test_a_draft_requirement_is_not_open(self, buyer: User) -> None:
         services.create_rfq(

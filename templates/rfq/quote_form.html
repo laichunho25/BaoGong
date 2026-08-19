@@ -15,9 +15,7 @@
     <p class="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-ink-muted">
       <span class="font-medium text-ink">{{ provider.display_name }}</span>
       <span class="text-ink-faint">&middot;</span>
-      <span class="tabular">
-        {% blocktranslate with free=quota.free_remaining paid=quota.paid_balance %}今日剩余免费报价 {{ free }} 次，已购额度 {{ paid }} 次{% endblocktranslate %}
-      </span>
+      {% include "components/quota_line.html" with quota=quota %}
     </p>
   </header>
 

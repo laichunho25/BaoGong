@@ -300,20 +300,20 @@ def test_a_refused_quote_gives_the_daily_credit_back(
             line_items=[{"label": "not_a_real_item", "amount_minor": 1}],
         )
 
-    assert selectors.quota_state(provider).free_remaining == 3
+    assert selectors.quota_state(provider).free_remaining == 5
 
 
 # ------------------------------------------------------------------- the quota
 
 
-def test_the_fourth_quote_of_the_day_is_refused_and_a_purchase_unblocks_it(
+def test_the_sixth_free_quote_of_the_month_is_refused_and_a_purchase_unblocks_it(
     buyer: User,
     make_quoting_provider: Callable[..., tuple[Provider, User]],
     quote_payload: dict[str, Any],
 ) -> None:
     """ROADMAP's acceptance test for P5, and the free tier's whole definition.
 
-    Four separate requests, because the one-live-quote-per-request rule would
+    Six separate requests, because the one-live-quote-per-request rule would
     otherwise be the thing doing the refusing and the quota would go untested.
     """
 
@@ -324,24 +324,24 @@ def test_the_fourth_quote_of_the_day_is_refused_and_a_purchase_unblocks_it(
         return services.publish_rfq(rfq=rfq, buyer=buyer)
 
     provider, member = make_quoting_provider()
-    requests = [_request(n) for n in range(4)]
+    requests = [_request(n) for n in range(6)]
 
-    for rfq in requests[:3]:
+    for rfq in requests[:5]:
         services.submit_quote(rfq=rfq, provider=provider, submitted_by=member, **quote_payload)
 
     with pytest.raises(services.QuotaExceeded):
         services.submit_quote(
-            rfq=requests[3], provider=provider, submitted_by=member, **quote_payload
+            rfq=requests[5], provider=provider, submitted_by=member, **quote_payload
         )
 
     services.grant_quote_credits(provider=provider, credits=2)
     quote = services.submit_quote(
-        rfq=requests[3], provider=provider, submitted_by=member, **quote_payload
+        rfq=requests[5], provider=provider, submitted_by=member, **quote_payload
     )
 
     assert quote.status == QuoteStatus.SUBMITTED
     ledger = QuotaLedger.objects.get(provider=provider, date=timezone.localdate())
-    assert (ledger.free_used, ledger.paid_used, ledger.paid_balance) == (3, 1, 1)
+    assert (ledger.free_used, ledger.paid_used, ledger.paid_balance) == (5, 1, 1)
 
 
 def test_withdrawing_does_not_refund_the_quote(
@@ -358,21 +358,21 @@ def test_withdrawing_does_not_refund_the_quote(
 
     services.withdraw_quote(quote=quote, member=member)
 
-    assert selectors.quota_state(provider).free_remaining == 2
+    assert selectors.quota_state(provider).free_remaining == 4
 
 
 def test_a_purchased_balance_survives_into_the_next_day(
     make_quoting_provider: Callable[..., tuple[Provider, User]],
 ) -> None:
-    """The free allowance resets daily; bought credit does not expire overnight
-    because nobody sold it on that basis."""
+    """Bought credit does not expire overnight, because nobody sold it on that
+    basis - the periodic allowance resets, the balance does not."""
     provider, _member = make_quoting_provider()
     yesterday = timezone.localdate() - timedelta(days=1)
     services.grant_quote_credits(provider=provider, credits=5, day=yesterday)
 
     state = selectors.quota_state(provider)
 
-    assert (state.free_remaining, state.paid_balance) == (3, 5)
+    assert (state.free_remaining, state.paid_balance) == (5, 5)
 
 
 def test_reading_the_quota_never_writes_a_row(
