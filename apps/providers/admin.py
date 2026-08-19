@@ -32,6 +32,7 @@ from apps.providers.models import (
     PriceItem,
     Provider,
     ProviderClaim,
+    ProviderProfileEdit,
     ServiceOffering,
 )
 
@@ -442,3 +443,100 @@ class ClaimEvidenceAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
                 "opts": self.model._meta,
             },
         )
+
+
+@admin.register(ProviderProfileEdit)
+class ProviderProfileEditAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    """Change log for company-edited pages, and the queue for their free text.
+
+    Structured changes arrive here already applied - they are listed so that
+    "who changed the price on this page?" has an answer, not so that anyone has
+    to approve them. Only ``submitted_description`` waits: published under our
+    layout, a company's own paragraphs read as something the platform stands
+    behind, and no phrase list can tell whether a sentence is true.
+
+    Nothing is editable. A moderator who disagrees with a paragraph rejects it
+    with a reason; editing the company's words and publishing them under its
+    name would make the platform the author of a claim it did not make.
+    """
+
+    list_display = ("provider", "status", "summary", "is_correction", "actor", "created_at")
+    list_filter = ("status", "is_correction")
+    search_fields = ("provider__slug", "provider__licensee__name_en", "actor__email")
+    date_hierarchy = "created_at"
+    actions = ("approve_descriptions", "reject_descriptions")
+    readonly_fields = tuple(f.name for f in ProviderProfileEdit._meta.fields)
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[ProviderProfileEdit]:
+        queryset: QuerySet[ProviderProfileEdit] = super().get_queryset(request)
+        return queryset.select_related("provider__licensee", "actor", "reviewed_by")
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    @admin.display(description=_("Changed"))
+    def summary(self, obj: ProviderProfileEdit) -> str:
+        parts = list(obj.changed_fields)
+        if obj.submitted_description:
+            parts.append("description")
+        return ", ".join(parts) or "-"
+
+    def _decide_descriptions(
+        self, request: HttpRequest, queryset: QuerySet[ProviderProfileEdit], *, approve: bool
+    ) -> HttpResponse | None:
+        action = "approve_descriptions" if approve else "reject_descriptions"
+        form = ReasonForm(request.POST if "apply_reason" in request.POST else None)
+        if form.is_valid():
+            decided = 0
+            for edit in queryset:
+                try:
+                    services.decide_profile_edit(
+                        edit=edit,
+                        reviewer=request.user,  # type: ignore[arg-type]
+                        approve=approve,
+                        note=form.cleaned_data["reason"],
+                    )
+                except services.ProfileEditError as exc:
+                    self.message_user(request, f"{edit.provider.slug}: {exc}", messages.ERROR)
+                else:
+                    decided += 1
+            if decided:
+                self.message_user(
+                    request,
+                    _("%(count)s description(s) decided.") % {"count": decided},
+                    messages.SUCCESS,
+                )
+            return None
+
+        return render(
+            request,
+            "admin/decision_reason.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": _("Publish company descriptions")
+                if approve
+                else _("Reject company descriptions"),
+                "objects": queryset,
+                "form": form,
+                "action": action,
+                "opts": self.model._meta,
+            },
+        )
+
+    @admin.action(description=_("Publish selected descriptions (reason required)"))
+    def approve_descriptions(
+        self, request: HttpRequest, queryset: QuerySet[ProviderProfileEdit]
+    ) -> HttpResponse | None:
+        return self._decide_descriptions(request, queryset, approve=True)
+
+    @admin.action(description=_("Reject selected descriptions (reason required)"))
+    def reject_descriptions(
+        self, request: HttpRequest, queryset: QuerySet[ProviderProfileEdit]
+    ) -> HttpResponse | None:
+        return self._decide_descriptions(request, queryset, approve=False)

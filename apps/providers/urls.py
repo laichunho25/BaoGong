@@ -19,5 +19,6 @@ urlpatterns = [
         name="claim_evidence",
     ),
     path("<slug:slug>/claim/", views.claim_start, name="claim_start"),
+    path("<slug:slug>/manage/", views.provider_manage, name="manage"),
     path("<slug:slug>/", views.provider_detail, name="detail"),
 ]

@@ -11,6 +11,8 @@ day one - long before anybody claims it.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
@@ -24,6 +26,9 @@ from apps.core.money import Money
 from apps.core.scanning import READABLE_STATUSES, ScanStatus
 from apps.core.storage import private_storage
 from apps.registry.models import Licensee
+
+if TYPE_CHECKING:
+    from django_stubs_ext import StrOrPromise
 
 
 class ClaimStatus(models.TextChoices):
@@ -79,6 +84,23 @@ class Provider(BaseModel):
     # virus scan) is specified for P3 and belongs there, not in a field type.
     logo = models.FileField(upload_to="providers/logos/", blank=True)
     website = models.URLField(blank=True)
+
+    # Public contact details, supplied by the company itself. Publishing them
+    # lets a buyer go straight to the company without an RFQ, which is the
+    # point: a comparison site that hides the phone number is a lead broker
+    # (COMPLIANCE section 6 draws exactly that line). WeChat is listed because
+    # the buyers this platform is for do not use email to start a conversation.
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=32, blank=True)
+    contact_wechat = models.CharField(max_length=64, blank=True)
+
+    # The company's own words. Only ever written by
+    # ``services.decide_profile_edit`` after a human has read them: free text
+    # published under our layout is the platform lending its voice, and
+    # ``check_banned_phrases`` alone cannot tell whether a sentence is true.
+    description = models.TextField(
+        blank=True, help_text="Published self-introduction. Set by moderation, never by a form."
+    )
     founded_year = models.PositiveSmallIntegerField(null=True, blank=True)
     team_size = models.PositiveIntegerField(null=True, blank=True)
     office_photos = models.JSONField(default=list, blank=True)
@@ -478,3 +500,101 @@ class Certification(BaseModel):
     @property
     def is_current(self) -> bool:
         return self.expires_at is None or self.expires_at > timezone.now()
+
+
+class ProfileEditStatus(models.TextChoices):
+    APPLIED = "applied", _("Applied immediately")
+    PENDING = "pending", _("Awaiting review")
+    APPROVED = "approved", _("Approved")
+    REJECTED = "rejected", _("Rejected")
+
+
+# What a company sees in its own change log. Keyed by the name the diff stores,
+# so a field renamed in the model shows up here as a missing label rather than
+# as a wrong one.
+PROFILE_FIELD_LABELS: dict[str, StrOrPromise] = {
+    "contact_email": _("联系邮箱"),
+    "contact_phone": _("联系电话"),
+    "contact_wechat": _("微信号"),
+    "website": _("公司网站"),
+    "service_categories": _("业务范畴"),
+    "founded_year": _("成立年份"),
+    "team_size": _("团队人数"),
+    "languages": _("服务语言"),
+    "supports_simplified": _("简体中文服务"),
+    "remote_onboarding": _("远程办理"),
+    "bank_account_support": _("协助开户"),
+    "bank_types": _("合作银行类型"),
+    "non_resident_shareholder_experience": _("非本地股东经验"),
+    "industry_specialties": _("行业专长"),
+}
+
+
+class ProviderProfileEdit(BaseModel):
+    """One self-service change to a company page, and what became of it.
+
+    Append-only. Every edit a company makes lands here before or as it lands on
+    ``Provider``, which gives three things nothing else did: an answer to "who
+    changed the price on this page and when", the clock the free tier's
+    once-a-year allowance is measured from, and a queue for the one field that
+    cannot go live unread.
+
+    Structured fields (contact details, languages, services, prices) apply at
+    once - it is the company's own page and a wrong phone number hurts nobody
+    but itself. ``description`` is free text and does not: published under our
+    layout it reads as something the platform stands behind, so it waits in
+    ``submitted_description`` until a moderator decides.
+
+    ``is_correction`` marks a fix rather than an update. Corrections do not
+    consume the annual allowance, because a company that mistyped its own phone
+    number must not be told to live with it for a year - the person that hurts
+    is the buyer who dials it.
+    """
+
+    provider = models.ForeignKey(Provider, on_delete=models.CASCADE, related_name="profile_edits")
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Null once the account is deleted; the row and its diff remain.",
+    )
+    status = models.CharField(
+        max_length=16, choices=ProfileEditStatus.choices, default=ProfileEditStatus.APPLIED
+    )
+    # {field: {"from": <old>, "to": <new>}} for everything already applied.
+    changes = models.JSONField(default=dict, blank=True)
+    submitted_description = models.TextField(blank=True)
+    is_correction = models.BooleanField(default=False)
+
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("profile edit")
+        verbose_name_plural = _("profile edits")
+        indexes = [
+            models.Index(fields=["provider", "-created_at"]),
+            models.Index(fields=["status", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider_id} {self.status} {self.created_at:%Y-%m-%d}"
+
+    @property
+    def changed_fields(self) -> list[str]:
+        return sorted(self.changes)
+
+    @property
+    def changed_field_labels(self) -> list[str]:
+        """The same list in the words the company used when it typed them."""
+        return [str(PROFILE_FIELD_LABELS.get(name, name)) for name in self.changed_fields]
+
+    @property
+    def counts_towards_allowance(self) -> bool:
+        """Whether this edit starts the free tier's twelve-month clock."""
+        return not self.is_correction and self.status != ProfileEditStatus.REJECTED

@@ -31,8 +31,10 @@ from apps.providers.models import (
     ClaimStatus,
     Language,
     PriceItem,
+    ProfileEditStatus,
     Provider,
     ProviderClaim,
+    ProviderProfileEdit,
     ServiceCategory,
     ServiceOffering,
     Tier,
@@ -480,3 +482,41 @@ def claimable_provider(slug: str) -> Provider | None:
     if provider is None or provider.claim_status == ClaimStatus.CLAIMED:
         return None
     return provider
+
+
+def pending_description_edits(provider: Provider) -> QuerySet[ProviderProfileEdit]:
+    """Self-introductions this company has submitted and nobody has read yet."""
+    return provider.profile_edits.filter(status=ProfileEditStatus.PENDING).order_by("created_at")
+
+
+def recent_profile_edits(provider: Provider, *, limit: int = 10) -> list[ProviderProfileEdit]:
+    """The company's own change history, newest first.
+
+    Shown back to the company rather than kept internal: the page is the only
+    place it can find out that a colleague changed the price last Tuesday, and
+    a log nobody is allowed to read stops anyone from noticing a mistake.
+    """
+    return list(provider.profile_edits.select_related("actor").order_by("-created_at")[:limit])
+
+
+def pending_description_queue() -> QuerySet[ProviderProfileEdit]:
+    """Every unread self-introduction, oldest first - answered in order."""
+    return (
+        ProviderProfileEdit.objects.filter(status=ProfileEditStatus.PENDING)
+        .select_related("provider", "provider__licensee", "actor")
+        .order_by("created_at")
+    )
+
+
+def providers_for_member(user_id: str) -> list[Provider]:
+    """Pages this account may edit.
+
+    Read from ``ProviderMember`` rather than from the user's role: the role
+    says what kind of account this is, the membership says which company it
+    speaks for, and only the second one can answer "which page do I manage?".
+    """
+    return list(
+        directory_queryset()
+        .filter(members__user__pk=user_id, members__is_active=True)
+        .order_by("slug")
+    )

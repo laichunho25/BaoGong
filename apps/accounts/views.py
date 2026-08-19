@@ -132,5 +132,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         # applicant comes back to check on it - and it is the only place the
         # claim's URL can be found again once the confirmation page is gone.
         "claims": provider_selectors.claims_for_user(str(request.user.pk)),
+        # An approved claim is only worth having if the page it unlocked is
+        # reachable from here; until this list existed, a company that claimed
+        # its page had no way back to it except through public search.
+        "managed_providers": provider_selectors.providers_for_member(str(request.user.pk)),
     }
     return render(request, "accounts/dashboard.html", context)

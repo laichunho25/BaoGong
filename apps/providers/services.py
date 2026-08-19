@@ -28,8 +28,10 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
+from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import MemberRole, ProviderMember, Role
+from apps.core.compliance import Severity, check_banned_phrases
 from apps.core.notifications import absolute_url, notify
 from apps.core.scanning import READABLE_STATUSES, ScanStatus, get_scanner
 from apps.providers.models import (
@@ -39,8 +41,11 @@ from apps.providers.models import (
     ClaimEvidence,
     ClaimStatus,
     EvidenceKind,
+    ProfileEditStatus,
     Provider,
     ProviderClaim,
+    ProviderProfileEdit,
+    ServiceOffering,
     Tier,
 )
 from apps.providers.verification import verify_website
@@ -88,6 +93,10 @@ COMPLETENESS_FIELDS = (
     "logo",
     "office_photos",
 )
+# ``description`` is deliberately absent, and must stay absent. Only paying
+# tiers may write one (PRD section 3.7); counting it here would make the
+# ranking rise with the subscription, and the home page promises the opposite -
+# placement is for sale, the score is not.
 
 SLUG_MAX_LENGTH = 140
 
@@ -617,3 +626,289 @@ def purge_expired_evidence(*, now: datetime | None = None) -> int:
         evidence.save(update_fields=["file", "purged_at", "updated_at"])
         purged += 1
     return purged
+
+
+# --- Self-service profile editing (PRD section 3.7) -------------------------
+
+# What each tier may change about itself. The free tier gets the fields a buyer
+# needs in order to make contact at all; everything that shapes how the company
+# is presented and compared comes with a subscription. Membership of these sets
+# is the whole tier gate - there is no second list in a form or a template.
+FREE_EDITABLE_FIELDS: Final[frozenset[str]] = frozenset(
+    {"contact_email", "contact_phone", "contact_wechat", "website", "service_categories"}
+)
+PAID_EDITABLE_FIELDS: Final[frozenset[str]] = FREE_EDITABLE_FIELDS | frozenset(
+    {
+        "description",
+        "founded_year",
+        "team_size",
+        "languages",
+        "supports_simplified",
+        "remote_onboarding",
+        "bank_account_support",
+        "bank_types",
+        "non_resident_shareholder_experience",
+        "industry_specialties",
+    }
+)
+
+# Fields a correction may touch: things that can be wrong in a way that costs
+# the buyer rather than the company. A company cannot rewrite its own
+# description under the heading "typo" and skip the queue.
+CORRECTABLE_FIELDS: Final[frozenset[str]] = frozenset(
+    {"contact_email", "contact_phone", "contact_wechat"}
+)
+
+# How long the free tier waits between updates (PRD section 3.7).
+FREE_EDIT_INTERVAL_DAYS: Final[int] = 365
+
+
+class ProfileEditError(Exception):
+    """A self-service edit that must not be applied. The message is shown."""
+
+
+@dataclass(frozen=True, slots=True)
+class EditPermission:
+    """Whether this company may edit itself right now, and what it may touch."""
+
+    allowed: bool
+    fields: frozenset[str]
+    next_allowed_at: datetime | None = None
+    reason: str = ""
+
+
+def editable_fields(provider: Provider) -> frozenset[str]:
+    """The fields ``provider``'s tier permits it to set. Empty once delisted."""
+    if not provider.is_on_register:
+        return frozenset()
+    if provider.effective_tier == Tier.FREE:
+        return FREE_EDITABLE_FIELDS
+    return PAID_EDITABLE_FIELDS
+
+
+def last_allowance_edit(provider: Provider) -> ProviderProfileEdit | None:
+    """The most recent edit that started the free tier's twelve-month clock."""
+    return (
+        provider.profile_edits.filter(is_correction=False)
+        .exclude(status=ProfileEditStatus.REJECTED)
+        .order_by("-created_at")
+        .first()
+    )
+
+
+def edit_permission(
+    provider: Provider, *, is_correction: bool = False, now: datetime | None = None
+) -> EditPermission:
+    """Answer the page's one question: may this company change itself today?
+
+    Three separate refusals, kept apart because they need different words on
+    screen: the licence is gone, the page was never claimed, or the free tier's
+    once-a-year allowance is already spent.
+    """
+    fields = editable_fields(provider)
+    correction_fields = fields & CORRECTABLE_FIELDS
+
+    if not provider.is_on_register:
+        return EditPermission(
+            allowed=False,
+            fields=frozenset(),
+            reason=str(
+                _(
+                    "该公司已不在官方持牌名单上，页面已锁定，无法编辑。"
+                    "如属续期或资料有误，请先向公司注册处更新，我们每日同步。"
+                )
+            ),
+        )
+    if provider.claim_status != ClaimStatus.CLAIMED:
+        return EditPermission(allowed=False, fields=frozenset(), reason=str(_("请先认领本页面。")))
+
+    if is_correction:
+        return EditPermission(allowed=True, fields=correction_fields)
+    if provider.effective_tier != Tier.FREE:
+        return EditPermission(allowed=True, fields=fields)
+
+    previous = last_allowance_edit(provider)
+    if previous is None:
+        return EditPermission(allowed=True, fields=fields)
+
+    now = now or timezone.now()
+    next_allowed_at = previous.created_at + timedelta(days=FREE_EDIT_INTERVAL_DAYS)
+    if now >= next_allowed_at:
+        return EditPermission(allowed=True, fields=fields)
+    return EditPermission(
+        allowed=False,
+        fields=correction_fields,
+        next_allowed_at=next_allowed_at,
+        reason=_(
+            "通用模式每 12 个月可更新一次资料，下次可更新时间为 %(date)s。"
+            "联络方式填错了可随时提交更正，不占用这个次数。"
+        )
+        % {"date": next_allowed_at.date().isoformat()},
+    )
+
+
+def screen_provider_text(text: str) -> None:
+    """Refuse text that COMPLIANCE section 2 forbids a provider to publish.
+
+    Blocking hits are refused outright rather than queued: a moderator should
+    not have to be the one who notices a guaranteed-bank-account promise in the
+    fifth paragraph, and telling the company at the keyboard is the only
+    feedback that teaches.
+    """
+    blocking = [v for v in check_banned_phrases(text) if v.severity is Severity.BLOCKING]
+    if not blocking:
+        return
+    quoted = "、".join(sorted({v.matched_text for v in blocking}))
+    raise ProfileEditError(
+        _("以下说法不能刊登（见平台规则）：%(phrases)s。请改写后再提交。") % {"phrases": quoted}
+    )
+
+
+@transaction.atomic
+def apply_profile_edit(
+    *,
+    provider: Provider,
+    actor: User,
+    values: dict[str, Any],
+    is_correction: bool = False,
+) -> ProviderProfileEdit:
+    """Apply a company's own changes and record what changed.
+
+    Structured values are written straight through - it is the company's page
+    and nothing here is presented as official. ``description`` is not: it goes
+    into the returned row as ``submitted_description`` and reaches the page
+    only through ``decide_profile_edit``.
+
+    Returns the log row. Raises ``ProfileEditError`` when the tier, the licence
+    or the annual allowance forbids the change; the caller shows the message.
+    """
+    permission = edit_permission(provider, is_correction=is_correction)
+    if not permission.allowed:
+        raise ProfileEditError(permission.reason)
+
+    rejected = set(values) - permission.fields
+    if rejected:
+        raise ProfileEditError(
+            _("当前方案不能修改：%(fields)s。") % {"fields": "、".join(sorted(rejected))}
+        )
+
+    locked = Provider.objects.select_for_update().get(pk=provider.pk)
+    description = values.pop("description", None)
+    categories = values.pop("service_categories", None)
+
+    changes: dict[str, dict[str, Any]] = {}
+    for field, new_value in values.items():
+        old_value = getattr(locked, field)
+        if old_value == new_value:
+            continue
+        changes[field] = {"from": _jsonable(old_value), "to": _jsonable(new_value)}
+        setattr(locked, field, new_value)
+
+    if categories is not None:
+        category_change = _sync_offerings(locked, categories)
+        if category_change is not None:
+            changes["service_categories"] = category_change
+
+    if description is not None:
+        screen_provider_text(description)
+        if description.strip() == locked.description.strip():
+            description = None
+
+    if not changes and description is None:
+        raise ProfileEditError(_("没有任何改动。"))
+
+    applied = [field for field in values if field in changes]
+    if applied:
+        locked.save(update_fields=[*applied, "updated_at"])
+    if changes:
+        recompute_ranking_inputs(provider_ids=[str(locked.pk)])
+
+    edit = ProviderProfileEdit.objects.create(
+        provider=locked,
+        actor=actor,
+        status=ProfileEditStatus.PENDING if description is not None else ProfileEditStatus.APPLIED,
+        changes=changes,
+        submitted_description=description or "",
+        is_correction=is_correction,
+    )
+    logger.info(
+        "provider profile edited",
+        extra={
+            "provider": str(locked.pk),
+            "edit": str(edit.pk),
+            "fields": edit.changed_fields,
+            "pending_description": description is not None,
+        },
+    )
+    return edit
+
+
+def _jsonable(value: Any) -> Any:
+    """JSON-safe copy of a field value for the diff column."""
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _sync_offerings(provider: Provider, categories: list[str]) -> dict[str, Any] | None:
+    """Make the active offerings match ``categories``, returning the diff.
+
+    Deactivates rather than deletes: an offering carries the prices the company
+    published under it, and a category switched off by accident should come
+    back with them intact rather than as an empty row.
+    """
+    existing = {o.category: o for o in provider.offerings.all()}
+    before = sorted(c for c, o in existing.items() if o.is_active)
+    wanted = sorted(set(categories))
+    if before == wanted:
+        return None
+
+    for category in wanted:
+        offering = existing.get(category)
+        if offering is None:
+            ServiceOffering.objects.create(provider=provider, category=category, is_active=True)
+        elif not offering.is_active:
+            offering.is_active = True
+            offering.save(update_fields=["is_active", "updated_at"])
+    for category, offering in existing.items():
+        if category not in wanted and offering.is_active:
+            offering.is_active = False
+            offering.save(update_fields=["is_active", "updated_at"])
+    return {"from": before, "to": wanted}
+
+
+@transaction.atomic
+def decide_profile_edit(
+    *, edit: ProviderProfileEdit, reviewer: User, approve: bool, note: str
+) -> ProviderProfileEdit:
+    """The only writer of ``Provider.description``.
+
+    A reason is required either way: an approval nobody can account for is
+    indistinguishable from an accident, and a rejection without one gives the
+    company nothing to fix.
+    """
+    if edit.status != ProfileEditStatus.PENDING:
+        raise ProfileEditError(_("This edit has already been decided."))
+    if not note.strip():
+        raise ProfileEditError(_("A reason is required."))
+    if reviewer.role not in {Role.MODERATOR, Role.ADMIN} and not reviewer.is_superuser:
+        raise ProfileEditError(_("Only the moderation team may decide this."))
+
+    if approve:
+        screen_provider_text(edit.submitted_description)
+        provider = Provider.objects.select_for_update().get(pk=edit.provider_id)
+        provider.description = edit.submitted_description
+        provider.save(update_fields=["description", "updated_at"])
+
+    edit.status = ProfileEditStatus.APPROVED if approve else ProfileEditStatus.REJECTED
+    edit.reviewed_by = reviewer
+    edit.reviewed_at = timezone.now()
+    edit.review_note = note.strip()
+    edit.save(update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"])
+    logger.info(
+        "profile description decided",
+        extra={"edit": str(edit.pk), "approved": approve, "reviewer": str(reviewer.pk)},
+    )
+    return edit

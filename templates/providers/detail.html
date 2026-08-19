@@ -115,6 +115,21 @@
         <div class="mt-4 border-t border-official-border pt-3">{% include "components/data_source_notice.html" %}</div>
       </section>
 
+      {% if not platform_data_visible %}
+        {% comment %} The licence has left the register, so everything the company told
+           us about itself comes down: prices, services, self-introduction and any
+           paid placement. What stays is the official row above, the
+           deregistration notice, and the reviews of people who dealt with this
+           company while it was licensed - deleting those would leave the buyer
+           who is already mid-engagement with nothing (PRD section 3.7). {% endcomment %}
+        <section class="rounded-2xl border border-line bg-surface-sunken p-5 text-sm">
+          <h2 class="font-semibold text-ink">{% translate "平台补充资料已下架" %}</h2>
+          <p class="mt-1.5 leading-relaxed text-ink-muted">
+            {% translate "该公司已不在官方持牌名单内，本平台不再显示其自行提供的简介、服务与价格资料。上方的官方登记内容与既有评价予以保留，供已与该公司往来的人查阅。" %}
+          </p>
+        </section>
+      {% else %}
+
       {% comment %} Platform block: white, so the eye can tell at a glance that it is a
          different kind of claim from the grey one above. {% endcomment %}
       <section id="platform" class="rounded-2xl border border-line bg-white p-5 shadow-sm">
@@ -201,6 +216,52 @@
         {% endif %}
       </section>
 
+      {% if provider.description %}
+        {% comment %} The company's own words, and labelled as such. It sits below the
+           platform facts and above the prices because it is the least
+           checkable thing on the page: a reader should meet it after the
+           licence number, not before. Free text is published only after a
+           moderator has read it (providers.services.decide_profile_edit). {% endcomment %}
+        <section id="about" class="rounded-2xl border border-line bg-white p-5 shadow-sm">
+          <div class="flex items-center gap-2">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+              {% include "components/icon.html" with name="chat" class="h-4 w-4" %}
+            </span>
+            <div>
+              <h2 class="text-sm font-semibold text-ink">{% translate "认识这家公司" %}</h2>
+              <p class="text-xs text-ink-muted">{% translate "由该公司自行撰写，本平台仅作刊登，不核实其中的业务描述。" %}</p>
+            </div>
+          </div>
+          <div class="article-body mt-4 whitespace-pre-line">{{ provider.description }}</div>
+
+          {% if provider.contact_email or provider.contact_phone or provider.contact_wechat %}
+            <dl class="mt-5 grid gap-3 border-t border-line pt-4 text-sm sm:grid-cols-3">
+              {% if provider.contact_phone %}
+                <div>
+                  <dt class="text-xs text-ink-muted">{% translate "联系电话" %}</dt>
+                  <dd class="text-ink">{{ provider.contact_phone }}</dd>
+                </div>
+              {% endif %}
+              {% if provider.contact_email %}
+                <div>
+                  <dt class="text-xs text-ink-muted">{% translate "联系邮箱" %}</dt>
+                  <dd class="break-all text-ink">{{ provider.contact_email }}</dd>
+                </div>
+              {% endif %}
+              {% if provider.contact_wechat %}
+                <div>
+                  <dt class="text-xs text-ink-muted">{% translate "微信" %}</dt>
+                  <dd class="text-ink">{{ provider.contact_wechat }}</dd>
+                </div>
+              {% endif %}
+            </dl>
+            <p class="mt-2 text-xs text-ink-faint">
+              {% translate "联系方式由该公司提供，本平台不参与其后的洽谈，也不代收任何款项。" %}
+            </p>
+          {% endif %}
+        </section>
+      {% endif %}
+
       <section id="services" class="rounded-2xl border border-line bg-white p-5 shadow-sm">
         <div class="flex items-center gap-2">
           <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
@@ -254,6 +315,8 @@
         {% endif %}
       </section>
 
+      {% endif %}
+
       <div id="reviews">{% include "reviews/_review_list.html" %}</div>
     </div>
 
@@ -266,6 +329,13 @@
           {% translate "本平台不代办任何注册手续，只帮你把持牌公司放在一起比较，并把你的需求转给它们报价。" %}
         </p>
         <div class="mt-4 space-y-2">
+          {% if is_member %}
+            <a href="{% url 'providers:manage' provider.slug %}"
+               class="flex items-center justify-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-4 py-2.5 text-sm font-medium text-brand-700 transition hover:bg-brand-100">
+              {% include "components/icon.html" with name="pencil" class="h-4 w-4" %}
+              {% translate "管理本页面" %}
+            </a>
+          {% endif %}
           <a href="{% url 'rfq:create' %}"
              class="flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
             {% include "components/icon.html" with name="chat" class="h-4 w-4" %}

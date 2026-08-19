@@ -11,7 +11,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.models import EmailVerification, User
+from apps.accounts.models import EmailVerification, ProviderMember, User
 
 
 class EmailUserCreationForm(UserCreationForm):  # type: ignore[type-arg]
@@ -74,4 +74,46 @@ class EmailVerificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         return False
 
     def has_change_permission(self, request: Any, obj: Any = None) -> bool:
+        return False
+
+
+@admin.register(ProviderMember)
+class ProviderMemberAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    """Who may edit which company page.
+
+    This one table is the platform's entire object-level permission model
+    (``permissions.py``), so until it had a screen the only way to answer "who
+    can change this page?" - or to cut off a colleague who has left - was a
+    psql prompt. Membership is revoked by clearing ``is_active``, never by
+    deleting: claims, quotes and decisions point at the member who acted, and
+    a deleted row would take that trail with it.
+    """
+
+    list_display = (
+        "user",
+        "provider",
+        "member_role",
+        "is_active",
+        "granted_by_claim",
+        "created_at",
+    )
+    list_filter = ("member_role", "is_active")
+    list_select_related = ("user", "provider", "provider__licensee")
+    search_fields = ("user__email", "provider__slug", "provider__licensee__name_en")
+    autocomplete_fields = ("user", "provider")
+    readonly_fields = ("claim", "created_at", "updated_at")
+    ordering = ("-created_at",)
+    actions = ("deactivate_memberships",)
+
+    @admin.display(description=_("From claim"), boolean=True)
+    def granted_by_claim(self, obj: ProviderMember) -> bool:
+        """False means a staff member added this by hand - worth seeing in the list."""
+        return obj.claim_id is not None
+
+    @admin.action(description=_("Revoke access (keep the record)"))
+    def deactivate_memberships(self, request: Any, queryset: Any) -> None:
+        updated = queryset.filter(is_active=True).update(is_active=False)
+        self.message_user(request, _("Revoked %(count)d membership(s).") % {"count": updated})
+
+    def has_delete_permission(self, request: Any, obj: Any = None) -> bool:
         return False

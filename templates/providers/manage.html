@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "管理公司页面" %} - {{ provider.display_name }} - 包公 BaoGong{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <header>
+    <a href="{{ provider.get_absolute_url }}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {{ provider.display_name }}
+    </a>
+    <h1 class="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
+      {% if is_correction %}{% translate "提交资料更正" %}{% else %}{% translate "管理公司页面" %}{% endif %}
+    </h1>
+    <p class="mt-1 text-sm text-ink-muted">
+      {% blocktranslate with tier=tier_label %}当前方案：{{ tier }}{% endblocktranslate %}
+    </p>
+  </header>
+
+  {% comment %} The official row, in the official greys, so that the person editing can
+     see at a glance which fields are ours to change and which are the
+     register's (COMPLIANCE section 1). The company name is not editable here
+     and this is where that becomes obvious. {% endcomment %}
+  <section class="rounded-2xl border border-official-border bg-official-bg p-5 text-sm">
+    <p class="font-semibold text-ink">{{ licensee.name_zh|default:licensee.name_en }}</p>
+    <p class="text-ink-muted">{{ licensee.name_en }}</p>
+    <p class="mt-2 text-xs text-ink-muted">
+      {% translate "公司名称与牌照资料来自官方登记册，本平台不能修改；如有出入，请向公司注册处更新。" %}
+    </p>
+    <div class="mt-4 border-t border-official-border pt-3">
+      {% include "components/data_source_notice.html" %}
+    </div>
+  </section>
+
+  {% if not permission.allowed %}
+    <div class="flex gap-2 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-900" role="status">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+      <div class="space-y-2">
+        <p>{{ permission.reason }}</p>
+        {% if permission.fields and not is_correction %}
+          <a href="?correction=1" class="inline-flex font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800">
+            {% translate "联络方式填错了？提交更正" %}
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if is_free_tier and permission.allowed and not is_correction %}
+    <div class="rounded-2xl border border-line bg-surface-sunken p-4 text-sm text-ink-soft">
+      <p class="font-medium text-ink">{% translate "通用模式：每 12 个月可更新一次" %}</p>
+      <p class="mt-1.5 text-xs leading-relaxed text-ink-muted">
+        {% translate "提交后，下一次更新要等 12 个月。联络方式写错可随时提交更正，不占用这次机会。公司简介、服务语言、银行合作等栏目需订阅付费方案后开放。" %}
+      </p>
+    </div>
+  {% endif %}
+
+  {% if form %}
+    <form method="post" class="space-y-5 rounded-2xl border border-line bg-white p-6 shadow-sm"
+          x-data x-on:submit="$el.querySelector('button[type=submit]').disabled = true">
+      {% csrf_token %}
+      {% include "components/form_fields.html" %}
+      <button type="submit"
+              class="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60">
+        {% if is_correction %}{% translate "提交更正" %}{% else %}{% translate "保存并发布" %}{% endif %}
+      </button>
+    </form>
+  {% endif %}
+
+  {% if pending_edits %}
+    <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+      {% include "components/section_heading.html" with eyebrow=_("审核中") title=_("等待审核的公司简介") %}
+      <p class="mt-2 text-sm text-ink-muted">
+        {% translate "简介以贵公司的名义刊登，我们会先人工阅读一次再发布。审核期间页面显示的仍是上一版。" %}
+      </p>
+      <ul class="mt-4 space-y-4">
+        {% for edit in pending_edits %}
+          <li class="rounded-xl border border-line bg-surface-sunken p-4">
+            <p class="text-xs text-ink-muted">{{ edit.created_at|date:"Y-m-d H:i" }}</p>
+            <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">{{ edit.submitted_description }}</p>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% comment %} Shown back to the company, not kept internal: this is the only place a
+     colleague's change last Tuesday can be found, and a log nobody may read
+     stops anyone from noticing a mistake. {% endcomment %}
+  <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+    {% include "components/section_heading.html" with eyebrow=_("记录") title=_("修改记录") %}
+    {% if recent_edits %}
+      <ul class="mt-4 divide-y divide-line text-sm">
+        {% for edit in recent_edits %}
+          <li class="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
+            <span class="tabular text-xs text-ink-muted">{{ edit.created_at|date:"Y-m-d H:i" }}</span>
+            <span class="text-ink-soft">
+              {% if edit.changed_fields %}{{ edit.changed_field_labels|join:"、" }}{% endif %}
+              {% if edit.submitted_description %}{% translate "公司简介" %}{% endif %}
+            </span>
+            <span class="ml-auto text-xs text-ink-muted">
+              {{ edit.get_status_display }}{% if edit.is_correction %} · {% translate "更正" %}{% endif %}
+            </span>
+            {% if edit.review_note %}
+              <p class="w-full text-xs leading-relaxed text-ink-muted">{% translate "审核意见：" %}{{ edit.review_note }}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {% include "components/empty_state.html" with title=_("还没有修改记录") hint=_("这里会列出谁在什么时候改了哪些栏目。") %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

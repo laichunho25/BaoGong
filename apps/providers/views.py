@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.permissions import is_moderator, is_provider_member, verified_email_required
 from apps.core.storage import signed_url
 from apps.providers import selectors, services
-from apps.providers.forms import ClaimSubmissionForm
+from apps.providers.forms import ClaimSubmissionForm, ProviderProfileForm
 from apps.providers.models import (
     BankType,
     ClaimEvidence,
@@ -168,7 +168,102 @@ def provider_detail(request: HttpRequest, slug: str) -> HttpResponse:
             # button that would fail.
             "own_review": review_selectors.review_by_author(provider=provider, author=user),
             "is_member": is_provider_member(user, provider),
+            # PRD section 3.7: once the licence leaves the register, everything
+            # the company supplied about itself comes off the page. The official
+            # row, the deregistration notice and the existing reviews stay -
+            # they are what a buyer already mid-engagement needs.
+            "platform_data_visible": provider.is_on_register,
             "reply_form": ReplyForm(),
+            **_shared_context(request),
+        },
+    )
+
+
+def _profile_initial(provider: Provider) -> dict[str, Any]:
+    """Current values, in the shapes the form uses."""
+    return {
+        "contact_email": provider.contact_email,
+        "contact_phone": provider.contact_phone,
+        "contact_wechat": provider.contact_wechat,
+        "website": provider.website,
+        "service_categories": [o.category for o in provider.offerings.all() if o.is_active],
+        "description": provider.description,
+        "founded_year": provider.founded_year,
+        "team_size": provider.team_size,
+        "languages": provider.languages,
+        "supports_simplified": provider.supports_simplified,
+        "remote_onboarding": provider.remote_onboarding,
+        "bank_account_support": provider.bank_account_support,
+        "bank_types": provider.bank_types,
+        "non_resident_shareholder_experience": provider.non_resident_shareholder_experience,
+        "industry_specialties": ", ".join(provider.industry_specialties),
+    }
+
+
+@login_required
+def provider_manage(request: HttpRequest, slug: str) -> HttpResponse:
+    """Where a company edits its own page.
+
+    Two modes on one URL. The normal one offers whatever the tier permits and
+    spends the free tier's annual allowance; ``?correction=1`` offers only the
+    contact fields and does not. Which one is in force decides which fields the
+    form is even built with, so the mode cannot be used to widen access.
+
+    A page whose licence has left the register renders read-only: the refusal
+    from ``edit_permission`` is shown instead of a form, and the same check runs
+    again inside the service, because this view is not the only caller.
+    """
+    provider = selectors.get_provider_detail(slug)
+    if provider is None:
+        raise Http404("No such provider")
+    user = cast("User", request.user)
+    if not is_provider_member(user, provider):
+        raise Http404("No such provider")
+
+    is_correction = request.GET.get("correction") == "1"
+    permission = services.edit_permission(provider, is_correction=is_correction)
+    form: ProviderProfileForm | None = None
+
+    if permission.allowed:
+        if request.method == "POST":
+            form = ProviderProfileForm(request.POST, allowed=permission.fields)
+            if form.is_valid():
+                try:
+                    edit = services.apply_profile_edit(
+                        provider=provider,
+                        actor=user,
+                        values=form.changed_values(),
+                        is_correction=is_correction,
+                    )
+                except services.ProfileEditError as exc:
+                    form.add_error(None, str(exc))
+                else:
+                    if edit.submitted_description:
+                        messages.success(
+                            request,
+                            _("资料已更新。公司简介已提交审核，通过后才会显示在页面上。"),
+                        )
+                    else:
+                        messages.success(request, _("资料已更新，页面已即时生效。"))
+                    return redirect("providers:manage", slug=provider.slug)
+        else:
+            form = ProviderProfileForm(
+                initial=_profile_initial(provider), allowed=permission.fields
+            )
+
+    return render(
+        request,
+        "providers/manage.html",
+        {
+            "provider": provider,
+            "licensee": provider.licensee,
+            "form": form,
+            "permission": permission,
+            "is_correction": is_correction,
+            "tier_label": provider.get_tier_display(),
+            "is_free_tier": provider.effective_tier == Tier.FREE,
+            "pending_edits": selectors.pending_description_edits(provider),
+            "recent_edits": selectors.recent_profile_edits(provider),
             **_shared_context(request),
         },
     )

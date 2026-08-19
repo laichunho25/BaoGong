@@ -1,4 +1,4 @@
-"""Forms for the claim flow.
+"""Forms for the claim flow and for a company editing its own page.
 
 Validation only - the view hands cleaned data to ``services.py``
 (ARCHITECTURE section 3). The uploads are inspected here so that a bad file is
@@ -8,15 +8,18 @@ reported next to the field that produced it, but the inspection itself lives in
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-from apps.core.form_styles import FILE_CLASSES, INPUT_CLASSES
+from apps.core.form_styles import CHECKBOX_CLASSES, FILE_CLASSES, INPUT_CLASSES
 from apps.core.uploads import MAX_UPLOAD_BYTES, InspectedUpload, inspect_upload
-from apps.providers.models import EvidenceKind
+from apps.providers.models import BankType, EvidenceKind, Language, ServiceCategory
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 #: Enough for a BR certificate, an address proof and a letter of authorisation.
 MAX_EVIDENCE_FILES = 5
@@ -125,3 +128,126 @@ class ClaimSubmissionForm(forms.Form):
             inspected.append(inspect_upload(upload))
         self.inspected = inspected
         return uploads
+
+
+MAX_DESCRIPTION_CHARS = 1200
+MAX_SPECIALTIES = 8
+
+
+class ProviderProfileForm(forms.Form):
+    """What a company may change about its own page.
+
+    Every field this platform lets a company edit is declared here, and the
+    constructor then removes the ones its tier or its licence does not permit
+    (``services.editable_fields``). Building the form from the permission,
+    rather than hiding fields in the template, means a hand-crafted POST cannot
+    set a field the company is not paying for - the field simply does not exist
+    on the form that cleans it.
+    """
+
+    contact_email = forms.EmailField(
+        label=_("联系邮箱"),
+        required=False,
+        widget=forms.EmailInput(attrs={"class": INPUT_CLASSES, "autocomplete": "email"}),
+    )
+    contact_phone = forms.CharField(
+        label=_("联系电话"),
+        max_length=32,
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES, "autocomplete": "tel"}),
+    )
+    contact_wechat = forms.CharField(
+        label=_("微信号"),
+        max_length=64,
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
+    )
+    website = forms.URLField(
+        label=_("公司网站"),
+        required=False,
+        assume_scheme="https",
+        help_text=_("更换网址后需要重新完成一次网站所有权验证。"),
+        widget=forms.URLInput(attrs={"class": INPUT_CLASSES, "placeholder": "https://"}),
+    )
+    service_categories = forms.MultipleChoiceField(
+        label=_("业务范畴"),
+        choices=ServiceCategory.choices,
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": CHECKBOX_CLASSES}),
+    )
+    description = forms.CharField(
+        label=_("公司简介"),
+        required=False,
+        max_length=MAX_DESCRIPTION_CHARS,
+        help_text=_(
+            "简介会以贵公司的名义刊登在页面上，提交后需经我们审核才会显示，"
+            "一般 3 个工作日内处理。请勿写入开户成功率或任何官方背书的说法。"
+        ),
+        widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 8}),
+    )
+    founded_year = forms.IntegerField(
+        label=_("成立年份"),
+        required=False,
+        min_value=1900,
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASSES}),
+    )
+    team_size = forms.IntegerField(
+        label=_("团队人数"),
+        required=False,
+        min_value=1,
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASSES}),
+    )
+    languages = forms.MultipleChoiceField(
+        label=_("服务语言"),
+        choices=Language.choices,
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": CHECKBOX_CLASSES}),
+    )
+    supports_simplified = forms.BooleanField(label=_("提供简体中文服务"), required=False)
+    remote_onboarding = forms.BooleanField(label=_("可全程远程办理"), required=False)
+    bank_account_support = forms.BooleanField(label=_("协助开立银行账户"), required=False)
+    bank_types = forms.MultipleChoiceField(
+        label=_("合作银行类型"),
+        choices=BankType.choices,
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": CHECKBOX_CLASSES}),
+    )
+    non_resident_shareholder_experience = forms.BooleanField(
+        label=_("有非本地股东办理经验"), required=False
+    )
+    industry_specialties = forms.CharField(
+        label=_("行业专长"),
+        required=False,
+        help_text=_("用逗号分隔，最多 %(count)s 项。") % {"count": MAX_SPECIALTIES},
+        widget=forms.TextInput(attrs={"class": INPUT_CLASSES}),
+    )
+
+    def __init__(self, *args: Any, allowed: Collection[str], **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        for name in list(self.fields):
+            if name not in allowed:
+                del self.fields[name]
+        for name in (
+            "supports_simplified",
+            "remote_onboarding",
+            "bank_account_support",
+            "non_resident_shareholder_experience",
+        ):
+            if name in self.fields:
+                self.fields[name].widget.attrs["class"] = CHECKBOX_CLASSES
+
+    def clean_industry_specialties(self) -> list[str]:
+        raw = self.cleaned_data.get("industry_specialties", "")
+        items = [part.strip() for part in raw.replace("，", ",").split(",") if part.strip()]
+        if len(items) > MAX_SPECIALTIES:
+            raise ValidationError(_("最多填写 %(count)s 项行业专长。") % {"count": MAX_SPECIALTIES})
+        return items
+
+    def changed_values(self) -> dict[str, Any]:
+        """Cleaned data keyed by model field, ready for ``apply_profile_edit``.
+
+        Only fields the form actually carries are returned, so a tier that
+        cannot edit a field never sends a value for it - not even its current
+        one, which would otherwise show up in the change log as a no-op.
+        """
+        return {name: self.cleaned_data[name] for name in self.fields}
