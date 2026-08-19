@@ -271,6 +271,12 @@ def quote_create(request: HttpRequest, rfq_id: str, slug: str) -> HttpResponse:
         raise Http404("No such request")
 
     member = cast("User", request.user)
+    if rfq.is_full:
+        # Turned away at the door rather than after a price breakdown has been
+        # typed out. The service refuses this too - this is only the courtesy.
+        messages.info(request, _("该需求的报价名额已满，看看需求墙上其他需求。"))
+        return redirect("rfq:wall")
+
     if selectors.has_quoted(rfq=rfq, provider=provider):
         messages.info(request, _("贵公司已经就该需求报过价。"))
         return redirect("rfq:detail", rfq_id=str(rfq.pk))

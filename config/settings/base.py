@@ -256,13 +256,19 @@ NNC1_RETENTION_DAYS = env.int("NNC1_RETENTION_DAYS", default=90)
 # five working days. Settable so the promise and the queue's deadline can never
 # drift apart - if the published commitment changes, this is the one place.
 DISPUTE_SLA_BUSINESS_DAYS = env.int("DISPUTE_SLA_BUSINESS_DAYS", default=5)
-# PRD section 3.7: the free allowance runs on a monthly clock and the paid ones
-# on a daily clock - that gap is what a subscription buys. The numbers are the
-# product's pricing, so they live in one place rather than in the service that
-# spends them; the rule that reads them is ``apps.rfq.allowances``.
-RFQ_FREE_QUOTES_PER_MONTH = env.int("RFQ_FREE_QUOTES_PER_MONTH", default=5)
-RFQ_QUOTES_PER_DAY_VERIFIED = env.int("RFQ_QUOTES_PER_DAY_VERIFIED", default=5)
-RFQ_QUOTES_PER_DAY_PREMIUM = env.int("RFQ_QUOTES_PER_DAY_PREMIUM", default=20)
+# PRD section 3.7: one quote allowance per tier, written as "<number>/<period>"
+# so the clock is part of the price and not a separate setting to forget. All
+# three count by the month while the wall is young - a daily number nobody can
+# reach sells nothing - and ``/day`` is accepted the day that changes. Parsed by
+# ``apps.rfq.allowances``, which refuses anything it cannot read.
+RFQ_QUOTA_FREE = env.str("RFQ_QUOTA_FREE", default="3/month")
+RFQ_QUOTA_VERIFIED = env.str("RFQ_QUOTA_VERIFIED", default="15/month")
+RFQ_QUOTA_PREMIUM = env.str("RFQ_QUOTA_PREMIUM", default="40/month")
+# How many companies may hold a live quote on one request. The scarcity a buyer
+# feels is on this side: a request answered by thirty companies is not a wider
+# choice, it is a page they close - and twenty-nine of those answers cost a
+# company an allowance for nothing.
+RFQ_MAX_QUOTES_PER_REQUEST = env.int("RFQ_MAX_QUOTES_PER_REQUEST", default=8)
 # How long a request stays on the wall. Companies spend a scarce quota to
 # answer, so a request nobody is waiting on any more has to stop costing them.
 RFQ_OPEN_DAYS = env.int("RFQ_OPEN_DAYS", default=14)

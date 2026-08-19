@@ -45,6 +45,7 @@ from apps.core.notifications import absolute_url, notify
 from apps.providers.models import ClaimStatus
 from apps.rfq.allowances import Allowance, allowance_for, period_bounds
 from apps.rfq.models import (
+    LIVE_QUOTE_STATUSES,
     QUOTABLE_STATUSES,
     LineItemLabel,
     QuotaLedger,
@@ -265,6 +266,18 @@ def grant_quote_credits(
 # ---------------------------------------------------------------------- quotes
 
 
+def _slots_left(rfq: Rfq) -> int:
+    """Answers this request can still take, counted rather than annotated.
+
+    Deliberately not ``rfq.is_full``: the object handed to ``submit_quote`` may
+    have been read off the wall with a ``quote_count`` from before the last two
+    submissions, and the one place that must not be out of date is the one that
+    refuses.
+    """
+    used = Quote.objects.filter(rfq=rfq, status__in=LIVE_QUOTE_STATUSES).count()
+    return max(int(settings.RFQ_MAX_QUOTES_PER_REQUEST) - used, 0)
+
+
 def _check_may_quote(*, rfq: Rfq, provider: Provider, member: User) -> None:
     if not is_provider_member(member, provider):
         raise RfqError(_("只有该公司的成员可以代表公司报价。"))
@@ -276,6 +289,11 @@ def _check_may_quote(*, rfq: Rfq, provider: Provider, member: User) -> None:
         raise RfqError(_("公司不在官方持牌名单上，暂不能报价。"))
     if rfq.status not in QUOTABLE_STATUSES or rfq.has_expired:
         raise RfqError(_("该需求已经结束，不能再报价。"))
+    if _slots_left(rfq) <= 0:
+        # The buyer's side of the scarcity. Thirty answers to one request is a
+        # page the buyer closes, and twenty-nine companies that spent an
+        # allowance to be ignored.
+        raise RfqError(_("该需求的报价名额已满，请看看需求墙上其他需求。"))
 
 
 def _write_line_items(quote: Quote, line_items: Sequence[dict[str, Any]]) -> None:
@@ -325,6 +343,10 @@ def submit_quote(
     transaction, so a submission that fails any later check gives the credit
     back by rolling back - and a submission that succeeds cannot have been free.
     """
+    # Lock the request itself before counting its answers: two companies
+    # pressing Submit on the last slot is the ordinary case at the moment a
+    # popular request fills up, not an exotic race.
+    Rfq.objects.select_for_update().filter(pk=rfq.pk).first()
     _check_may_quote(rfq=rfq, provider=provider, member=submitted_by)
 
     try:

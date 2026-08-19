@@ -24,13 +24,13 @@ from django.utils import timezone
 from apps.core.money import Money
 from apps.providers.models import ClaimStatus, Provider
 from apps.reviews.models import Review, ReviewStatus
-from apps.rfq.allowances import MONTHLY, allowance_for, period_bounds
+from apps.rfq.allowances import MONTHLY, Allowance, allowance_for, period_bounds
 from apps.rfq.models import (
+    LIVE_QUOTE_STATUSES,
     LineItemLabel,
     QuotaLedger,
     Quote,
     QuoteLineItem,
-    QuoteStatus,
     Rfq,
     RfqStatus,
     Visibility,
@@ -47,9 +47,6 @@ if TYPE_CHECKING:
 #: Everything a first-year comparison is expected to price. ``OTHER`` is not
 #: here: an item only one company invented is not a gap in anyone else's quote.
 STANDARD_LINE_ITEMS = tuple(label for label in LineItemLabel.values if label != LineItemLabel.OTHER)
-
-#: Quote states a buyer is still choosing between.
-LIVE_QUOTE_STATUSES = (QuoteStatus.SUBMITTED, QuoteStatus.SHORTLISTED, QuoteStatus.ACCEPTED)
 
 
 def open_rfqs() -> QuerySet[Rfq]:
@@ -101,7 +98,12 @@ class MatchingSnapshot:
     open_requests: int
     quotes_recently: int
     window_days: int
-    free_quotes_per_month: int
+    #: The free tier's allowance, number and clock together, so the home page
+    #: says what the service enforces rather than a hard-coded number.
+    free_allowance: Allowance
+    #: How many companies may answer one request. Published, because a company
+    #: deciding whether to answer is entitled to know the seat is finite.
+    max_quotes_per_request: int
 
 
 def matching_snapshot(*, window_days: int = 30, now: datetime | None = None) -> MatchingSnapshot:
@@ -114,7 +116,8 @@ def matching_snapshot(*, window_days: int = 30, now: datetime | None = None) -> 
             submitted_at__gte=moment - timedelta(days=window_days)
         ).count(),
         window_days=window_days,
-        free_quotes_per_month=settings.RFQ_FREE_QUOTES_PER_MONTH,
+        free_allowance=Allowance.parse(settings.RFQ_QUOTA_FREE),
+        max_quotes_per_request=int(settings.RFQ_MAX_QUOTES_PER_REQUEST),
     )
 
 

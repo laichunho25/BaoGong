@@ -169,6 +169,32 @@ class Rfq(BaseModel):
         return self.expires_at is not None and self.expires_at <= timezone.now()
 
     @property
+    def live_quote_count(self) -> int:
+        """Answers the buyer is still choosing between.
+
+        Uses the ``quote_count`` annotation when the queryset already carried
+        one, so the wall does not run a query per card.
+        """
+        annotated = getattr(self, "quote_count", None)
+        if annotated is not None:
+            return int(annotated)
+        return self.quotes.filter(status__in=LIVE_QUOTE_STATUSES).count()
+
+    @property
+    def quote_slots_left(self) -> int:
+        return max(int(settings.RFQ_MAX_QUOTES_PER_REQUEST) - self.live_quote_count, 0)
+
+    @property
+    def is_full(self) -> bool:
+        """Whether this request has all the answers it can usefully carry.
+
+        Shown on the wall before a company opens the form, because being
+        refused after writing out a price breakdown is worse than not being
+        offered the form at all. The refusal itself lives in ``services``.
+        """
+        return self.quote_slots_left == 0
+
+    @property
     def budget_min(self) -> Money | None:
         if self.budget_min_minor is None:
             return None
@@ -194,6 +220,12 @@ class QuoteStatus(models.TextChoices):
     DECLINED = "declined", _("Not selected")
     WITHDRAWN = "withdrawn", _("Withdrawn by the company")
     EXPIRED = "expired", _("Expired")
+
+
+#: Quote states a buyer is still choosing between. Defined here rather than in
+#: ``selectors`` because the model layer needs it too, and two lists of "still
+#: live" would eventually disagree about what a full request is.
+LIVE_QUOTE_STATUSES = (QuoteStatus.SUBMITTED, QuoteStatus.SHORTLISTED, QuoteStatus.ACCEPTED)
 
 
 class Quote(BaseModel):

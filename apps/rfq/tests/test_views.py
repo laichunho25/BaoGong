@@ -17,6 +17,7 @@ from django.urls import reverse
 
 from apps.providers.models import ClaimStatus
 from apps.rfq import services
+from apps.rfq.allowances import Allowance
 from apps.rfq.models import Quote, QuoteStatus, Rfq, RfqStatus
 
 if TYPE_CHECKING:
@@ -383,7 +384,7 @@ def test_a_company_out_of_quota_is_sent_somewhere_it_can_do_something(
     """The one refusal on the platform that ends in an offer to buy something,
     so it must not look like a validation error on the form."""
     provider, member = make_quoting_provider()
-    for index in range(settings.RFQ_FREE_QUOTES_PER_MONTH):
+    for index in range(Allowance.parse(settings.RFQ_QUOTA_FREE).limit):
         other = services.create_rfq(
             buyer=buyer, title=f"Other request {index}", services_needed=["incorporation"]
         )
@@ -549,3 +550,39 @@ def test_a_company_is_never_told_it_was_suggested(
     page = client.get(reverse("rfq:detail", args=[open_rfq.pk])).content.decode()
 
     assert suggested.display_name not in page
+
+
+def test_a_company_is_turned_away_at_the_door_of_a_full_request(
+    client: Client,
+    open_rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    quote_payload: dict[str, Any],
+) -> None:
+    """Refusing after a price breakdown has been typed out wastes the company's
+    afternoon; the form is not offered at all."""
+    for _ in range(settings.RFQ_MAX_QUOTES_PER_REQUEST):
+        provider, member = make_quoting_provider()
+        services.submit_quote(rfq=open_rfq, provider=provider, submitted_by=member, **quote_payload)
+    latecomer, latecomer_member = make_quoting_provider()
+    client.force_login(latecomer_member)
+
+    response = client.get(reverse("rfq:quote", args=[open_rfq.pk, latecomer.slug]))
+
+    assert response.status_code == 302
+    assert response.url == reverse("rfq:wall")
+
+
+def test_the_wall_says_a_request_is_full_before_it_is_opened(
+    client: Client,
+    open_rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    quote_payload: dict[str, Any],
+) -> None:
+    for _ in range(settings.RFQ_MAX_QUOTES_PER_REQUEST):
+        provider, member = make_quoting_provider()
+        services.submit_quote(rfq=open_rfq, provider=provider, submitted_by=member, **quote_payload)
+    client.force_login(member)
+
+    response = client.get(reverse("rfq:wall"))
+
+    assert "报价名额已满" in response.content.decode()

@@ -330,11 +330,18 @@ NNC1（法團成立表格）上列明公司秘書。若那間公司就是被評�
 規則：先扣免費再扣付費；`unique(provider, date)`。免費額度的大小與週期由
 `rfq/allowances.py` 依 **`provider.effective_tier`** 決定（PRD §3.7）：
 
-| tier | 免費額度 | 週期 |
+| tier | 設定 | 預設 |
 |---|---|---|
-| `free`（已認領） | `RFQ_FREE_QUOTES_PER_MONTH = 5` | 月 |
-| `verified` | `RFQ_QUOTES_PER_DAY_VERIFIED = 5` | 日 |
-| `premium` | `RFQ_QUOTES_PER_DAY_PREMIUM = 20` | 日 |
+| `free`（已認領） | `RFQ_QUOTA_FREE` | `"3/month"` |
+| `verified` | `RFQ_QUOTA_VERIFIED` | `"15/month"` |
+| `premium` | `RFQ_QUOTA_PREMIUM` | `"40/month"` |
+
+設定值是「數字／週期」字串，`Allowance.parse` 讀不懂就 `ImproperlyConfigured`（不退回預設——
+退回預設等於沒人改過的改價）。`/day` 一直支援，等需求牆夠忙再換。
+
+另一道閘：`RFQ_MAX_QUOTES_PER_REQUEST = 8`——一張需求最多幾家報價，實作在
+`Rfq.is_full` / `Rfq.quote_slots_left`（畫面）與 `services._slots_left`（拒絕，
+先 `select_for_update` 鎖住那張需求再數）。已撤回的報價不在 `LIVE_QUOTE_STATUSES`，因此不佔名額。
 
 - **流水帳仍然是每日一列**，只是免費已用量改成「當期內所有列的 `free_used` 總和」
   （`allowances.period_bounds`）。這樣升降方案不需要改帳，也保住「哪一天花了幾次」的紀錄。

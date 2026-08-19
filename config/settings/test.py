@@ -34,9 +34,10 @@ SITE_URL = "https://testserver.example"
 # Pinned: the free allowance is the product's pricing, and the tests that prove
 # the fourth quote of the day is refused would otherwise pass or fail depending
 # on a developer's .env.
-RFQ_FREE_QUOTES_PER_MONTH = 5
-RFQ_QUOTES_PER_DAY_VERIFIED = 5
-RFQ_QUOTES_PER_DAY_PREMIUM = 20
+RFQ_QUOTA_FREE = "3/month"
+RFQ_QUOTA_VERIFIED = "15/month"
+RFQ_QUOTA_PREMIUM = "40/month"
+RFQ_MAX_QUOTES_PER_REQUEST = 8
 RFQ_OPEN_DAYS = 14
 
 STORAGES = {

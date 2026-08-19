@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from django.conf import settings
 from django.utils import timezone
 
 from apps.accounts.models import ProviderMember
@@ -300,20 +301,20 @@ def test_a_refused_quote_gives_the_daily_credit_back(
             line_items=[{"label": "not_a_real_item", "amount_minor": 1}],
         )
 
-    assert selectors.quota_state(provider).free_remaining == 5
+    assert selectors.quota_state(provider).free_remaining == 3
 
 
 # ------------------------------------------------------------------- the quota
 
 
-def test_the_sixth_free_quote_of_the_month_is_refused_and_a_purchase_unblocks_it(
+def test_the_fourth_free_quote_of_the_month_is_refused_and_a_purchase_unblocks_it(
     buyer: User,
     make_quoting_provider: Callable[..., tuple[Provider, User]],
     quote_payload: dict[str, Any],
 ) -> None:
     """ROADMAP's acceptance test for P5, and the free tier's whole definition.
 
-    Six separate requests, because the one-live-quote-per-request rule would
+    Four separate requests, because the one-live-quote-per-request rule would
     otherwise be the thing doing the refusing and the quota would go untested.
     """
 
@@ -324,24 +325,24 @@ def test_the_sixth_free_quote_of_the_month_is_refused_and_a_purchase_unblocks_it
         return services.publish_rfq(rfq=rfq, buyer=buyer)
 
     provider, member = make_quoting_provider()
-    requests = [_request(n) for n in range(6)]
+    requests = [_request(n) for n in range(4)]
 
-    for rfq in requests[:5]:
+    for rfq in requests[:3]:
         services.submit_quote(rfq=rfq, provider=provider, submitted_by=member, **quote_payload)
 
     with pytest.raises(services.QuotaExceeded):
         services.submit_quote(
-            rfq=requests[5], provider=provider, submitted_by=member, **quote_payload
+            rfq=requests[3], provider=provider, submitted_by=member, **quote_payload
         )
 
     services.grant_quote_credits(provider=provider, credits=2)
     quote = services.submit_quote(
-        rfq=requests[5], provider=provider, submitted_by=member, **quote_payload
+        rfq=requests[3], provider=provider, submitted_by=member, **quote_payload
     )
 
     assert quote.status == QuoteStatus.SUBMITTED
     ledger = QuotaLedger.objects.get(provider=provider, date=timezone.localdate())
-    assert (ledger.free_used, ledger.paid_used, ledger.paid_balance) == (5, 1, 1)
+    assert (ledger.free_used, ledger.paid_used, ledger.paid_balance) == (3, 1, 1)
 
 
 def test_withdrawing_does_not_refund_the_quote(
@@ -358,7 +359,7 @@ def test_withdrawing_does_not_refund_the_quote(
 
     services.withdraw_quote(quote=quote, member=member)
 
-    assert selectors.quota_state(provider).free_remaining == 4
+    assert selectors.quota_state(provider).free_remaining == 2
 
 
 def test_a_purchased_balance_survives_into_the_next_day(
@@ -372,7 +373,7 @@ def test_a_purchased_balance_survives_into_the_next_day(
 
     state = selectors.quota_state(provider)
 
-    assert (state.free_remaining, state.paid_balance) == (5, 5)
+    assert (state.free_remaining, state.paid_balance) == (3, 5)
 
 
 def test_reading_the_quota_never_writes_a_row(
@@ -492,3 +493,71 @@ def test_a_claimed_page_that_lost_its_claim_stops_quoting(
 
     with pytest.raises(services.RfqError):
         services.submit_quote(rfq=open_rfq, provider=provider, submitted_by=member, **quote_payload)
+
+
+# ------------------------------------------------- how many answers one request takes
+
+
+def _fill_request(
+    rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    quote_payload: dict[str, Any],
+) -> list[Quote]:
+    """Answer ``rfq`` until every seat is taken."""
+    return [
+        services.submit_quote(rfq=rfq, provider=provider, submitted_by=member, **quote_payload)
+        for provider, member in (
+            make_quoting_provider() for _ in range(settings.RFQ_MAX_QUOTES_PER_REQUEST)
+        )
+    ]
+
+
+def test_a_request_stops_taking_answers_once_its_seats_are_full(
+    open_rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    quote_payload: dict[str, Any],
+) -> None:
+    """The buyer's side of the scarcity: thirty answers to one request is a page
+    the buyer closes, and twenty-nine companies that paid to be ignored."""
+    _fill_request(open_rfq, make_quoting_provider, quote_payload)
+    latecomer, member = make_quoting_provider()
+
+    with pytest.raises(services.RfqError):
+        services.submit_quote(
+            rfq=open_rfq, provider=latecomer, submitted_by=member, **quote_payload
+        )
+
+    # Refused before the ledger was touched: being too late must not cost the
+    # company one of its own quotes.
+    assert selectors.quota_state(latecomer).free_remaining == 3
+
+
+def test_the_full_request_is_visible_as_full_before_anyone_writes_a_price(
+    open_rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    quote_payload: dict[str, Any],
+) -> None:
+    assert open_rfq.is_full is False
+    assert open_rfq.quote_slots_left == settings.RFQ_MAX_QUOTES_PER_REQUEST
+
+    _fill_request(open_rfq, make_quoting_provider, quote_payload)
+
+    assert Rfq.objects.get(pk=open_rfq.pk).is_full is True
+
+
+def test_a_withdrawn_answer_gives_the_seat_back(
+    open_rfq: Rfq,
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+    quote_payload: dict[str, Any],
+) -> None:
+    """A withdrawn offer is not one the buyer is choosing between, so holding a
+    seat with it would shut the request early for no one's benefit."""
+    quotes = _fill_request(open_rfq, make_quoting_provider, quote_payload)
+    services.withdraw_quote(quote=quotes[0], member=quotes[0].submitted_by)
+    latecomer, member = make_quoting_provider()
+
+    quote = services.submit_quote(
+        rfq=open_rfq, provider=latecomer, submitted_by=member, **quote_payload
+    )
+
+    assert quote.status == QuoteStatus.SUBMITTED

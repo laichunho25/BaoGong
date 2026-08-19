@@ -64,9 +64,18 @@
           <h2 class="text-base font-semibold text-ink">
             <a class="transition hover:text-brand-700" href="{% url 'rfq:detail' rfq.id %}">{{ rfq.title }}</a>
           </h2>
-          <span class="tabular shrink-0 rounded-full bg-surface-sunken px-2.5 py-1 text-xs text-ink-muted">
-            {% blocktranslate with n=rfq.quote_count %}已有 {{ n }} 家报价{% endblocktranslate %}
-          </span>
+          {% comment %} Said before the form is opened, not after it is submitted: a
+             company that writes out a full price breakdown and is then told the
+             seats are gone has been wasted, not informed. {% endcomment %}
+          {% if rfq.is_full %}
+            <span class="tabular shrink-0 rounded-full bg-surface-sunken px-2.5 py-1 text-xs text-ink-muted">
+              {% translate "报价名额已满" %}
+            </span>
+          {% else %}
+            <span class="tabular shrink-0 rounded-full bg-surface-sunken px-2.5 py-1 text-xs text-ink-muted">
+              {% blocktranslate with n=rfq.quote_count left=rfq.quote_slots_left %}已有 {{ n }} 家报价·剩 {{ left }} 个名额{% endblocktranslate %}
+            </span>
+          {% endif %}
         </div>
 
         <p class="mt-2 text-sm text-ink-soft">

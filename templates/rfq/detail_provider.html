@@ -61,6 +61,11 @@
           </form>
           <p class="mt-1.5 text-xs text-ink-faint">{% translate "撤回不会退回已用掉的报价额度。" %}</p>
         {% endif %}
+      {% elif rfq.is_full %}
+        <p class="mt-2 flex items-center gap-1.5 text-ink-muted">
+          {% include "components/icon.html" with name="alert" class="h-4 w-4" %}
+          {% translate "该需求的报价名额已满。" %}
+        </p>
       {% elif entry.quota.can_quote %}
         <p class="mt-2 text-ink-muted">
           {% include "components/quota_line.html" with quota=entry.quota %}

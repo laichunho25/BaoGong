@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: qs-matching\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-20 00:08+0800\n"
+"POT-Creation-Date: 2026-08-20 00:30+0800\n"
 "PO-Revision-Date: 2026-08-18 18:00+0800\n"
 "Language-Team: none\n"
 "Language: zh_Hans\n"
@@ -915,15 +915,15 @@ msgstr "公司秘书"
 msgid "Registered address"
 msgstr "注册地址"
 
-#: .\apps\providers\models.py:374 .\apps\rfq\models.py:300
+#: .\apps\providers\models.py:374 .\apps\rfq\models.py:332
 msgid "Accounting"
 msgstr "会计记账"
 
-#: .\apps\providers\models.py:375 .\apps\rfq\models.py:301
+#: .\apps\providers\models.py:375 .\apps\rfq\models.py:333
 msgid "Audit liaison"
 msgstr "审计对接"
 
-#: .\apps\providers\models.py:376 .\apps\rfq\models.py:298
+#: .\apps\providers\models.py:376 .\apps\rfq\models.py:330
 msgid "Bank account assistance"
 msgstr "银行开户协助"
 
@@ -939,19 +939,19 @@ msgstr "商标注册"
 msgid "Work visa"
 msgstr "工作签证"
 
-#: .\apps\providers\models.py:401 .\apps\rfq\models.py:307
+#: .\apps\providers\models.py:401 .\apps\rfq\models.py:339
 msgid "One-off"
 msgstr "一次性"
 
-#: .\apps\providers\models.py:402 .\apps\rfq\models.py:308
+#: .\apps\providers\models.py:402 .\apps\rfq\models.py:340
 msgid "Per year"
 msgstr "每年"
 
-#: .\apps\providers\models.py:403 .\apps\rfq\models.py:309
+#: .\apps\providers\models.py:403 .\apps\rfq\models.py:341
 msgid "Per month"
 msgstr "每月"
 
-#: .\apps\providers\models.py:404 .\apps\rfq\models.py:310
+#: .\apps\providers\models.py:404 .\apps\rfq\models.py:342
 msgid "Per hour"
 msgstr "每小时"
 
@@ -1547,7 +1547,7 @@ msgstr "诽谤或人身攻击"
 msgid "Posted by a competitor"
 msgstr "来自同业竞争者"
 
-#: .\apps\reviews\models.py:240 .\apps\rfq\models.py:303
+#: .\apps\reviews\models.py:240 .\apps\rfq\models.py:335
 msgid "Other"
 msgstr "其他"
 
@@ -1913,7 +1913,7 @@ msgstr "买家已关闭"
 msgid "Awarded"
 msgstr "已选定"
 
-#: .\apps\rfq\models.py:44 .\apps\rfq\models.py:196
+#: .\apps\rfq\models.py:44 .\apps\rfq\models.py:222
 msgid "Expired"
 msgstr "已过期"
 
@@ -1969,151 +1969,155 @@ msgstr ""
 msgid "RFQs"
 msgstr ""
 
-#: .\apps\rfq\models.py:191
+#: .\apps\rfq\models.py:217
 msgid "Submitted"
 msgstr "已提交"
 
-#: .\apps\rfq\models.py:192
+#: .\apps\rfq\models.py:218
 msgid "Shortlisted"
 msgstr "已入围"
 
-#: .\apps\rfq\models.py:193
+#: .\apps\rfq\models.py:219
 msgid "Accepted"
 msgstr "已接受"
 
-#: .\apps\rfq\models.py:194
+#: .\apps\rfq\models.py:220
 msgid "Not selected"
 msgstr "未获选"
 
-#: .\apps\rfq\models.py:195
+#: .\apps\rfq\models.py:221
 msgid "Withdrawn by the company"
 msgstr "公司已撤回"
 
-#: .\apps\rfq\models.py:292
+#: .\apps\rfq\models.py:324
 msgid "Government incorporation fee"
 msgstr "政府注册费"
 
-#: .\apps\rfq\models.py:293
+#: .\apps\rfq\models.py:325
 msgid "Business registration fee"
 msgstr "商业登记费"
 
-#: .\apps\rfq\models.py:294
+#: .\apps\rfq\models.py:326
 msgid "Incorporation service fee"
 msgstr "注册服务费"
 
-#: .\apps\rfq\models.py:295
+#: .\apps\rfq\models.py:327
 msgid "Company secretary (first year)"
 msgstr "公司秘书（首年）"
 
-#: .\apps\rfq\models.py:296
+#: .\apps\rfq\models.py:328
 msgid "Registered address (first year)"
 msgstr "注册地址（首年）"
 
-#: .\apps\rfq\models.py:297
+#: .\apps\rfq\models.py:329
 msgid "Company kit and chops"
 msgstr "公司文件套装及印章"
 
-#: .\apps\rfq\models.py:299
+#: .\apps\rfq\models.py:331
 msgid "Annual return filing"
 msgstr "周年申报表申报"
 
-#: .\apps\rfq\models.py:302
+#: .\apps\rfq\models.py:334
 msgid "Courier and handling"
 msgstr "快递及手续费"
 
-#: .\apps\rfq\models.py:311
+#: .\apps\rfq\models.py:343
 msgid "Estimate only"
 msgstr "仅为估算"
 
-#: .\apps\rfq\services.py:91
+#: .\apps\rfq\services.py:92
 msgid "预算上限不能低于下限。"
 msgstr ""
 
-#: .\apps\rfq\services.py:112
+#: .\apps\rfq\services.py:113
 msgid "请填写需求标题。"
 msgstr ""
 
-#: .\apps\rfq\services.py:114 .\apps\rfq\services.py:143
+#: .\apps\rfq\services.py:115 .\apps\rfq\services.py:144
 msgid "请至少选择一项需要的服务。"
 msgstr ""
 
-#: .\apps\rfq\services.py:135
+#: .\apps\rfq\services.py:136
 msgid "只有需求发布者可以发布该需求。"
 msgstr ""
 
-#: .\apps\rfq\services.py:139
+#: .\apps\rfq\services.py:140
 msgid "请先验证邮箱，再发布需求。"
 msgstr ""
 
-#: .\apps\rfq\services.py:141
+#: .\apps\rfq\services.py:142
 msgid "该需求已经发布过了。"
 msgstr ""
 
-#: .\apps\rfq\services.py:161
+#: .\apps\rfq\services.py:162
 msgid "只有需求发布者可以关闭该需求。"
 msgstr ""
 
-#: .\apps\rfq\services.py:163
+#: .\apps\rfq\services.py:164
 msgid "该需求已经结束。"
 msgstr ""
 
-#: .\apps\rfq\services.py:241
+#: .\apps\rfq\services.py:242
 msgid "本月免费报价额度已用完，购买额度或升级方案后可继续报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:243
+#: .\apps\rfq\services.py:244
 msgid "今日免费报价额度已用完，购买额度后可继续报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:258
+#: .\apps\rfq\services.py:259
 msgid "购买额度必须大于零。"
 msgstr ""
 
-#: .\apps\rfq\services.py:270
+#: .\apps\rfq\services.py:283
 msgid "只有该公司的成员可以代表公司报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:274
+#: .\apps\rfq\services.py:287
 msgid "请先完成公司认领，再向客户报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:276
+#: .\apps\rfq\services.py:289
 msgid "公司不在官方持牌名单上，暂不能报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:278
+#: .\apps\rfq\services.py:291
 msgid "该需求已经结束，不能再报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:287
+#: .\apps\rfq\services.py:296
+msgid "该需求的报价名额已满，请看看需求墙上其他需求。"
+msgstr ""
+
+#: .\apps\rfq\services.py:305
 msgid "报价明细含有无法比较的项目。"
 msgstr ""
 
-#: .\apps\rfq\services.py:290
+#: .\apps\rfq\services.py:308
 msgid "同一项目不能重复填写。"
 msgstr ""
 
-#: .\apps\rfq\services.py:294
+#: .\apps\rfq\services.py:312
 msgid "报价金额必须是不小于零的整数（最小货币单位）。"
 msgstr ""
 
-#: .\apps\rfq\services.py:342
+#: .\apps\rfq\services.py:364
 msgid "贵公司已经就该需求报过价，请先撤回再重新报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:387
+#: .\apps\rfq\services.py:409
 msgid "只有该公司的成员可以撤回报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:389
+#: .\apps\rfq\services.py:411
 msgid "客户已选择该报价，不能撤回。"
 msgstr ""
 
-#: .\apps\rfq\services.py:401
+#: .\apps\rfq\services.py:423
 msgid "只有需求发布者可以处理报价。"
 msgstr ""
 
-#: .\apps\rfq\services.py:403
+#: .\apps\rfq\services.py:425
 msgid "该报价已经失效。"
 msgstr ""
 
@@ -2137,15 +2141,19 @@ msgstr ""
 msgid "已加入候选。"
 msgstr ""
 
-#: .\apps\rfq\views.py:275
+#: .\apps\rfq\views.py:277
+msgid "该需求的报价名额已满，看看需求墙上其他需求。"
+msgstr ""
+
+#: .\apps\rfq\views.py:281
 msgid "贵公司已经就该需求报过价。"
 msgstr ""
 
-#: .\apps\rfq\views.py:299
+#: .\apps\rfq\views.py:305
 msgid "报价已发送，客户会收到通知。"
 msgstr ""
 
-#: .\apps\rfq\views.py:330
+#: .\apps\rfq\views.py:336
 msgid "报价已撤回。已用掉的报价额度不会退回。"
 msgstr ""
 
@@ -3187,8 +3195,8 @@ msgstr ""
 #: .\templates\pages\home.html:164
 #, python-format
 msgid ""
-"只有完成认领、且仍在官方名单上的公司可以报价，每家每月免费 %(free)s 次，付费"
-"方案按日计算。"
+"只有完成认领、且仍在官方名单上的公司可以报价，每家每月免费 %(free)s 次，一张"
+"需求最多 %(cap)s 家报价。"
 msgstr ""
 
 #: .\templates\pages\home.html:173
@@ -3211,7 +3219,7 @@ msgstr ""
 msgid "最新开放中的需求"
 msgstr ""
 
-#: .\templates\pages\home.html:212 .\templates\rfq\wall.html:70
+#: .\templates\pages\home.html:212
 #, python-format
 msgid "已有 %(n)s 家报价"
 msgstr ""
@@ -4364,7 +4372,7 @@ msgstr ""
 msgid "空白表示该公司没有列出这一项，并不代表免费。"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:16 .\templates\rfq\wall.html:97
+#: .\templates\rfq\detail_provider.html:16 .\templates\rfq\wall.html:107
 #, python-format
 msgid "发布于 %(published)s，%(expires)s 截止"
 msgstr ""
@@ -4397,24 +4405,28 @@ msgstr ""
 msgid "撤回不会退回已用掉的报价额度。"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:72 .\templates\rfq\quote_form.html:4
+#: .\templates\rfq\detail_provider.html:68
+msgid "该需求的报价名额已满。"
+msgstr ""
+
+#: .\templates\rfq\detail_provider.html:77 .\templates\rfq\quote_form.html:4
 #: .\templates\rfq\quote_form.html:14
 msgid "向客户报价"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:77
+#: .\templates\rfq\detail_provider.html:82
 msgid "今日报价额度已用完，明日恢复或购买额度后可继续报价。"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:82 .\templates\rfq\wall.html:55
+#: .\templates\rfq\detail_provider.html:87 .\templates\rfq\wall.html:55
 msgid "只有完成认领、且仍在官方持牌名单上的公司可以报价。"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:84
+#: .\templates\rfq\detail_provider.html:89
 msgid "此账号暂时不能报价"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:84
+#: .\templates\rfq\detail_provider.html:89
 msgid "去目录认领公司页面"
 msgstr ""
 
@@ -4565,18 +4577,27 @@ msgstr ""
 msgid "查看公司目录"
 msgstr ""
 
-#: .\templates\rfq\wall.html:85
+#: .\templates\rfq\wall.html:75
+msgid "报价名额已满"
+msgstr ""
+
+#: .\templates\rfq\wall.html:79
+#, python-format
+msgid "已有 %(n)s 家报价·剩 %(left)s 个名额"
+msgstr ""
+
+#: .\templates\rfq\wall.html:95
 msgid "需要开户协助"
 msgstr ""
 
-#: .\templates\rfq\wall.html:92
+#: .\templates\rfq\wall.html:102
 msgid "已核实用家"
 msgstr ""
 
-#: .\templates\rfq\wall.html:102
+#: .\templates\rfq\wall.html:112
 msgid "需求会在发布后立即出现在这里，并在截止日期后自动下墙。"
 msgstr ""
 
-#: .\templates\rfq\wall.html:103
+#: .\templates\rfq\wall.html:113
 msgid "目前没有开放中的需求"
 msgstr ""

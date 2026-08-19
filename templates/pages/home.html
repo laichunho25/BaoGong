@@ -156,8 +156,8 @@
             <div>
               <p class="text-sm font-medium text-ink">{% translate "持牌公司来报价" %}</p>
               <p class="mt-0.5 text-sm text-ink-muted">
-                {% blocktranslate trimmed with free=matching.free_quotes_per_month %}
-                  只有完成认领、且仍在官方名单上的公司可以报价，每家每月免费 {{ free }} 次，付费方案按日计算。
+                {% blocktranslate trimmed with free=matching.free_allowance.limit cap=matching.max_quotes_per_request %}
+                  只有完成认领、且仍在官方名单上的公司可以报价，每家每月免费 {{ free }} 次，一张需求最多 {{ cap }} 家报价。
                 {% endblocktranslate %}
               </p>
             </div>
