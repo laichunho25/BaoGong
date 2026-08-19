@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from django.utils import timezone
 
+from apps.reviews.models import ReviewStatus
 from apps.rfq import selectors, services
 from apps.rfq.models import Quote
 from apps.rfq.selectors import FIRST_YEAR_TOTAL, MIN_PERCENTILE_SAMPLE
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 
     from apps.accounts.models import User
     from apps.providers.models import Provider
+    from apps.reviews.models import Review
     from apps.rfq.models import Rfq
 
 pytestmark = pytest.mark.django_db
@@ -41,6 +43,73 @@ def test_the_wall_counts_live_quotes_only(
     services.withdraw_quote(quote=quote, member=member)
 
     assert selectors.open_rfqs().first().quote_count == 0  # type: ignore[union-attr]
+
+
+def test_a_buyer_who_left_a_verified_review_is_marked_on_the_wall(
+    open_rfq: Rfq,
+    make_provider: Callable[..., Provider],
+    make_review: Callable[..., Review],
+) -> None:
+    """The half of the bargain that companies can see. It is an attribute of
+    the requirement, not a name: the wall still carries nothing that says who
+    the buyer is (COMPLIANCE section 4)."""
+    assert selectors.open_rfqs().first().buyer_verified is False  # type: ignore[union-attr]
+
+    make_review(provider=make_provider(), author=open_rfq.buyer, is_verified=True)
+
+    assert selectors.open_rfqs().first().buyer_verified is True  # type: ignore[union-attr]
+
+
+def test_an_unverified_review_does_not_mark_the_wall(
+    open_rfq: Rfq,
+    make_provider: Callable[..., Provider],
+    make_review: Callable[..., Review],
+) -> None:
+    """Same rule as the mark itself: the document is what is being rewarded."""
+    make_review(provider=make_provider(), author=open_rfq.buyer, is_verified=False)
+
+    assert selectors.open_rfqs().first().buyer_verified is False  # type: ignore[union-attr]
+
+
+def test_marked_requirements_sort_first_without_hiding_the_others(
+    open_rfq: Rfq,
+    make_user: Callable[..., User],
+    make_provider: Callable[..., Provider],
+    make_review: Callable[..., Review],
+) -> None:
+    """The reward is a soft preference, announced on the page that asks for the
+    review. A newer unmarked requirement still appears - below, not gone."""
+    newcomer = make_user(email="newcomer@example.com")
+    later = services.publish_rfq(
+        rfq=services.create_rfq(
+            buyer=newcomer,
+            title="Incorporate a holding company",
+            services_needed=["incorporation"],
+            raw_input="Just the company, no account.",
+        ),
+        buyer=newcomer,
+    )
+    # Published last, so it leads the wall on recency alone.
+    assert list(selectors.open_rfqs()) == [later, open_rfq]
+
+    make_review(provider=make_provider(), author=open_rfq.buyer, is_verified=True)
+
+    assert list(selectors.open_rfqs()) == [open_rfq, later]
+
+
+def test_hiding_the_review_puts_the_buyer_back_in_line(
+    open_rfq: Rfq,
+    make_provider: Callable[..., Provider],
+    make_review: Callable[..., Review],
+) -> None:
+    """Nothing about the standing is stored on the requirement, so a review
+    hidden after a complaint takes the wall position with it."""
+    review = make_review(provider=make_provider(), author=open_rfq.buyer, is_verified=True)
+
+    review.status = ReviewStatus.HIDDEN
+    review.save(update_fields=["status"])
+
+    assert selectors.open_rfqs().first().buyer_verified is False  # type: ignore[union-attr]
 
 
 def test_the_buyer_sees_quotes_cheapest_first(

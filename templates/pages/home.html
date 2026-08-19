@@ -279,6 +279,117 @@
     {% endif %}
   </section>
 
+  {# ---------------- 邀请留评价 ------------------------------------------ #}
+  {% comment %} The one section on this page that asks the reader for something. It sits
+     directly under the verified quotations because the invitation only makes
+     sense next to the proof that we mean it: those cards are what a reader's
+     own review becomes.
+
+     Two rules this block may never break, both from COMPLIANCE section 3:
+     the reward may not depend on what the review says, and the page must say
+     so; and nothing here may imply we pay for reviews. The sentence about a
+     one-star review earning the same mark is not decoration - remove it and
+     the section becomes an offer to buy opinions. {% endcomment %}
+  <section class="mt-14">
+    <div class="overflow-hidden rounded-3xl border border-brand-200 bg-brand-wash shadow-card">
+      <div class="grid gap-8 p-6 sm:p-9 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
+        <div>
+          <p class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-brand-100 ring-1 ring-inset ring-white/20">
+            {% include "components/icon.html" with name="spark" class="h-3.5 w-3.5" %}
+            {% translate "邀请已开公司的股东" %}
+          </p>
+
+          <h2 class="mt-4 text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+            {% translate "你踩过的坑，值得让下一个人少踩一次" %}
+          </h2>
+          <p class="mt-3 max-w-xl text-sm leading-relaxed text-brand-100 sm:text-base">
+            {% translate "你的公司用过哪家秘书公司？把真实经历写下来，再上传 NNC1 或 NAR1 让审核员确认确有合作，你的评价就会带上「已验证」——这是本平台唯一算数的评价。" %}
+          </p>
+
+          <ol class="mt-6 space-y-3">
+            <li class="flex gap-3">
+              <span class="tabular mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white">1</span>
+              <p class="text-sm leading-relaxed text-brand-100">
+                {% translate "在目录里找到那家公司，写下你实际经历的事：报价怎么算、多久回复、有没有额外收费。" %}
+              </p>
+            </li>
+            <li class="flex gap-3">
+              <span class="tabular mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white">2</span>
+              <p class="text-sm leading-relaxed text-brand-100">
+                {% translate "上传 NNC1 或 NAR1。我们只读三个栏位：公司名称、公司编号、文件上列明的秘书名称——董事姓名、住址、证件号码一律不入库。" %}
+              </p>
+            </li>
+            <li class="flex gap-3">
+              <span class="tabular mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white">3</span>
+              <p class="text-sm leading-relaxed text-brand-100">
+                {% translate "审核员确认文件上的秘书就是你评价的那家公司，评价发布并标记「已验证」，文件在决定后 90 日内删除。" %}
+              </p>
+            </li>
+          </ol>
+
+          <div class="mt-7 flex flex-wrap items-center gap-3">
+            <a href="{% url 'providers:list' %}"
+               class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-brand-800 shadow-lift transition hover:bg-brand-50">
+              {% translate "找到我用过的那家公司" %}
+              {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+            </a>
+            {% if viewer_is_verified_reviewer %}
+              <span class="inline-flex items-center gap-1.5 text-xs font-medium text-brand-100">
+                {% include "components/icon.html" with name="check" class="h-4 w-4" %}
+                {% translate "你已经是已核实用家，谢谢。" %}
+              </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-white p-5 shadow-lift sm:p-6">
+          <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "留评价换到什么" %}</p>
+
+          <div class="mt-4 space-y-4">
+            <div class="flex gap-3">
+              <span class="mt-0.5 shrink-0 text-brand-600">{% include "components/icon.html" with name="shield" class="h-5 w-5" %}</span>
+              <div>
+                <p class="text-sm font-semibold text-ink">{% translate "「已核实用家」标记" %}</p>
+                <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+                  {% translate "此后你发出的每一张需求单都带上它。持牌公司看得到——他们知道对面是一位真的开过公司、且愿意留下经历的客户。" %}
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <span class="mt-0.5 shrink-0 text-brand-600">{% include "components/icon.html" with name="trend" class="h-5 w-5" %}</span>
+              <div>
+                <p class="text-sm font-semibold text-ink">{% translate "需求单在需求墙上优先展示" %}</p>
+                <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+                  {% translate "带标记的需求排在前面，通常拿到报价更快、更多。没有标记的需求不会被隐藏，只是排在后面。" %}
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <span class="mt-0.5 shrink-0 text-brand-600">{% include "components/icon.html" with name="scale" class="h-5 w-5" %}</span>
+              <div>
+                <p class="text-sm font-semibold text-ink">{% translate "让价格真的可比" %}</p>
+                <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+                  {% translate "每一条经核验的评价都会写进这家公司的公开分数。你花十分钟，换的是下一个人不用再猜。" %}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 space-y-2 border-t border-line pt-4">
+            <p class="flex gap-2 text-xs leading-relaxed text-ink-muted">
+              <span class="mt-0.5 shrink-0 text-ink-faint">{% include "components/icon.html" with name="coins" class="h-3.5 w-3.5" %}</span>
+              {% translate "我们不付钱买评价。以上回报与你打几分无关——给一星的评价，拿到的标记和给五星的完全一样。" %}
+            </p>
+            <p class="flex gap-2 text-xs leading-relaxed text-ink-muted">
+              <span class="mt-0.5 shrink-0 text-ink-faint">{% include "components/icon.html" with name="lock" class="h-3.5 w-3.5" %}</span>
+              {% translate "被评公司有回覆权与申诉权；提出申诉不会隐藏你的评价。评价须基于可查证的亲身经历。" %}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   {# ---------------- 热门搜索 -------------------------------------------- #}
   <section class="mt-14">
     {% include "components/section_heading.html" with eyebrow=_("热门搜索") title=_("大家常用的筛选条件") subtitle=_("这些是目录里公司最多的几个条件，点一下直接筛出结果。数字是符合条件的公司数目。") %}

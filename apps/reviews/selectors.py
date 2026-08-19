@@ -17,6 +17,7 @@ from apps.reviews.models import Dispute, Nnc1Verification, Review, ReviewStatus,
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from django.contrib.auth.models import AnonymousUser
     from django.db.models import QuerySet
 
     from apps.accounts.models import User
@@ -48,6 +49,26 @@ def featured_reviews(*, limit: int = 3) -> QuerySet[Review]:
         .select_related("provider__licensee", "score")
         .order_by("-published_at", "-created_at")[:limit]
     )
+
+
+def is_verified_reviewer(user: User | AnonymousUser | None) -> bool:
+    """Whether this person has ever had a review verified against a document.
+
+    The one thing the platform gives back for the trouble of uploading an NNC1
+    (see the home page's invitation). It is derived, never stored: a review
+    that is hidden after a complaint, or a verification that is later reversed,
+    takes the standing with it. A flag on the account would outlive the
+    evidence it was granted for.
+
+    Deliberately independent of what the review said. A one-star review earns
+    this exactly like a five-star one - the moment the reward depends on the
+    verdict, every review on the platform is worth less (COMPLIANCE section 3).
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    return Review.objects.filter(
+        author_id=user.pk, status=ReviewStatus.PUBLISHED, is_verified=True
+    ).exists()
 
 
 def review_by_author(*, provider: Provider, author: User) -> Review | None:

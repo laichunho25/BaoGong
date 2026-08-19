@@ -18,11 +18,12 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from django.db.models import Aggregate, Count, FloatField, Q
+from django.db.models import Aggregate, Count, Exists, FloatField, OuterRef, Q
 from django.utils import timezone
 
 from apps.core.money import Money
 from apps.providers.models import ClaimStatus, Provider
+from apps.reviews.models import Review, ReviewStatus
 from apps.rfq.models import (
     LineItemLabel,
     QuotaLedger,
@@ -55,6 +56,16 @@ def open_rfqs() -> QuerySet[Rfq]:
 
     Expiry is filtered here as well as swept by the beat task, so the wall is
     right between sweeps rather than right once a day.
+
+    Requests from buyers who have had a review verified against a document sort
+    first. That is the second half of the bargain the home page offers, and it
+    is deliberately a *soft* preference: nothing is hidden, every open request
+    is still on the wall, and the ordering is announced on the page that asks
+    for the review rather than left as an undisclosed thumb on the scale.
+
+    ``buyer_verified`` says something about the buyer, never who they are - the
+    wall carries no name, and this annotation does not change that (COMPLIANCE
+    section 4).
     """
     return (
         Rfq.objects.filter(
@@ -62,8 +73,17 @@ def open_rfqs() -> QuerySet[Rfq]:
             visibility=Visibility.PUBLIC,
             expires_at__gt=timezone.now(),
         )
-        .annotate(quote_count=Count("quotes", filter=Q(quotes__status__in=LIVE_QUOTE_STATUSES)))
-        .order_by("-published_at")
+        .annotate(
+            quote_count=Count("quotes", filter=Q(quotes__status__in=LIVE_QUOTE_STATUSES)),
+            buyer_verified=Exists(
+                Review.objects.filter(
+                    author=OuterRef("buyer"),
+                    status=ReviewStatus.PUBLISHED,
+                    is_verified=True,
+                )
+            ),
+        )
+        .order_by("-buyer_verified", "-published_at")
     )
 
 

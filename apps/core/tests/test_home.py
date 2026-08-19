@@ -178,3 +178,79 @@ class TestHomeFeaturedReviews:
         content = Client().get("/").content.decode()
 
         assert "还没有经核验的评价" in content
+
+
+class TestReviewInvitation:
+    """The one block on the home page that asks the reader for something.
+
+    Asking a shareholder to upload an NNC1 in exchange for something is only
+    allowed while two things stay true, and both are checked here: the page
+    says what the reward is *and* that it does not depend on the score
+    (COMPLIANCE section 3), and every reward it names is one the codebase
+    actually gives. Marketing copy is the easiest place in a platform for a
+    promise to outrun its implementation.
+    """
+
+    def test_the_invitation_is_on_the_page(self) -> None:
+        content = Client().get("/").content.decode()
+
+        assert "你踩过的坑，值得让下一个人少踩一次" in content
+        assert "NNC1" in content
+        assert "NAR1" in content
+
+    def test_it_says_the_reward_does_not_depend_on_the_score(self) -> None:
+        """Remove this sentence and the section becomes an offer to buy
+        opinions. That is the line COMPLIANCE section 3 draws."""
+        content = Client().get("/").content.decode()
+
+        assert "我们不付钱买评价" in content
+        assert "给一星的评价，拿到的标记和给五星的完全一样" in content
+
+    def test_it_states_what_happens_to_the_uploaded_document(self) -> None:
+        """CLAUDE.md rule 5 - the fields we read and the day the file goes."""
+        content = Client().get("/").content.decode()
+
+        assert "90 日内删除" in content
+        assert "证件号码一律不入库" in content
+
+    def test_every_reward_it_names_is_one_the_wall_really_gives(
+        self,
+        make_provider: Callable[..., Provider],
+        make_user: Callable[..., User],
+        make_review: Callable[..., object],
+        open_rfq: Rfq,
+    ) -> None:
+        """The invitation promises a mark and a place in the queue. Both come
+        from ``rfq.selectors.open_rfqs``, so the promise is checked against the
+        query rather than against itself."""
+        from apps.rfq.selectors import open_rfqs
+
+        content = Client().get("/").content.decode()
+        assert "已核实用家" in content
+        assert "需求单在需求墙上优先展示" in content
+
+        assert open_rfqs().first().buyer_verified is False  # type: ignore[union-attr]
+        make_review(provider=make_provider(), author=open_rfq.buyer, is_verified=True)
+        assert open_rfqs().first().buyer_verified is True  # type: ignore[union-attr]
+
+    def test_a_visitor_who_already_qualified_is_thanked_instead(
+        self,
+        make_provider: Callable[..., Provider],
+        make_user: Callable[..., User],
+        make_review: Callable[..., object],
+    ) -> None:
+        author = make_user(email="already@example.com")
+        make_review(provider=make_provider(), author=author, is_verified=True)
+        client = Client()
+        client.force_login(author)
+
+        response = client.get("/")
+
+        assert response.context["viewer_is_verified_reviewer"] is True
+        assert "你已经是已核实用家" in response.content.decode()
+
+    def test_a_signed_out_visitor_still_sees_the_invitation(self) -> None:
+        response = Client().get("/")
+
+        assert response.context["viewer_is_verified_reviewer"] is False
+        assert "你踩过的坑，值得让下一个人少踩一次" in response.content.decode()

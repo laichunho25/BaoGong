@@ -23,6 +23,13 @@
 `components/form_fields.html` + `apps/core/form_styles.py`；新增 `stat` / `section_heading` /
 `empty_state` / `icon` 等共用元件與 `animate-rise-in` 入場動效。規範見 `docs/DESIGN_SYSTEM.md`。
 
+**徵求評價（首頁第七段）✅**：首頁新增「邀請已開公司的股東」區塊，用回報換一則有 NNC1／NAR1
+佐證的評價。回報刻意只有兩樣，而且兩樣都是既有查詢的衍生值，不是新欄位：
+`reviews.selectors.is_verified_reviewer`（評價被隱藏或核驗被推翻，資格同時消失）與需求牆上的
+軟性優先排序（`rfq.selectors.open_rfqs` 的 `buyer_verified` + `-buyer_verified` 排序，
+牆上顯示為「已核實用家」標記）。回報與打幾分無關、頁面上明說不付錢買評價——這兩句是
+COMPLIANCE §3 的紅線，不是文案，見 `apps/core/tests/test_home.py::TestReviewInvitation`。
+
 ## 依賴關係
 
 ```

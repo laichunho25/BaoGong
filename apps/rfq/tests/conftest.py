@@ -25,6 +25,7 @@ from apps.providers.tests.conftest import (  # noqa: F401  (re-exported fixtures
     make_user,
     moderator,
 )
+from apps.reviews.tests.conftest import make_review  # noqa: F401  (re-exported fixture)
 from apps.rfq import services
 
 if TYPE_CHECKING:

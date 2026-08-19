@@ -78,6 +78,12 @@
           {% if rfq.needs_bank_account %}
             {% include "components/badge.html" with tone="brand" icon="bank" label=_("需要开户协助") %}
           {% endif %}
+          {% comment %} An attribute of the requirement, not of the person: it says a
+             document has been checked, never whose. These requirements sort first
+             on the wall, and the home page says so out loud. {% endcomment %}
+          {% if rfq.buyer_verified %}
+            {% include "components/badge.html" with tone="success" icon="shield" label=_("已核实用家") %}
+          {% endif %}
         </div>
 
         <p class="tabular mt-4 border-t border-line pt-3 text-xs text-ink-faint">

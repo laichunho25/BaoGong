@@ -9,7 +9,7 @@ from django.views.decorators.cache import never_cache
 
 from apps.providers.selectors import popular_searches, service_summaries
 from apps.registry.selectors import market_snapshot, registry_last_synced_at
-from apps.reviews.selectors import featured_reviews
+from apps.reviews.selectors import featured_reviews, is_verified_reviewer
 from apps.rfq.selectors import matching_snapshot, open_rfqs
 
 #: How many open requirements to preview for a signed-in visitor.
@@ -26,6 +26,12 @@ def home(request: HttpRequest) -> HttpResponse:
     claim about freshness has to be checkable on the page making it
     (COMPLIANCE section 1).
 
+    The invitation to leave a review is the one editorial-looking block, and
+    it is still not editorial: what it offers - the verified mark and the
+    ordering that mark buys on the request wall - is implemented in
+    ``rfq.selectors.open_rfqs``. A home page may not promise a perk that
+    exists nowhere but on the home page.
+
     The open-requirement previews are the one part that depends on who is
     looking. Counts are public; the requirements themselves are not, for the
     same reason the wall sits behind a login (COMPLIANCE section 4).
@@ -37,6 +43,9 @@ def home(request: HttpRequest) -> HttpResponse:
         "chips": popular_searches(),
         "reviews": featured_reviews(),
         "matching": matching_snapshot(),
+        # Only swaps the invitation's closing line for a thank-you; the
+        # section itself is shown to everyone, signed in or not.
+        "viewer_is_verified_reviewer": is_verified_reviewer(request.user),
         "rfq_previews": (open_rfqs()[:HOME_RFQ_PREVIEW] if request.user.is_authenticated else None),
     }
     return render(request, "pages/home.html", context)

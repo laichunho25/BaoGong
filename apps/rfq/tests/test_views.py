@@ -297,6 +297,31 @@ def test_the_wall_never_renders_the_buyer(
         assert str(open_rfq.buyer_id) not in page
 
 
+def test_the_wall_marks_a_verified_buyer_without_naming_them(
+    client: Client,
+    open_rfq: Rfq,
+    make_provider: Callable[..., Provider],
+    make_review: Callable[..., object],
+    make_quoting_provider: Callable[..., tuple[Provider, User]],
+) -> None:
+    """What a company actually gets out of the home page's invitation: a badge
+    saying a document behind this buyer has been checked. Still no name, no
+    email, no id - the mark is an attribute of the requirement (COMPLIANCE
+    section 4)."""
+    _, member = make_quoting_provider()
+    client.force_login(member)
+
+    before = client.get(reverse("rfq:wall")).content.decode()
+    assert "已核实用家" not in before
+
+    make_review(provider=make_provider(), author=open_rfq.buyer, is_verified=True)
+
+    after = client.get(reverse("rfq:wall")).content.decode()
+    assert "已核实用家" in after
+    assert open_rfq.buyer.email not in after
+    assert str(open_rfq.buyer_id) not in after
+
+
 def test_an_unclaimed_company_is_offered_no_way_to_quote(
     client: Client,
     open_rfq: Rfq,
