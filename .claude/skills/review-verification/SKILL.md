@@ -1,6 +1,6 @@
 ---
 name: review-verification
-description: 處理 QS Matching Platform 的評價真實性驗證與審核流程 — NNC1 文件核驗、評分演算法、moderation 佇列、公司回覆與爭議申訴。當使用者提到「評價」「評分」「NNC1」「核驗」「審核」「假評」「申訴」「rating」「moderation」時觸發。
+description: 處理 包公 BaoGong 的評價真實性驗證與審核流程 — NNC1 文件核驗、評分演算法、moderation 佇列、公司回覆與爭議申訴。當使用者提到「評價」「評分」「NNC1」「核驗」「審核」「假評」「申訴」「rating」「moderation」時觸發。
 ---
 
 # review-verification

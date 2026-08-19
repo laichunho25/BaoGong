@@ -1,6 +1,6 @@
 ---
 name: frontend-page
-description: 在 QS Matching Platform 建立或修改前端頁面（Django Templates + HTMX + Alpine.js + Tailwind）。當使用者說「做一個 XXX 頁」「改 UI」「加篩選器」「這頁很醜」「做比較表」「加載入狀態」時觸發。含 i18n、內地可訪問性、必備合規元件與效能要求。
+description: 在 包公 BaoGong 建立或修改前端頁面（Django Templates + HTMX + Alpine.js + Tailwind）。當使用者說「做一個 XXX 頁」「改 UI」「加篩選器」「這頁很醜」「做比較表」「加載入狀態」時觸發。含 i18n、內地可訪問性、必備合規元件與效能要求。
 ---
 
 # frontend-page

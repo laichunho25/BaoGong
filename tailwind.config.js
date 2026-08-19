@@ -62,6 +62,21 @@ module.exports = {
           DEFAULT: "#e2e8f0",
           strong: "#cbd5e1",
         },
+        // Cinnabar, the colour of a carved name seal. Brand furniture only -
+        // the mark, the wordmark rule, the cloud and meander ornaments. It is
+        // never a state: `danger` is the red that means something is wrong,
+        // and a second red on a status chip would make the reader guess which
+        // red they are looking at. See docs/BRAND.md section 5.
+        seal: {
+          50: "#fdf4f2",
+          100: "#fae3df",
+          200: "#f0bdb5",
+          400: "#d1584a",
+          500: "#c03a2c",
+          600: "#a62f23",
+          700: "#87261d",
+          900: "#571712",
+        },
         // Official-register chrome. Grey on purpose, never brand.
         official: {
           bg: "#f1f5f9",
@@ -101,6 +116,26 @@ module.exports = {
           "Hiragino Sans GB",
           "Microsoft YaHei",
           "sans-serif",
+        ],
+        // Headings and the wordmark. A Chinese serif (宋體) is what a printed
+        // page in this subject actually looks like, and it is the cheapest way
+        // for the site to stop reading like a generic SaaS template.
+        //
+        // Every family here ships with an operating system - nothing is
+        // downloaded (PRD section 4 bans web-font CDNs, and a self-hosted CJK
+        // face is several megabytes for readers on mainland connections).
+        // Georgia leads so Latin text gets a real serif rather than the Latin
+        // glyphs bundled inside a CJK face, which are noticeably worse.
+        display: [
+          "Georgia",
+          "Songti SC",
+          "Source Han Serif SC",
+          "Noto Serif CJK SC",
+          "Noto Serif SC",
+          "SimSun",
+          "STSong",
+          "PMingLiU",
+          "serif",
         ],
       },
       boxShadow: {

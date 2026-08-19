@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "登录" %} - QS Matching{% endblock %}
+{% block title %}{% translate "登录" %} - 包公 BaoGong{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-md">
@@ -9,7 +9,7 @@
     <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
       {% include "components/icon.html" with name="lock" class="h-5 w-5" %}
     </span>
-    <h1 class="mt-4 text-2xl font-semibold tracking-tight text-ink">{% translate "登录" %}</h1>
+    <h1 class="mt-4 font-display text-2xl font-semibold tracking-tight text-ink">{% translate "登录" %}</h1>
     <p class="mt-1 text-sm text-ink-muted">{% translate "浏览目录无需登录；发布需求、写评价与认领页面才需要。" %}</p>
 
     <form method="post" class="mt-6 space-y-4">

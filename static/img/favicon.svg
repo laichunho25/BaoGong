@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>包公 BaoGong</title>
+  <rect width="32" height="32" rx="6" fill="#a62f23"/>
+  <rect x="3.5" y="3.5" width="25" height="25" rx="3.5" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.2"/>
+  <text x="16" y="17" text-anchor="middle" dominant-baseline="central"
+        font-family="Songti SC, Source Han Serif SC, Noto Serif CJK SC, SimSun, serif"
+        font-size="17" font-weight="600" fill="#ffffff">包</text>
+</svg>

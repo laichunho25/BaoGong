@@ -12,7 +12,7 @@ import responses
 from apps.providers import verification
 
 TOKEN = "abc123"
-EXPECTED = f"qs-site-verification={TOKEN}"
+EXPECTED = f"baogong-site-verification={TOKEN}"
 
 
 class _Answer:
@@ -60,7 +60,7 @@ class TestVerifyWebsite:
         monkeypatch.setattr(
             dns.resolver,
             "resolve",
-            lambda *a, **k: [_Answer("qs-site-verification=somebody-elses-token")],
+            lambda *a, **k: [_Answer("baogong-site-verification=somebody-elses-token")],
         )
         monkeypatch.setattr(verification, "_fetch", lambda url: b"")
 
@@ -108,7 +108,10 @@ class TestVerifyWebsite:
         responses.add(
             responses.GET,
             "https://example.com/",
-            body=f'<html><head><meta content="{TOKEN}" name="qs-site-verification"></head></html>',
+            body=(
+                f'<html><head><meta content="{TOKEN}" '
+                'name="baogong-site-verification"></head></html>'
+            ),
             status=200,
         )
 

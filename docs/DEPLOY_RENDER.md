@@ -17,14 +17,16 @@ Render **沒有香港 region**。可選：Oregon / Ohio / Virginia / Frankfurt /
 
 | 變數 | 來源 | 用途 |
 |---|---|---|
-| `DATABASE_URL` | `fromDatabase: qs-postgres` | Postgres 連線字串（internal） |
-| `REDIS_URL` | `fromService: qs-keyvalue` | Celery broker + result backend |
+| `DATABASE_URL` | `fromDatabase: baogong-postgres` | Postgres 連線字串（internal） |
+| `REDIS_URL` | `fromService: baogong-keyvalue` | Celery broker + result backend |
 | `PORT` | Render 注入 | gunicorn 必須綁這個，不是 8000 |
 | `RENDER_EXTERNAL_HOSTNAME` | Render 注入 | `prod.py` 自動加進 `ALLOWED_HOSTS` 與 `CSRF_TRUSTED_ORIGINS` |
 
 `config/settings/prod.py` 已經處理 `RENDER_EXTERNAL_HOSTNAME`，所以**首次部署不需要
-手動填 `ALLOWED_HOSTS`**。之後綁自訂網域時，才要在 dashboard 加
-`ALLOWED_HOSTS=qs.example.com` 與 `CSRF_TRUSTED_ORIGINS=https://qs.example.com`。
+手動填 `ALLOWED_HOSTS`**。自訂網域則要自己列——`render.yaml` 的 `baogong-shared`
+已經把 `ALLOWED_HOSTS`、`CSRF_TRUSTED_ORIGINS`、`SITE_URL` 三個都填成
+`www.baogong.com.hk`（見 §10）。`.onrender.com` 那個主機名仍然照常可用，
+因為 `prod.py` 是「附加」而不是「取代」。
 
 ### 2.2 Blueprint 自動生成
 
@@ -37,7 +39,7 @@ Render **沒有香港 region**。可選：Oregon / Ohio / Virginia / Frankfurt /
 
 ### 2.3 你必須在 Render dashboard 手動填（`sync: false`）
 
-在 **Env Group `qs-shared`** 裡填一次，四個服務共用：
+在 **Env Group `baogong-shared`** 裡填一次，四個服務共用：
 
 | 變數 | 從哪拿 | 沒填會怎樣 |
 |---|---|---|
@@ -78,12 +80,12 @@ Bucket 必須 **private**，一律用簽名 URL 存取（`prod.py` 已設 `defau
 
 ```bash
 # 1. 推上 GitHub（Render 從 repo 讀 render.yaml）
-git remote add origin git@github.com:<you>/qs-platform.git
+git remote add origin git@github.com:<you>/baogong.git
 git push -u origin main
 ```
 
 2. Render Dashboard → **New → Blueprint** → 選這個 repo → Apply。
-3. 第一次會失敗（`sync: false` 的變數還是空的）。到 **Env Groups → qs-shared**
+3. 第一次會失敗（`sync: false` 的變數還是空的）。到 **Env Groups → baogong-shared**
    填好 §2.3 的值 → Manual Deploy。
 4. 開 `https://<service>.onrender.com/healthz`，應該回 `200` 與
    `{"status":"ok","checks":{"database":{"ok":true},"redis":{"ok":true}}}`。
@@ -126,18 +128,18 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- DATA_MODEL.md 的 GIN trigram index
 
 ## 6. Celery beat 只能有一個
 
-`qs-beat` 的 instance count 必須固定為 **1**。兩個 scheduler = 每日 TCSP 同步跑兩次，
+`baogong-beat` 的 instance count 必須固定為 **1**。兩個 scheduler = 每日 TCSP 同步跑兩次，
 會產生重複的 `SyncRun` 與 `LicenseeChange`。不要對 beat 開 autoscaling。
 
 ## 7. 方案與費用（2026 年價目，僅供估算）
 
 | 服務 | 方案 | 說明 |
 |---|---|---|
-| qs-web | Starter | Free 方案會 spin down，冷啟動對 SEO 與 P95 < 800ms 是災難 |
-| qs-worker | Starter | |
-| qs-beat | Starter | 負載極低，但不能省 |
-| qs-keyvalue | Starter | `maxmemoryPolicy: noeviction`——broker 不准丟任務 |
-| qs-postgres | Basic 256MB 起 | **Free Postgres 30 天後會被刪除**，不要用 |
+| baogong-web | Starter | Free 方案會 spin down，冷啟動對 SEO 與 P95 < 800ms 是災難 |
+| baogong-worker | Starter | |
+| baogong-beat | Starter | 負載極低，但不能省 |
+| baogong-keyvalue | Starter | `maxmemoryPolicy: noeviction`——broker 不准丟任務 |
+| baogong-postgres | Basic 256MB 起 | **Free Postgres 30 天後會被刪除**，不要用 |
 
 ## 8. 內部控制台的位置（不是 `/admin/`）
 
@@ -162,3 +164,81 @@ Django admin 是全站權限最高的介面，而 `/admin/` 是掃描器第一�
 - **Image 體積**：目前 `Dockerfile` 連 dev 依賴一起裝（單一 image，本機／CI／prod 一致）。
   要瘦身就加 build stage 分離，列為技術債。
 - **CSP / rate limiting / HSTS preload 提交**：P8。
+
+## 10. 正式網域 `www.baogong.com.hk`
+
+### 10.1 為什麼是 `.com.hk`
+
+平台講的是香港公司註冊，讀者多數在內地。`.com.hk` 說明了兩件 `.com` 說不出來的事：
+主體在香港、受香港規則管。副作用也是好的——`.hk` 的註冊門檻本身就是一道信任背書。
+
+**`.com.hk` 有註冊資格要求**：須為香港註冊公司（提供商業登記證 BR / CI 副本）。
+向 HKIRC 認可註冊商申請（HKDNR、Cloudflare Registrar 不支援 `.hk`，
+用 Gandi / 香港本地註冊商）。審批通常 1–3 個工作天，要留在切換排程裡。
+
+同時把 `baogong.hk` 一併登記、301 導向 `www.baogong.com.hk`，成本很低，
+但可以擋掉一個明顯的仿冒位置。
+
+### 10.2 www 是正式的，apex 只做轉址
+
+`www.baogong.com.hk` 是**唯一正式主機名**，`baogong.com.hk` 由 Render 轉址過去。
+理由不是美感：頁面的 `<link rel="canonical">` 是用 `request.get_host()` 組出來的
+（見 `templates/` 各頁的 `canonical` block），兩個主機名都回 200 就等於每一頁
+發出兩個 canonical，`sitemap.xml` 與 `robots.txt` 也會跟著分裂。
+
+另外 apex 不能設 CNAME（DNS 規範），只能靠註冊商的 ALIAS/ANAME 或 A record；
+把 www 當正式的，等於把最脆弱的那一環放在轉址上，而不是放在主站上。
+
+### 10.3 DNS 記錄
+
+在網域註冊商的 DNS 面板設定，值以 Render dashboard 上顯示的為準：
+
+| 類型 | 名稱 | 值 |
+|---|---|---|
+| CNAME | `www` | `baogong-web.onrender.com` |
+| ALIAS / ANAME（若註冊商支援） | `@` | `baogong-web.onrender.com` |
+| A（若不支援 ALIAS） | `@` | Render 提供的 anycast IP |
+
+TTL 先設 **300 秒**，切換完確認無誤再調回 3600——出事時要能快速回退。
+
+### 10.4 切換步驟
+
+1. 網域註冊完成、可自行管理 DNS。
+2. Render → `baogong-web` → Settings → Custom Domains，加入兩個網域
+   （`render.yaml` 的 `domains:` 已經聲明，Blueprint 套用時會自動建立）。
+3. 設好 §10.3 的 DNS，等 Render 顯示 **Verified**。
+4. Render 自動簽發 Let's Encrypt 憑證（不需要自己買）。憑證未簽發前
+   **不要**對外公布網址：`prod.py` 開了 `SECURE_HSTS_PRELOAD` 與一年的 HSTS，
+   在憑證好之前被瀏覽器記下 HSTS，會讓人連不進來且無法自行清除。
+5. 確認 `https://www.baogong.com.hk/healthz` 回 200，且
+   `https://baogong.com.hk` 會 301 到 www。
+6. 到 Google Search Console / Bing 提交 `https://www.baogong.com.hk/sitemap.xml`。
+
+### 10.5 HSTS preload 的先後次序
+
+`SECURE_HSTS_PRELOAD = True` 只是送出 header，**還沒**提交到瀏覽器的 preload 清單。
+提交（hstspreload.org）要等網域穩定跑滿至少幾週——preload 一旦生效，
+撤銷要等好幾個月，是全站最難回退的一個決定。列在 §9。
+
+## 11. 服務改名的代價（`qs-*` → `baogong-*`）
+
+Render 的 Blueprint 是**用名字認服務**的。如果這份 `render.yaml` 從來沒有 Apply 過，
+下面整節可以略過——直接部署即可。
+
+若已經 Apply 過，改名會被當成「刪掉舊的、建立新的」：
+
+| 資源 | 改名的後果 | 做法 |
+|---|---|---|
+| `baogong-postgres` | **舊資料庫連同資料一起被刪** | 先在 Render 開新庫 → `pg_dump` 舊庫 → `pg_restore` 新庫 → 確認筆數 → 才 Apply |
+| `baogong-web` | 服務重建，`.onrender.com` 主機名跟著變 | 舊網址失效；若已對外公布過，要留轉址 |
+| `baogong-keyvalue` | Redis 重建，佇列中的任務遺失 | 選 Celery 佇列清空的時段做 |
+| `baogong-shared` | Env group 重建，`sync: false` 的 secret **要重新填一次** | 動手前先把值抄下來 |
+
+本機 `docker compose` 同理：project name 換了，volume 前綴跟著換，等於一個空的
+Postgres。開發資料是可丟的，重來一次就好：
+
+```bash
+docker compose down -v          # 舊 volume 不會自己消失，要明確刪掉
+docker compose up --build
+docker compose run --rm web python manage.py seed_demo
+```

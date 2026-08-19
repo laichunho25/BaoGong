@@ -1,6 +1,6 @@
-# QS Matching Platform — VS Code Claude 啟動包
+# 包公 BaoGong — VS Code Claude 啟動包
 
-> **用法**：把整個 `qs-platform-kit/` 資料夾的內容，複製到你的空專案根目錄。
+> **用法**：把整個 `baogong-kit/` 資料夾的內容，複製到你的空專案根目錄。
 > 然後在 VS Code 開啟該資料夾 → 開 Claude Code → 貼上下面 **【主啟動 Prompt】**。
 >
 > Claude 會自動讀取 `CLAUDE.md`（每次對話都會載入）與 `.claude/skills/`（按需觸發）。
@@ -36,7 +36,7 @@ your-project/
 ## 【主啟動 Prompt】— 第一次對話貼這段
 
 ```text
-你是這個專案的 lead engineer。專案代號 QS Matching Platform：一個香港 TCSP（信託或公司服務）
+你是這個專案的 lead engineer。專案代號 包公 BaoGong：一個香港 TCSP（信託或公司服務）
 持牌秘書公司的比較、評價與報價撮合平台，主要服務內地客戶。
 
 開工前請先做這四件事，不要急著寫 code：

@@ -1,6 +1,6 @@
 ---
 name: compliance-review
-description: 對 QS Matching Platform 執行合規檢查 — 免責聲明、數據來源標註、禁用宣稱、PDPO 個資、AI 輸出邊界、佣金披露、受規管活動邊界。當使用者說「跑合規檢查」「上線前檢查」「compliance review」「這樣會不會有法律問題」「檢查免責」或準備 release 時觸發。
+description: 對 包公 BaoGong 執行合規檢查 — 免責聲明、數據來源標註、禁用宣稱、PDPO 個資、AI 輸出邊界、佣金披露、受規管活動邊界。當使用者說「跑合規檢查」「上線前檢查」「compliance review」「這樣會不會有法律問題」「檢查免責」或準備 release 時觸發。
 ---
 
 # compliance-review

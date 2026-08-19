@@ -1,8 +1,27 @@
 # DESIGN_SYSTEM.md — 介面語言
 
-> 這份文件說明「為什麼長這樣」。要做一頁新畫面時看 `.claude/skills/frontend-page/SKILL.md`（怎麼做）。
+> 這份文件說明「為什麼長這樣」。要做一頁新畫面時看 `.claude/skills/frontend-page/SKILL.md`（怎麼做）；
+> 那一頁上寫什麼字、用哪個形象詞開頭，看 `docs/BRAND.md`。
 > 唯一權威來源是程式碼：token 在 `tailwind.config.js`，全域行為在 `static/css/input.css`，
 > 元件在 `templates/components/`，表單 widget class 在 `apps/core/form_styles.py`。
+
+## 0. 品牌怎麼落到畫面上
+
+站名「包公」的三個形象（明鏡高懸／鐵面無私／一把尺量到底）對應平台的三條底線，
+每一條在畫面上都有固定的落點——不是標語牆，是每一頁最上面那一句話：
+
+| 形象 | 出現在 | 說的是 |
+|---|---|---|
+| 明鏡高懸 | 公司目錄 | 名單不增不刪，除名只標注不刪頁 |
+| 鐵面無私 | 寫評價、指南 | 要文件才算數；沒有人能付錢寫進來 |
+| 一把尺量到底 | 並排比較、需求牆、發布需求 | 同一組項目、同一把尺，平台不代收費用 |
+
+寫法固定：`text-xs text-brand-700` 的一行，前面帶一個 3.5 的圖示，接在該頁的說明段落之後、
+`data_source_notice` 之前。**品牌色是平台自己的聲音**（見 §1 的表），所以這一行永遠不會被
+誤讀成官方說的話；也因此這一行不准出現在 `official-*` 區塊裡面。
+
+名字的完整由來與禁用講法在 `docs/BRAND.md`——尤其是「包公不是官」那一節，
+它是合規要求，不是文案偏好。
 
 ## 1. 設計要解決的問題
 
@@ -36,9 +55,26 @@
 - `official-{bg,border,text}` — 官方資料專用灰，見上表。
 - `success` / `warning` / `danger`（50/200/600/700/900）— tone 是**意思**不是顏色：
   `success` 是對讀者有利且已定案的狀態，`warning` 是需要他做點什麼的狀態。
+- `seal`（朱砂紅）：**品牌家具專用**，不是狀態色。只用於標誌、回紋、月牙點綴。
+  `danger` 已經是「出事了」的紅；第二種紅一旦出現在 badge 或表單錯誤上，
+  讀者就得先猜這是哪一種紅。詳見 `docs/BRAND.md` §5.3。
 
 陰影只有兩階：`shadow-card`（卡片）、`shadow-lift`（浮起來的東西，如首頁搜尋框）。
 `bg-brand-wash` 只給首頁 hero 用——全站唯一允許大聲的地方。
+
+## 2.5 字體與中式紋樣
+
+- `font-sans`（Inter + 系統 CJK 黑體）是內文。
+- `font-display`（Georgia + 系統宋體）是 h1／h2 與 `.article-body` 的標題。
+  全部是作業系統自帶的字型：PRD §4 禁公共 CDN，而自架一套 CJK 字型是好幾 MB，
+  對內地讀者的連線來說比沒有更糟。Georgia 排在最前，讓拉丁字用真正的襯線體，
+  而不是 CJK 字型裡附帶的那套。
+- 紋樣兩個，都在 `static/css/input.css`，都是 inline SVG data URI：
+  - `.ornament-meander`（回紋）— 頁首下方、footer 頂部各一條，14px 高。同一畫面不疊兩條。
+  - `.ornament-clouds`（祥雲）— 只用在深色／brand-wash 底的區塊底邊（首頁 hero 與「名字的意思」）。
+
+紋樣一律 `aria-hidden`、不含文字；圖案全關掉，頁面說的話要一字不少。
+**不得**放進 `official-*` 區塊，也**不得**把印章當成認證徽章——見 `docs/BRAND.md` §5.3。
 
 ## 3. 版面骨架
 
@@ -69,8 +105,8 @@
 預設 `aria-hidden`；需要語意時傳 `label=`。
 
 現有名稱：`alert` `arrow-right` `bank` `building` `calculator` `chat` `check` `clock`
-`close` `coins` `doc` `lock` `menu` `passport` `quote` `scale` `search` `shield` `spark`
-`stamp` `trademark` `trend` `users`。加新圖示就加一個 `{% elif %}` 分支，不要另開檔案。
+`close` `coins` `crescent` `doc` `lock` `menu` `passport` `quote` `scale` `search`
+`shield` `spark` `stamp` `trademark` `trend` `users`。加新圖示就加一個 `{% elif %}` 分支，不要另開檔案。
 
 ## 6. 元件清單
 
@@ -83,6 +119,7 @@
 | `empty_state.html` | 空狀態 | 必須說明**為什麼空**並給下一步；不准留白畫面 |
 | `form_fields.html` | 全站表單欄位渲染 | 表單一律 include 它，不要各頁自己寫 label/error |
 | `icon.html` | 圖示 | 見上 |
+| `logo.html` | 印章標誌 + 包公 / BaoGong 字標 | 只出現在頁首與 footer；印章不得當認證徽章（BRAND §5.3） |
 | `provider_card.html` | 目錄卡片 | 評分走 `rating_display` |
 | `rating_display.html` | 評分 | 0 條已驗證評價時顯示空狀態，**不准顯示 5.00**（RATING_SYSTEM §4） |
 | `section_heading.html` | 區塊標題（eyebrow / title / subtitle / 連結） | eyebrow 是標籤不是口號 |

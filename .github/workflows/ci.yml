@@ -7,7 +7,7 @@ on:
 
 env:
   DJANGO_SETTINGS_MODULE: config.settings.test
-  DATABASE_URL: postgres://qs:qs@localhost:5432/qs_test
+  DATABASE_URL: postgres://baogong:baogong@localhost:5432/baogong_test
   REDIS_URL: redis://localhost:6379/0
 
 jobs:
@@ -33,12 +33,12 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: qs
-          POSTGRES_PASSWORD: qs
-          POSTGRES_DB: qs_test
+          POSTGRES_USER: baogong
+          POSTGRES_PASSWORD: baogong
+          POSTGRES_DB: baogong_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U qs" --health-interval 5s
+          --health-cmd "pg_isready -U baogong" --health-interval 5s
           --health-timeout 3s --health-retries 10
       redis:
         image: redis:7-alpine

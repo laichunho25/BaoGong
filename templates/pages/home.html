@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "QS Matching — 香港持牌秘书公司比较平台" %}{% endblock %}
+{% block title %}{% translate "包公 BaoGong — 香港持牌秘书公司比较平台" %}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}/">{% endblock %}
 
 {% comment %} Every number, tile and quotation on this page is read from the database by
@@ -10,8 +10,14 @@
    makes the platform's case is the last place a placeholder belongs. {% endcomment %}
 
 {% block hero %}
-  <section class="bg-brand-wash">
-    <div class="mx-auto max-w-6xl px-4 py-14 sm:py-20">
+  <section class="relative overflow-hidden bg-brand-wash">
+    {% comment %} 祥雲 along the foot of the hero, the way a Chinese panel closes its
+       bottom edge. Decoration only, and the one place on the site it appears
+       (docs/BRAND.md section 5). {% endcomment %}
+    <div class="ornament-clouds pointer-events-none absolute inset-x-0 bottom-0 h-7"
+         aria-hidden="true"></div>
+
+    <div class="relative mx-auto max-w-6xl px-4 py-14 sm:py-20">
       <div class="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-center">
         <div class="stagger">
           <p class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-brand-100 ring-1 ring-inset ring-white/20"
@@ -20,11 +26,14 @@
             {% translate "只收录公司注册处公布的持牌名单" %}
           </p>
 
-          <h1 class="mt-5 text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl" style="--i:1">
+          <h1 class="mt-5 font-display text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl" style="--i:1">
             {% translate "在香港开公司，先看清楚再决定" %}
           </h1>
+          {% comment %} The brand line comes before the feature list because it is what the
+             features are for. "不替你选" is the load-bearing half: the name borrows
+             包拯's fairness, never his authority to judge (docs/BRAND.md section 2). {% endcomment %}
           <p class="mt-4 max-w-xl text-base leading-relaxed text-brand-100 sm:text-lg" style="--i:2">
-            {% translate "官方持牌名单每日同步，价格区间公开，评价须经文件核验。发一次需求，多家持牌公司按同一口径报价。" %}
+            {% translate "包公不替你选，只把证据摆齐：官方持牌名单每日同步，价格区间公开，评价须经文件核验。发一次需求，多家持牌公司按同一口径报价。" %}
           </p>
 
           {% comment %} A plain GET form, not HTMX: this is a navigation into another page,
@@ -127,7 +136,7 @@
     <div class="grid gap-8 p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
       <div>
         <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "需要报价" %}</p>
-        <h2 class="mt-1 text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+        <h2 class="mt-1 font-display text-xl font-semibold tracking-tight text-ink sm:text-2xl">
           {% translate "发一次需求，收到可以并排比的报价" %}
         </h2>
         <p class="mt-2 max-w-xl text-sm leading-relaxed text-ink-soft">
@@ -408,37 +417,64 @@
     </div>
   </section>
 
-  {# ---------------- 三个核心价值 ---------------------------------------- #}
-  <section class="mt-14 rounded-3xl bg-surface-inverse px-6 py-10 sm:px-10">
-    <h2 class="text-xl font-semibold tracking-tight text-white sm:text-2xl">{% translate "这个平台的三条底线" %}</h2>
-    <div class="mt-6 grid gap-6 sm:grid-cols-3">
+  {# ---------------- 名字的意思 = 三条底线 -------------------------------- #}
+  {% comment %} The section that explains the name. It sits last because it is the
+     summary: everything above is an instance of one of these three lines.
+
+     The closing paragraph is not optional. 包拯 was a magistrate, and a
+     platform named after him has to say out loud that it is neither an
+     authority nor a judge - COMPLIANCE section 1 and 2, docs/BRAND.md
+     section 2. Remove it and the name starts making a claim the platform
+     is not allowed to make. {% endcomment %}
+  <section class="relative mt-14 overflow-hidden rounded-3xl bg-surface-inverse px-6 py-10 sm:px-10">
+    <div class="ornament-clouds pointer-events-none absolute inset-x-0 bottom-0 h-7"
+         aria-hidden="true"></div>
+
+    <p class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-brand-200">
+      {% comment %} 月牙 - the crescent folklore draws on 包拯's brow. It marks the one
+         section that talks about the name itself; it never labels a fact. {% endcomment %}
+      <span class="text-seal-400">{% include "components/icon.html" with name="crescent" class="h-3.5 w-3.5" %}</span>
+      {% translate "名字的意思" %}
+    </p>
+    <h2 class="relative mt-2 font-display text-xl font-semibold tracking-tight text-white sm:text-2xl">
+      {% translate "包公的三条底线" %}
+    </h2>
+    <p class="mt-3 max-w-3xl text-sm leading-relaxed text-brand-100">
+      {% translate "「包公」取「包罗香港公司服务」之意，也取包拯「公道」之义。公道在这里不是形容词，是三件每天都要做到的事。" %}
+    </p>
+
+    <div class="relative mt-8 grid gap-6 sm:grid-cols-3">
       <div>
         <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-brand-200">
           {% include "components/icon.html" with name="search" class="h-5 w-5" %}
         </span>
-        <h3 class="mt-3 text-sm font-semibold text-white">{% translate "透明" %}</h3>
+        <h3 class="mt-3 font-display text-base font-semibold text-white">{% translate "明镜高悬 · 透明" %}</h3>
         <p class="mt-1.5 text-sm leading-relaxed text-brand-100">
-          {% translate "只列公司注册处公布的持牌名单，每日同步，牌照状态与同步时间都写在页面上。" %}
+          {% translate "只列公司注册处公布的持牌名单，每日同步，牌照状态与同步时间都写在页面上。牌照失效的公司不删页，改成标注——你正要联系的公司还在不在名单上，是最该先知道的事。" %}
         </p>
       </div>
       <div>
         <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-brand-200">
           {% include "components/icon.html" with name="shield" class="h-5 w-5" %}
         </span>
-        <h3 class="mt-3 text-sm font-semibold text-white">{% translate "可信" %}</h3>
+        <h3 class="mt-3 font-display text-base font-semibold text-white">{% translate "铁面无私 · 可信" %}</h3>
         <p class="mt-1.5 text-sm leading-relaxed text-brand-100">
-          {% translate "评价须以文件核验「确有合作」为前提才标记为已验证，被评公司有回覆权与申诉权。" %}
+          {% translate "评价要先用文件核验「确有合作」才标记为已验证，被评公司有回覆权与申诉权。付费买得到展示位置，买不到分数——这两件事在平台里走的是两条互不相通的路。" %}
         </p>
       </div>
       <div>
         <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-brand-200">
           {% include "components/icon.html" with name="scale" class="h-5 w-5" %}
         </span>
-        <h3 class="mt-3 text-sm font-semibold text-white">{% translate "撮合" %}</h3>
+        <h3 class="mt-3 font-display text-base font-semibold text-white">{% translate "一把尺量到底 · 撮合" %}</h3>
         <p class="mt-1.5 text-sm leading-relaxed text-brand-100">
-          {% translate "发布需求由公司主动报价，平台生成同口径比较表，并且不代收买卖双方的任何费用。" %}
+          {% translate "发一次需求，由持牌公司主动报价，平台把每份报价拆成同一组项目并排比：谁没列的那一格就留白，不会被当成免费。买卖双方的费用平台一分不代收。" %}
         </p>
       </div>
     </div>
+
+    <p class="relative mt-8 border-t border-white/20 pt-5 text-sm leading-relaxed text-brand-200">
+      {% translate "包公是个名字，不是身分：本平台不是政府机构，与香港公司注册处没有隶属关系，也不替任何人裁决谁好谁坏，更不会承诺开户结果。我们做的是把可查证的东西摆齐，判断留给你。" %}
+    </p>
   </section>
 {% endblock %}

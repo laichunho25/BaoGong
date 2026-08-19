@@ -1,6 +1,6 @@
 ---
 name: ai-agent-builder
-description: 在 QS Matching Platform 新增、修改或調校 AI Agent（matching、rfq intake、nnc1 extraction、review moderation、quote analysis、advisor RAG、registry diff）。當使用者說「加一個 agent」「改 prompt」「agent 輸出不對」「調整 AI 行為」「跑 eval」「AI 成本太高」時觸發。強制 structured output、fallback、eval 門檻與版本化 prompt。
+description: 在 包公 BaoGong 新增、修改或調校 AI Agent（matching、rfq intake、nnc1 extraction、review moderation、quote analysis、advisor RAG、registry diff）。當使用者說「加一個 agent」「改 prompt」「agent 輸出不對」「調整 AI 行為」「跑 eval」「AI 成本太高」時觸發。強制 structured output、fallback、eval 門檻與版本化 prompt。
 ---
 
 # ai-agent-builder

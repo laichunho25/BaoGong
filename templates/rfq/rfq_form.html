@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "发布需求" %} - QS Matching{% endblock %}
+{% block title %}{% translate "发布需求" %} - 包公 BaoGong{% endblock %}
 {% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-6">
   <header>
     <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "第 1 步，共 3 步" %}</p>
-    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink">{% translate "发布需求" %}</h1>
+    <h1 class="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">{% translate "发布需求" %}</h1>
     <p class="mt-1 text-sm text-ink-muted">
       {% translate "填一次，多家持牌公司按同一口径向您报价。" %}
+    </p>
+    <p class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-brand-700">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="lock" class="h-3.5 w-3.5" %}</span>
+      <span>{% translate "需求墙上不会出现您的姓名、电话或邮箱——想联系您的公司，要先给出一份报价。" %}</span>
     </p>
   </header>
 

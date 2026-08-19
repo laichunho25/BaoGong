@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "香港开公司指南 — QS Matching" %}{% endblock %}
+{% block title %}{% translate "香港开公司指南 — 包公 BaoGong" %}{% endblock %}
 {% block meta_description %}{% translate "注册香港公司、银行开户、TCSP 牌照核实、费用与合规的完整说明。由平台整理，可核实来源，不推荐任何一家公司。" %}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'content:list' %}">{% endblock %}
 
 {% block content %}
   <header class="rounded-2xl border border-line bg-surface-sunken p-6">
     <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "指南" %}</p>
-    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "香港开公司与开户指南" %}</h1>
+    <h1 class="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "香港开公司与开户指南" %}</h1>
     <p class="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
       {% translate "第一次在香港开公司，最贵的往往不是服务费，而是不知道该问什么。这里写的是流程、费用构成、银行开户被拒的常见原因，以及如何自己去官方登记册核实一家公司的牌照。" %}
+    </p>
+    <p class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-brand-700">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="shield" class="h-3.5 w-3.5" %}</span>
+      <span>{% translate "铁面无私：这些指南不推荐任何一家公司，也没有任何一家公司能付钱写进来。" %}</span>
     </p>
   </header>
 

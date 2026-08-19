@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "香港持牌秘书公司目录 — QS Matching" %}{% endblock %}
+{% block title %}{% translate "香港持牌秘书公司目录 — 包公 BaoGong" %}{% endblock %}
 {% block meta_description %}{% translate "香港公司注册处官方 TCSP 持牌名单，每日同步。可按地区、语言、是否协助银行开户筛选并比较。" %}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'providers:list' %}">{% endblock %}
 
 {% block content %}
   <header class="rounded-2xl border border-line bg-surface-sunken p-6">
     <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "公司目录" %}</p>
-    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "持牌秘书公司目录" %}</h1>
+    <h1 class="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "持牌秘书公司目录" %}</h1>
     <p class="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
       {% translate "以下名单来自香港公司注册处公布的《信托或公司服务持牌人登记册》，本平台每日同步，不增删名单本身。" %}
+    </p>
+    <p class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-brand-700">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="search" class="h-3.5 w-3.5" %}</span>
+      <span>{% translate "明镜高悬：名单我们不增不删，牌照失效的公司也不会被删页，只会被标注。" %}</span>
     </p>
     <div class="mt-3">{% include "components/data_source_notice.html" %}</div>
   </header>

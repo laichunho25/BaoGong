@@ -937,7 +937,7 @@ wheels = [
 ]
 
 [[package]]
-name = "qs-platform"
+name = "baogong"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

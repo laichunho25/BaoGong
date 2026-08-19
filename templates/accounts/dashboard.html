@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "我的账号" %} - QS Matching{% endblock %}
+{% block title %}{% translate "我的账号" %} - 包公 BaoGong{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
@@ -10,7 +10,7 @@
       {{ user.email|slice:":1" }}
     </span>
     <div class="min-w-0">
-      <h1 class="text-2xl font-semibold tracking-tight text-ink">{% translate "我的账号" %}</h1>
+      <h1 class="font-display text-2xl font-semibold tracking-tight text-ink">{% translate "我的账号" %}</h1>
       <p class="truncate text-sm text-ink-muted">{{ user.email }}</p>
     </div>
     <span class="ml-auto shrink-0">

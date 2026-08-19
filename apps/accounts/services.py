@@ -82,7 +82,7 @@ def send_verification_email(user: User, token: str, *, request: HttpRequest | No
     url = request.build_absolute_uri(path) if request is not None else path
     body = render_to_string("accounts/email/verify_email.txt", {"user": user, "url": url})
     send_mail(
-        subject=_("请验证您的邮箱 - QS Matching"),
+        subject=_("请验证您的邮箱 - 包公 BaoGong"),
         message=body,
         from_email=None,
         recipient_list=[user.email],

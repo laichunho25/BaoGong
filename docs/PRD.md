@@ -1,4 +1,4 @@
-# PRD — QS Matching Platform
+# PRD — 包公 BaoGong
 
 ## 1. 問題陳述
 

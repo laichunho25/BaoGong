@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "写评价" %} - {{ provider.display_name }} - QS Matching{% endblock %}
+{% block title %}{% translate "写评价" %} - {{ provider.display_name }} - 包公 BaoGong{% endblock %}
 {% comment %} A review page has nothing to offer a search engine and every reason not
    to be indexed: it is a form, and the text it collects is about a named
    company. {% endcomment %}
@@ -14,10 +14,14 @@
       <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
       {{ provider.display_name }}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">
+    <h1 class="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
       {% translate "评价这家公司" %}
     </h1>
     <p class="mt-1 text-sm text-ink-muted">{{ licensee.name_zh|default:licensee.name_en }}</p>
+    <p class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-brand-700">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="shield" class="h-3.5 w-3.5" %}</span>
+      <span>{% translate "铁面无私：评价要有文件才算数；被评公司可以回覆和申诉，但买不到分数。" %}</span>
+    </p>
   </header>
 
   {% comment %} Said before the form, not after it: what counts towards the public

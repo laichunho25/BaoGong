@@ -1,4 +1,4 @@
-# ARCHITECTURE — QS Matching Platform
+# ARCHITECTURE — 包公 BaoGong
 
 ## 1. 系統圖
 
@@ -28,7 +28,7 @@
 ## 2. 目錄結構（權威）
 
 ```
-qs-platform/
+baogong/
 ├── config/
 │   ├── settings/{base,dev,prod,test}.py
 │   ├── celery.py
@@ -184,7 +184,7 @@ A4 的實作把這條推得更遠——它連 `recommended_action` 都不執行�
 ```
 DJANGO_SETTINGS_MODULE=config.settings.dev
 SECRET_KEY=
-DATABASE_URL=postgres://qs:qs@db:5432/qs
+DATABASE_URL=postgres://baogong:baogong@db:5432/baogong
 REDIS_URL=redis://redis:6379/0
 ANTHROPIC_API_KEY=
 AGENT_BUDGET_DAILY_USD=20
@@ -196,7 +196,7 @@ ADMIN_URL= ADMIN_ENABLED= ADMIN_IP_ALLOWLIST= ADMIN_TRUST_PROXY_IP=
 S3_PRIVATE_BUCKET= PRIVATE_FILE_URL_TTL=300
 FILE_SCANNER_BACKEND=apps.core.scanning.UnavailableScanner
 CLAMAV_HOST=clamav CLAMAV_PORT=3310
-CLAIM_SITE_VERIFICATION_KEY=qs-site-verification
+CLAIM_SITE_VERIFICATION_KEY=baogong-site-verification
 SITE_URL=http://localhost:8000 DEFAULT_FROM_EMAIL= NOTIFICATIONS_ENABLED=true
 DISPUTE_SLA_BUSINESS_DAYS=5
 RFQ_FREE_QUOTES_PER_DAY=3 RFQ_OPEN_DAYS=14

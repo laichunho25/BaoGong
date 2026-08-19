@@ -12,9 +12,13 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 # A non-default prefix, so the suite exercises the same arrangement production
 # runs: the URLs are built at import time and override_settings cannot re-mount
 # them, which is exactly why this is pinned here rather than per-test.
-ADMIN_URL = "qs-ops-console/"
+ADMIN_URL = "baogong-ops-console/"
 
-DATABASES = {"default": env.db("DATABASE_URL", default="postgres://qs:qs@localhost:5432/qs_test")}
+DATABASES = {
+    "default": env.db(
+        "DATABASE_URL", default="postgres://baogong:baogong@localhost:5432/baogong_test"
+    )
+}
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True

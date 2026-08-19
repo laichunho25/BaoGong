@@ -105,7 +105,7 @@ TEMPLATES = [
 DATABASES = {
     "default": env.db(
         "DATABASE_URL",
-        default="postgres://qs:qs@localhost:5432/qs",
+        default="postgres://baogong:baogong@localhost:5432/baogong",
     )
 }
 DATABASES["default"]["ATOMIC_REQUESTS"] = False
@@ -132,7 +132,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="QS Matching <no-reply@example.com>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="包公 BaoGong <no-reply@example.com>")
 
 # Notification mail is sent from workers, which have no request to build links
 # from. A relative link in a mail is a dead link.
@@ -265,7 +265,7 @@ RFQ_FREE_QUOTES_PER_DAY = env.int("RFQ_FREE_QUOTES_PER_DAY", default=3)
 RFQ_OPEN_DAYS = env.int("RFQ_OPEN_DAYS", default=14)
 # Prefix of the DNS TXT record / meta tag value a company publishes to prove it
 # controls the website it claims.
-CLAIM_SITE_VERIFICATION_KEY = "qs-site-verification"
+CLAIM_SITE_VERIFICATION_KEY = "baogong-site-verification"
 # Ceiling on the page fetched during website verification: the response is
 # attacker-chosen, so it is read with a limit rather than into memory whole.
 CLAIM_VERIFICATION_MAX_BYTES = 512 * 1024
@@ -274,7 +274,7 @@ CLAIM_VERIFICATION_TIMEOUT = env.int("CLAIM_VERIFICATION_TIMEOUT", default=10)
 # ---------------------------------------------------------------- object storage
 
 S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default="")
-S3_BUCKET = env("S3_BUCKET", default="qs-dev")
+S3_BUCKET = env("S3_BUCKET", default="baogong-dev")
 S3_ACCESS_KEY = env("S3_ACCESS_KEY", default="")
 S3_SECRET_KEY = env("S3_SECRET_KEY", default="")
 S3_REGION = env("S3_REGION", default="ap-east-1")

@@ -1,13 +1,13 @@
 """Proving that a claimant controls the company's website.
 
-The applicant publishes ``qs-site-verification=<token>`` in one of three
+The applicant publishes ``baogong-site-verification=<token>`` in one of three
 places, and any one of them is accepted:
 
 * a DNS TXT record on the domain - the strongest, since it needs registrar or
   DNS control and cannot be set by someone who merely has a page on the site;
-* ``/.well-known/qs-site-verification.txt`` - easy for a company whose site is
+* ``/.well-known/baogong-site-verification.txt`` - easy for a company whose site is
   managed by an agency that will upload a file but not edit templates;
-* a ``<meta name="qs-site-verification" content="...">`` tag on the homepage.
+* a ``<meta name="baogong-site-verification" content="...">`` tag on the homepage.
 
 This is evidence for a human reviewer, not an approval. A verified website says
 the applicant controls that domain; it does not say the domain belongs to the
@@ -34,18 +34,18 @@ METHOD_DNS_TXT = "dns_txt"
 METHOD_WELL_KNOWN = "well_known"
 METHOD_META_TAG = "meta_tag"
 
-WELL_KNOWN_PATH = "/.well-known/qs-site-verification.txt"
+WELL_KNOWN_PATH = "/.well-known/baogong-site-verification.txt"
 
 # Attribute order varies between site builders, so the tag is matched by name
 # and content independently rather than as one fixed string.
 _META_TAG = re.compile(
-    rb"""<meta[^>]*name\s*=\s*["']qs-site-verification["'][^>]*"""
+    rb"""<meta[^>]*name\s*=\s*["']baogong-site-verification["'][^>]*"""
     rb"""content\s*=\s*["']([^"']+)["'][^>]*>""",
     re.IGNORECASE,
 )
 _META_TAG_REVERSED = re.compile(
     rb"""<meta[^>]*content\s*=\s*["']([^"']+)["'][^>]*"""
-    rb"""name\s*=\s*["']qs-site-verification["'][^>]*>""",
+    rb"""name\s*=\s*["']baogong-site-verification["'][^>]*>""",
     re.IGNORECASE,
 )
 
@@ -102,7 +102,7 @@ def _fetch(url: str) -> bytes:
     response = requests.get(
         url,
         timeout=settings.CLAIM_VERIFICATION_TIMEOUT,
-        headers={"User-Agent": "QSMatchingSiteVerification/1.0"},
+        headers={"User-Agent": "BaoGongSiteVerification/1.0"},
         stream=True,
         allow_redirects=True,
     )

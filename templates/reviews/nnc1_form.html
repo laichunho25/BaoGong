@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "上传 NNC1 核验" %} - {{ provider.display_name }} - QS Matching{% endblock %}
+{% block title %}{% translate "上传 NNC1 核验" %} - {{ provider.display_name }} - 包公 BaoGong{% endblock %}
 {% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
 
 {% block content %}
@@ -11,7 +11,7 @@
       <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
       {% translate "我的评价" %}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">
+    <h1 class="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
       {% translate "上传 NNC1 核验合作关系" %}
     </h1>
     <p class="mt-1 text-sm text-ink-muted">{{ provider.display_name }}</p>

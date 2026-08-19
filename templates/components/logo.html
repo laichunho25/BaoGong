@@ -1,0 +1,52 @@
+{% load i18n %}
+{% comment %} The BaoGong mark: a carved name seal (印章) bearing 包, plus the wordmark.
+
+   Inline SVG rather than an image file, for the same reason as icon.html - one
+   fewer request, and it inherits size from the caller. The seal red is
+   `seal-600`, which exists only for brand furniture; it is never a status
+   colour and, per docs/BRAND.md section 5, a seal must never be stamped next to
+   register data, where it would read as "certified by us".
+
+   The character is set as SVG text in a system CJK serif. If a reader has no
+   such face installed they still see the seal, which is the recognisable half.
+
+   Usage: {% include "components/logo.html" %}
+          {% include "components/logo.html" with size="sm" %}
+          {% include "components/logo.html" with mark_only=1 %}
+{% endcomment %}
+{% if size == "sm" %}
+  {% comment %} footer scale {% endcomment %}
+  <span class="flex items-center gap-2">
+    <svg viewBox="0 0 32 32" class="h-7 w-7 shrink-0" role="img"
+         aria-label="{% translate '包公 BaoGong' %}">
+      <rect x="1" y="1" width="30" height="30" rx="5" fill="#a62f23"/>
+      <rect x="3.75" y="3.75" width="24.5" height="24.5" rx="3" fill="none"
+            stroke="#ffffff" stroke-opacity="0.5" stroke-width="1"/>
+      <text x="16" y="16.5" text-anchor="middle" dominant-baseline="central"
+            font-family="Songti SC, Source Han Serif SC, Noto Serif CJK SC, SimSun, serif"
+            font-size="16" font-weight="600" fill="#ffffff">包</text>
+    </svg>
+    <span class="leading-none">
+      <span class="block font-display text-sm font-semibold tracking-wide text-ink">{% translate "包公" %}</span>
+      <span class="mt-0.5 block text-[9px] font-medium uppercase tracking-[0.18em] text-ink-muted">BaoGong</span>
+    </span>
+  </span>
+{% else %}
+  <span class="flex items-center gap-2.5">
+    <svg viewBox="0 0 32 32" class="h-9 w-9 shrink-0" role="img"
+         aria-label="{% translate '包公 BaoGong' %}">
+      <rect x="1" y="1" width="30" height="30" rx="5" fill="#a62f23"/>
+      <rect x="3.75" y="3.75" width="24.5" height="24.5" rx="3" fill="none"
+            stroke="#ffffff" stroke-opacity="0.5" stroke-width="1"/>
+      <text x="16" y="16.5" text-anchor="middle" dominant-baseline="central"
+            font-family="Songti SC, Source Han Serif SC, Noto Serif CJK SC, SimSun, serif"
+            font-size="16" font-weight="600" fill="#ffffff">包</text>
+    </svg>
+    {% if not mark_only %}
+      <span class="leading-none">
+        <span class="block font-display text-lg font-semibold tracking-wide text-ink">{% translate "包公" %}</span>
+        <span class="mt-0.5 block text-[10px] font-medium uppercase tracking-[0.2em] text-ink-muted">BaoGong</span>
+      </span>
+    {% endif %}
+  </span>
+{% endif %}

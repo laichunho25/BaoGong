@@ -1,11 +1,11 @@
-name: qs-platform
+name: baogong
 
 x-django: &django
   build: .
   env_file: [.env]
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.dev
-    DATABASE_URL: postgres://qs:qs@db:5432/qs
+    DATABASE_URL: postgres://baogong:baogong@db:5432/baogong
     REDIS_URL: redis://redis:6379/0
     S3_ENDPOINT_URL: http://minio:9000
   volumes:
@@ -20,14 +20,14 @@ services:
     # Official pgvector build of Postgres 16 - saves compiling the extension.
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_USER: qs
-      POSTGRES_PASSWORD: qs
-      POSTGRES_DB: qs
+      POSTGRES_USER: baogong
+      POSTGRES_PASSWORD: baogong
+      POSTGRES_DB: baogong
     ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qs -d qs"]
+      test: ["CMD-SHELL", "pg_isready -U baogong -d baogong"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -84,8 +84,8 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/qs-dev &&
-      mc anonymous set none local/qs-dev
+      mc mb --ignore-existing local/baogong-dev &&
+      mc anonymous set none local/baogong-dev
       "
 
   # One-shot migration step. web/worker/beat all wait for it to exit 0, so no

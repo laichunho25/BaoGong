@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "需求墙" %} - QS Matching{% endblock %}
+{% block title %}{% translate "需求墙" %} - 包公 BaoGong{% endblock %}
 {% comment %} Behind a login and out of the index: the wall is where buyers'
    requirements sit, and a requirement wall that search engines can read is a
    requirement wall that gets scraped (COMPLIANCE section 4). {% endcomment %}
@@ -12,9 +12,13 @@
   <header class="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-line bg-surface-sunken p-6">
     <div>
       <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "撮合" %}</p>
-      <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "需求墙" %}</h1>
+      <h1 class="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "需求墙" %}</h1>
       <p class="mt-2 text-sm text-ink-muted">
         {% translate "客户发布的需求，持牌并已认领的公司可以报价。" %}
+      </p>
+      <p class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-brand-700">
+        <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="scale" class="h-3.5 w-3.5" %}</span>
+        <span>{% translate "一把尺量到底：同一份需求，每家按同一组项目报价，平台不代收任何费用。" %}</span>
       </p>
     </div>
     <a href="{% url 'rfq:create' %}"

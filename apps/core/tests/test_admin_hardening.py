@@ -30,7 +30,7 @@ def test_default_admin_path_is_not_mounted(client: Client) -> None:
 def test_console_is_reachable_on_the_configured_prefix(client: Client) -> None:
     response = client.get(reverse("admin:login"))
     assert response.status_code == 200
-    assert reverse("admin:login").startswith("/qs-ops-console/")
+    assert reverse("admin:login").startswith("/baogong-ops-console/")
 
 
 def test_signed_in_buyer_gets_404_not_a_login_form(client: Client, buyer) -> None:

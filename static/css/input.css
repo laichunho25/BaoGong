@@ -68,10 +68,10 @@
     @apply mt-4;
   }
   .article-body h2 {
-    @apply mt-10 text-lg font-semibold tracking-tight text-ink sm:text-xl;
+    @apply mt-10 font-display text-lg font-semibold tracking-tight text-ink sm:text-xl;
   }
   .article-body h3 {
-    @apply mt-8 text-base font-semibold text-ink;
+    @apply mt-8 font-display text-base font-semibold text-ink;
   }
   .article-body ul {
     @apply list-disc space-y-1.5 pl-5;
@@ -100,6 +100,32 @@
   }
   .article-body th {
     @apply bg-surface-sunken font-medium text-ink;
+  }
+
+  /* --- Chinese ornament (docs/BRAND.md section 5) ------------------------
+     Two traditional bands, drawn as inline SVG data URIs so they cost no
+     request and cannot be blocked the way a CDN asset would be. Both are
+     decoration with no meaning attached: with images off, or read aloud, the
+     page loses nothing. Neither may be placed on or beside official register
+     data, which stays in its own grey chrome. */
+
+  /* 回紋 - the key/meander band. A hairline rule that says "printed document"
+     instead of "Tailwind default border". Use it as a section divider or under
+     the header; keep it to 12-14px tall and never stack two in one view. */
+  .ornament-meander {
+    height: 0.875rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='14' viewBox='0 0 16 14' fill='none' stroke='%23a62f23' stroke-width='1' opacity='0.35'%3E%3Crect x='1.5' y='1.5' width='11' height='9'/%3E%3Crect x='4.5' y='4.5' width='5' height='3'/%3E%3Cpath d='M0 13h16'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: center;
+  }
+
+  /* 祥雲 - the auspicious-cloud band that runs along the foot of a Chinese
+     panel. White, so it only reads on a dark or brand-washed surface; the hero
+     is the one place it belongs. */
+  .ornament-clouds {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='28' viewBox='0 0 60 28' fill='none' stroke='%23ffffff' stroke-width='1.25' stroke-linecap='round' opacity='0.22'%3E%3Cpath d='M0 24h60'/%3E%3Cpath d='M10 24a6 6 0 1 1 6-6'/%3E%3Cpath d='M16 18a8 8 0 0 1 15-2'/%3E%3Cpath d='M31 16a7 7 0 0 1 13 3'/%3E%3Cpath d='M44 19a5 5 0 0 1 7 5'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: bottom center;
   }
 
   /* Staggered entrance for a list of cards. The delay is set inline with a

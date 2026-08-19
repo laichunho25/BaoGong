@@ -1,7 +1,7 @@
 [project]
-name = "qs-platform"
+name = "baogong"
 version = "0.1.0"
-description = "QS Matching Platform - Hong Kong TCSP licensee comparison, review and RFQ matching"
+description = "BaoGong - Hong Kong TCSP licensee comparison, review and RFQ matching"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "django==5.1.*",

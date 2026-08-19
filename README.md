@@ -1,8 +1,21 @@
-# QS Matching Platform
+# 包公 BaoGong
 
 Hong Kong TCSP (Trust or Company Service Provider) licensee comparison, verified
-reviews and RFQ matching. See `CLAUDE.md` for the project constitution and
-`docs/` for the authoritative specs.
+reviews and RFQ matching.
+
+The name carries both halves of what the platform does. 包公 is the popular name
+of Bao Zheng, the byword in Chinese culture for impartiality - a magistrate who
+decided on evidence rather than connections. Read literally, the same two
+characters say 包羅香港「公」司服務: everything you need to open a Hong Kong
+company, in one place. The platform borrows the fairness, never the authority:
+it is not a government body and it does not decide for anyone. See
+`docs/BRAND.md`.
+
+Production runs at **www.baogong.com.hk** (Render, Singapore region - see
+`docs/DEPLOY_RENDER.md`).
+
+See `CLAUDE.md` for the project constitution and `docs/` for the authoritative
+specs.
 
 ## Requirements
 

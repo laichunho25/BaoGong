@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "认领公司页面" %} - {{ provider.display_name }} - QS Matching{% endblock %}
+{% block title %}{% translate "认领公司页面" %} - {{ provider.display_name }} - 包公 BaoGong{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-6">
@@ -10,7 +10,7 @@
       <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
       {{ provider.display_name }}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">
+    <h1 class="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
       {% translate "认领此公司页面" %}
     </h1>
   </header>

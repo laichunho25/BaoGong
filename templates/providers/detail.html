@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{{ provider.display_name }} — {% translate "香港持牌秘书公司" %} | QS Matching{% endblock %}
+{% block title %}{{ provider.display_name }} — {% translate "香港持牌秘书公司" %} | 包公 BaoGong{% endblock %}
 {% block meta_description %}{% blocktranslate trimmed with name=provider.display_name licence=licensee.licence_no %}{{ name }}（TCSP 牌照号 {{ licence }}）的官方登记资料、服务范围与价格区间。资料来源为香港公司注册处持牌人登记册。{% endblocktranslate %}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ provider.get_absolute_url }}">{% endblock %}
 
@@ -25,7 +25,7 @@
         {{ provider.display_name|slice:":1" }}
       </span>
       <div class="min-w-0">
-        <h1 class="text-2xl font-semibold tracking-tight text-ink">{{ provider.display_name }}</h1>
+        <h1 class="font-display text-2xl font-semibold tracking-tight text-ink">{{ provider.display_name }}</h1>
         {% if licensee.name_zh %}<p class="mt-0.5 text-base text-ink-muted">{{ licensee.name_zh }}</p>{% endif %}
         <div class="mt-3 flex flex-wrap gap-1.5">
           {% if provider.claim_status == "claimed" %}

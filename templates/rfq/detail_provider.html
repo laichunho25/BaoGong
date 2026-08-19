@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{{ rfq.title }} - QS Matching{% endblock %}
+{% block title %}{{ rfq.title }} - 包公 BaoGong{% endblock %}
 {% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
 
 {% block content %}
@@ -11,7 +11,7 @@
       <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
       {% translate "需求墙" %}
     </a>
-    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-ink">{{ rfq.title }}</h1>
+    <h1 class="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">{{ rfq.title }}</h1>
     <p class="tabular mt-1 text-sm text-ink-muted">
       {% blocktranslate with published=rfq.published_at|date:"Y-m-d" expires=rfq.expires_at|date:"Y-m-d" %}发布于 {{ published }}，{{ expires }} 截止{% endblocktranslate %}
     </p>

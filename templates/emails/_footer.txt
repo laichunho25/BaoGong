@@ -1,4 +1,4 @@
 {% load i18n %}{% blocktranslate %}--
-QS Matching Platform
+包公 BaoGong
 本平台为独立信息比较平台，不是政府机构，与香港公司注册处无隶属关系，也不是信托或公司服务持牌人。
 本邮件不包含您提交的文件内容；如需查看，请登录后在平台上阅读。{% endblocktranslate %}

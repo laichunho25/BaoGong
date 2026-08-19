@@ -11,9 +11,9 @@
 previewsEnabled: false
 
 databases:
-  - name: qs-postgres
-    databaseName: qs
-    user: qs
+  - name: baogong-postgres
+    databaseName: baogong
+    user: baogong
     region: singapore
     plan: basic-256mb
     postgresMajorVersion: "16"
@@ -21,12 +21,20 @@ databases:
 services:
   # ------------------------------------------------------------------ web
   - type: web
-    name: qs-web
+    name: baogong-web
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: singapore
     plan: starter
     healthCheckPath: /healthz
+    # www is canonical; Render serves the apex too and redirects it to the
+    # first domain listed. Canonical <link> tags are built from the request
+    # host (see templates), so two hosts answering 200 would publish two
+    # canonicals for every page - the redirect is what keeps that from
+    # happening. Both must also appear in ALLOWED_HOSTS below.
+    domains:
+      - www.baogong.com.hk
+      - baogong.com.hk
     # Render sets $PORT; gunicorn must bind it, not the Dockerfile's 8000.
     dockerCommand: >-
       sh -c "python manage.py migrate --noinput &&
@@ -39,18 +47,18 @@ services:
         generateValue: true
       - key: DATABASE_URL
         fromDatabase:
-          name: qs-postgres
+          name: baogong-postgres
           property: connectionString
       - key: REDIS_URL
         fromService:
-          name: qs-keyvalue
+          name: baogong-keyvalue
           type: keyvalue
           property: connectionString
-      - fromGroup: qs-shared
+      - fromGroup: baogong-shared
 
   # ------------------------------------------------------------------ worker
   - type: worker
-    name: qs-worker
+    name: baogong-worker
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: singapore
@@ -61,28 +69,28 @@ services:
         value: config.settings.prod
       - key: SECRET_KEY
         fromService:
-          name: qs-web
+          name: baogong-web
           type: web
           envVarKey: SECRET_KEY
       - key: DATABASE_URL
         fromDatabase:
-          name: qs-postgres
+          name: baogong-postgres
           property: connectionString
       - key: REDIS_URL
         fromService:
-          name: qs-keyvalue
+          name: baogong-keyvalue
           type: keyvalue
           property: connectionString
       # A worker has no external hostname; ALLOWED_HOSTS still has to be
       # non-empty for prod.py to import.
       - key: ALLOWED_HOSTS
-        value: qs-worker.internal
-      - fromGroup: qs-shared
+        value: baogong-worker.internal
+      - fromGroup: baogong-shared
 
   # ------------------------------------------------------------------ beat
   # Exactly one beat instance, ever. Two schedulers means two daily TCSP syncs.
   - type: worker
-    name: qs-beat
+    name: baogong-beat
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: singapore
@@ -95,35 +103,50 @@ services:
         value: config.settings.prod
       - key: SECRET_KEY
         fromService:
-          name: qs-web
+          name: baogong-web
           type: web
           envVarKey: SECRET_KEY
       - key: DATABASE_URL
         fromDatabase:
-          name: qs-postgres
+          name: baogong-postgres
           property: connectionString
       - key: REDIS_URL
         fromService:
-          name: qs-keyvalue
+          name: baogong-keyvalue
           type: keyvalue
           property: connectionString
       - key: ALLOWED_HOSTS
-        value: qs-beat.internal
-      - fromGroup: qs-shared
+        value: baogong-beat.internal
+      - fromGroup: baogong-shared
 
   # ------------------------------------------------------------------ redis
   - type: keyvalue
-    name: qs-keyvalue
+    name: baogong-keyvalue
     region: singapore
     plan: starter
     maxmemoryPolicy: noeviction  # Celery broker: never drop queued tasks.
     ipAllowList: []              # Private network only.
 
 envVarGroups:
-  - name: qs-shared
+  - name: baogong-shared
     envVars:
       - key: LOG_LEVEL
         value: INFO
+      # The custom domain has to be declared to Django as well as to Render:
+      # prod.py only auto-trusts RENDER_EXTERNAL_HOSTNAME, so without these two
+      # every request to baogong.com.hk is a 400 and every form post a 403.
+      # The .onrender.com hostname keeps working alongside them.
+      # worker and beat override ALLOWED_HOSTS at service level - they have no
+      # external hostname of their own.
+      - key: ALLOWED_HOSTS
+        value: www.baogong.com.hk,baogong.com.hk
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://www.baogong.com.hk,https://baogong.com.hk
+      # How workers build links: a Celery task has no request to ask. Left
+      # unset it falls back to http://localhost:8000 and every verification
+      # and notification mail ships a dead link.
+      - key: SITE_URL
+        value: https://www.baogong.com.hk
       - key: AGENT_BUDGET_DAILY_USD
         value: "20"
       - key: TCSP_CSV_URL

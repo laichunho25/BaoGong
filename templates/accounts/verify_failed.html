@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "验证链接无效" %} - QS Matching{% endblock %}
+{% block title %}{% translate "验证链接无效" %} - 包公 BaoGong{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-md">
@@ -9,7 +9,7 @@
     <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-warning-50 text-warning-700">
       {% include "components/icon.html" with name="alert" class="h-6 w-6" %}
     </span>
-    <h1 class="mt-4 text-2xl font-semibold tracking-tight text-ink">{% translate "验证链接无效" %}</h1>
+    <h1 class="mt-4 font-display text-2xl font-semibold tracking-tight text-ink">{% translate "验证链接无效" %}</h1>
     {% comment %} One message for unknown, expired and already-used tokens: telling
        the visitor which one it was would also tell someone probing links which
        tokens exist. {% endcomment %}

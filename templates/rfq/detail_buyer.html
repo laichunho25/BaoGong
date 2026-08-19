@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{{ rfq.title }} - QS Matching{% endblock %}
+{% block title %}{{ rfq.title }} - 包公 BaoGong{% endblock %}
 {% block extra_head %}<meta name="robots" content="noindex,nofollow">{% endblock %}
 
 {% block content %}
@@ -12,7 +12,7 @@
       {% translate "我的需求" %}
     </a>
     <div class="mt-2 flex flex-wrap items-center gap-3">
-      <h1 class="text-2xl font-semibold tracking-tight text-ink">{{ rfq.title }}</h1>
+      <h1 class="font-display text-2xl font-semibold tracking-tight text-ink">{{ rfq.title }}</h1>
       {% if rfq.is_open %}
         {% include "components/badge.html" with tone="success" label=rfq.get_status_display %}
       {% else %}

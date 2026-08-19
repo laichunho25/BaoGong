@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "并排比较 — QS Matching" %}{% endblock %}
+{% block title %}{% translate "并排比较 — 包公 BaoGong" %}{% endblock %}
 {% comment %} A comparison of an arbitrary set of companies is not a page search engines
    should index: the content is assembled from the querystring and duplicates
    the detail pages. {% endcomment %}
@@ -10,11 +10,15 @@
 {% block content %}
   <header class="rounded-2xl border border-line bg-surface-sunken p-6">
     <p class="text-xs font-semibold uppercase tracking-widest text-brand-600">{% translate "决策工具" %}</p>
-    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "并排比较" %}</h1>
+    <h1 class="mt-1 font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{% translate "并排比较" %}</h1>
     <p class="mt-2 text-sm text-ink-muted">
       {% blocktranslate trimmed with limit=max_compare %}
         最多可同时比较 {{ limit }} 间公司。左侧是比较项目，横向对齐同一行即可看出差别。
       {% endblocktranslate %}
+    </p>
+    <p class="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-brand-700">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="scale" class="h-3.5 w-3.5" %}</span>
+      <span>{% translate "一把尺量到底：每一行都是同一个问题，横着看就是各家的答案。" %}</span>
     </p>
     <div class="mt-3">{% include "components/data_source_notice.html" %}</div>
   </header>

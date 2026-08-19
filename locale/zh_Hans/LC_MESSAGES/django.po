@@ -1,4 +1,4 @@
-# Simplified Chinese catalogue for the QS Matching Platform.
+# Simplified Chinese catalogue for 包公 BaoGong.
 #
 # Most user-facing strings in this codebase are written in Simplified
 # Chinese at the source, so they need no entry here. What does need one is
@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: qs-matching\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-18 19:47+0800\n"
+"POT-Creation-Date: 2026-08-19 18:01+0800\n"
 "PO-Revision-Date: 2026-08-18 18:00+0800\n"
 "Language-Team: none\n"
 "Language: zh_Hans\n"
@@ -131,7 +131,7 @@ msgid "请先验证邮箱，再提交认领申请。"
 msgstr ""
 
 #: .\apps\accounts\services.py:85
-msgid "请验证您的邮箱 - QS Matching"
+msgid "请验证您的邮箱 - 包公 BaoGong"
 msgstr ""
 
 #: .\apps\accounts\views.py:52
@@ -193,6 +193,16 @@ msgstr ""
 
 #: .\apps\agents\admin.py:193
 msgid "Agent was wrong"
+msgstr ""
+
+#: .\apps\agents\advisor.py:173
+msgid "这个问题我们的资料库暂时没有可靠答案，建议咨询持牌专业人士。"
+msgstr ""
+
+#: .\apps\agents\advisor.py:176
+msgid ""
+"这个问题我们的资料库暂时没有可靠答案，建议咨询持牌专业人士。下面这几篇指南可"
+"能相关，你可以自己判断。"
 msgstr ""
 
 #: .\apps\agents\matching.py:292
@@ -307,7 +317,54 @@ msgstr ""
 msgid "报价未列明「%(item)s」，请问是否已包含在总价内？"
 msgstr ""
 
-#: .\apps\agents\services.py:353
+#: .\apps\agents\registry_diff.py:162
+#, python-format
+msgid "官方名单今日有 %(total)s 项变动，其中 %(critical)s 项需要立即处理。"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:175
+#, python-format
+msgid "另有 %(count)s 项严重变动未在本邮件列出，请到后台查看。"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:190
+#, python-format
+msgid "牌照 %(licence)s 已不在官方名单内。"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:191
+msgid "该公司在本平台仍有付费曝光，需要立即人工复核。"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:192
+msgid "付费曝光已自动暂停，请核对官方名单后决定是否恢复。"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:199
+msgid "新增"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:200
+msgid "移除"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:201
+msgid "重新上榜"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:202
+msgid "名称变更"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:203
+msgid "地址变更"
+msgstr ""
+
+#: .\apps\agents\registry_diff.py:207
+msgid "今日无变动。"
+msgstr ""
+
+#: .\apps\agents\services.py:635
 msgid "未知的评价结果。"
 msgstr ""
 
@@ -351,6 +408,18 @@ msgstr ""
 #: .\apps\content\admin.py:90
 #, python-format
 msgid "%(count)s article(s) back to draft."
+msgstr ""
+
+#: .\apps\content\forms.py:23
+msgid "问一个关于香港开公司的问题"
+msgstr ""
+
+#: .\apps\content\forms.py:29
+msgid "例如：注册香港公司要多久？政府收费是多少？"
+msgstr ""
+
+#: .\apps\content\forms.py:33
+msgid "回答只会引用本平台自己写的指南；引用不到就直接说没有可靠答案。"
 msgstr ""
 
 #: .\apps\content\models.py:33
@@ -679,153 +748,153 @@ msgstr "虚拟银行"
 msgid "EMI / payment institution"
 msgstr "电子支付机构（EMI）"
 
-#: .\apps\providers\models.py:170
+#: .\apps\providers\models.py:186
 msgid "Pending review"
 msgstr "待审核"
 
-#: .\apps\providers\models.py:171
+#: .\apps\providers\models.py:187
 msgid "Approved"
 msgstr "已通过"
 
-#: .\apps\providers\models.py:172
+#: .\apps\providers\models.py:188
 msgid "Rejected"
 msgstr "已拒绝"
 
-#: .\apps\providers\models.py:173
+#: .\apps\providers\models.py:189
 msgid "Withdrawn by the applicant"
 msgstr "申请人已撤回"
 
-#: .\apps\providers\models.py:227
+#: .\apps\providers\models.py:243
 msgid "provider claim"
 msgstr ""
 
-#: .\apps\providers\models.py:228
+#: .\apps\providers\models.py:244
 msgid "provider claims"
 msgstr ""
 
-#: .\apps\providers\models.py:259
+#: .\apps\providers\models.py:275
 msgid "Business registration certificate"
 msgstr "商业登记证"
 
-#: .\apps\providers\models.py:260
+#: .\apps\providers\models.py:276
 msgid "Proof of business address"
 msgstr "营业地址证明"
 
-#: .\apps\providers\models.py:261
+#: .\apps\providers\models.py:277
 msgid "Letter of authorisation"
 msgstr "授权书"
 
-#: .\apps\providers\models.py:262
+#: .\apps\providers\models.py:278
 msgid "Other supporting document"
 msgstr "其他证明文件"
 
-#: .\apps\providers\models.py:316 .\apps\providers\models.py:317
+#: .\apps\providers\models.py:332 .\apps\providers\models.py:333
 msgid "claim evidence"
 msgstr ""
 
-#: .\apps\providers\models.py:333
+#: .\apps\providers\models.py:349
 msgid "Company incorporation"
 msgstr "公司注册"
 
-#: .\apps\providers\models.py:334
+#: .\apps\providers\models.py:350
 msgid "Company secretary"
 msgstr "公司秘书"
 
-#: .\apps\providers\models.py:335
+#: .\apps\providers\models.py:351
 msgid "Registered address"
 msgstr "注册地址"
 
-#: .\apps\providers\models.py:336 .\apps\rfq\models.py:300
+#: .\apps\providers\models.py:352 .\apps\rfq\models.py:300
 msgid "Accounting"
 msgstr "会计记账"
 
-#: .\apps\providers\models.py:337 .\apps\rfq\models.py:301
+#: .\apps\providers\models.py:353 .\apps\rfq\models.py:301
 msgid "Audit liaison"
 msgstr "审计对接"
 
-#: .\apps\providers\models.py:338 .\apps\rfq\models.py:298
+#: .\apps\providers\models.py:354 .\apps\rfq\models.py:298
 msgid "Bank account assistance"
 msgstr "银行开户协助"
 
-#: .\apps\providers\models.py:339
+#: .\apps\providers\models.py:355
 msgid "Tax filing"
 msgstr "报税"
 
-#: .\apps\providers\models.py:340
+#: .\apps\providers\models.py:356
 msgid "Trademark"
 msgstr "商标注册"
 
-#: .\apps\providers\models.py:341
+#: .\apps\providers\models.py:357
 msgid "Work visa"
 msgstr "工作签证"
 
-#: .\apps\providers\models.py:363 .\apps\rfq\models.py:307
+#: .\apps\providers\models.py:379 .\apps\rfq\models.py:307
 msgid "One-off"
 msgstr "一次性"
 
-#: .\apps\providers\models.py:364 .\apps\rfq\models.py:308
+#: .\apps\providers\models.py:380 .\apps\rfq\models.py:308
 msgid "Per year"
 msgstr "每年"
 
-#: .\apps\providers\models.py:365 .\apps\rfq\models.py:309
+#: .\apps\providers\models.py:381 .\apps\rfq\models.py:309
 msgid "Per month"
 msgstr "每月"
 
-#: .\apps\providers\models.py:366 .\apps\rfq\models.py:310
+#: .\apps\providers\models.py:382 .\apps\rfq\models.py:310
 msgid "Per hour"
 msgstr "每小时"
 
-#: .\apps\providers\models.py:370
+#: .\apps\providers\models.py:386
 msgid "Declared by the provider"
 msgstr "服务商自报"
 
-#: .\apps\providers\models.py:371
+#: .\apps\providers\models.py:387
 msgid "Derived from quotes"
 msgstr "来自报价"
 
-#: .\apps\providers\models.py:372
+#: .\apps\providers\models.py:388
 msgid "Platform survey"
 msgstr "平台调研"
 
-#: .\apps\providers\models.py:429
+#: .\apps\providers\models.py:445
 msgid "TCSP licence"
 msgstr "TCSP 牌照"
 
-#: .\apps\providers\models.py:430
+#: .\apps\providers\models.py:446
 msgid "Office verified"
 msgstr "办公地址已核实"
 
-#: .\apps\providers\models.py:431
+#: .\apps\providers\models.py:447
 msgid "Website verified"
 msgstr "网站已核实"
 
-#: .\apps\providers\models.py:432
+#: .\apps\providers\models.py:448
 msgid "Track record"
 msgstr "服务记录"
 
-#: .\apps\providers\models.py:433
+#: .\apps\providers\models.py:449
 msgid "Premium badge"
 msgstr "高级标识"
 
-#: .\apps\providers\selectors.py:283
+#: .\apps\providers\selectors.py:287
 #: .\templates\components\provider_card.html:47
-#: .\templates\providers\compare.html:66 .\templates\providers\detail.html:43
-#: .\templates\providers\detail.html:178 .\templates\providers\list.html:124
+#: .\templates\providers\compare.html:70 .\templates\providers\detail.html:43
+#: .\templates\providers\detail.html:178 .\templates\providers\list.html:128
 msgid "协助银行开户"
 msgstr ""
 
-#: .\apps\providers\selectors.py:288
+#: .\apps\providers\selectors.py:292
 #: .\templates\components\provider_card.html:50
-#: .\templates\providers\compare.html:78 .\templates\providers\detail.html:46
-#: .\templates\providers\detail.html:182 .\templates\providers\list.html:129
+#: .\templates\providers\compare.html:82 .\templates\providers\detail.html:46
+#: .\templates\providers\detail.html:182 .\templates\providers\list.html:133
 msgid "可远程办理"
 msgstr ""
 
-#: .\apps\providers\selectors.py:293
+#: .\apps\providers\selectors.py:297
 msgid "普通话服务"
 msgstr ""
 
-#: .\apps\providers\selectors.py:298
+#: .\apps\providers\selectors.py:302
 msgid "虚拟银行经验"
 msgstr ""
 
@@ -926,7 +995,7 @@ msgid ""
 "态。"
 msgstr ""
 
-#: .\apps\registry\notices.py:54 .\templates\providers\compare.html:43
+#: .\apps\registry\notices.py:54 .\templates\providers\compare.html:47
 msgid "已不在官方持牌名单内"
 msgstr ""
 
@@ -1595,7 +1664,7 @@ msgstr ""
 msgid "次年续期总费用"
 msgstr ""
 
-#: .\apps\rfq\forms.py:328 .\templates\providers\compare.html:33
+#: .\apps\rfq\forms.py:328 .\templates\providers\compare.html:37
 #: .\templates\rfq\detail_buyer.html:174
 msgid "项目"
 msgstr ""
@@ -1881,7 +1950,7 @@ msgid "报价已撤回。已用掉的报价额度不会退回。"
 msgstr ""
 
 #: .\templates\accounts\dashboard.html:4 .\templates\accounts\dashboard.html:13
-#: .\templates\base.html:67 .\templates\base.html:117
+#: .\templates\base.html:72 .\templates\base.html:122
 msgid "我的账号"
 msgstr ""
 
@@ -1910,8 +1979,8 @@ msgstr ""
 msgid "我的认领申请"
 msgstr ""
 
-#: .\templates\accounts\dashboard.html:72 .\templates\base.html:116
-#: .\templates\components\disclaimer_footer.html:42
+#: .\templates\accounts\dashboard.html:72 .\templates\base.html:121
+#: .\templates\components\disclaimer_footer.html:50
 #: .\templates\rfq\detail_buyer.html:12 .\templates\rfq\my_rfqs.html:4
 #: .\templates\rfq\my_rfqs.html:10
 msgid "我的需求"
@@ -1971,14 +2040,14 @@ msgid ""
 "\n"
 "链接 48 小时内有效。如果这不是您本人的操作，请忽略本邮件。\n"
 "\n"
-"QS Matching Platform\n"
+"包公 BaoGong\n"
 "本平台不是政府机构，与香港公司注册处无隶属关系。"
 msgstr ""
 
 #: .\templates\accounts\login.html:4 .\templates\accounts\login.html:12
 #: .\templates\accounts\login.html:21 .\templates\accounts\register.html:56
-#: .\templates\base.html:78 .\templates\base.html:123
-#: .\templates\components\disclaimer_footer.html:45
+#: .\templates\base.html:83 .\templates\base.html:128
+#: .\templates\components\disclaimer_footer.html:53
 msgid "登录"
 msgstr ""
 
@@ -2058,57 +2127,61 @@ msgstr "确认"
 msgid "Cancel"
 msgstr "取消"
 
+#: .\templates\base.html:6 .\templates\pages\home.html:4
+msgid "包公 BaoGong — 香港持牌秘书公司比较平台"
+msgstr ""
+
 #: .\templates\base.html:7
 msgid "香港持牌秘书公司比较、真实评价与报价撮合平台"
 msgstr ""
 
-#: .\templates\base.html:21
+#: .\templates\base.html:29
 msgid "跳到主要内容"
 msgstr ""
 
-#: .\templates\base.html:40 .\templates\base.html:111
+#: .\templates\base.html:45 .\templates\base.html:116
 #: .\templates\providers\list.html:10
 msgid "公司目录"
 msgstr ""
 
-#: .\templates\base.html:44 .\templates\base.html:112
-#: .\templates\components\disclaimer_footer.html:31
-#: .\templates\providers\compare.html:14 .\templates\providers\list.html:170
+#: .\templates\base.html:49 .\templates\base.html:117
+#: .\templates\components\disclaimer_footer.html:39
+#: .\templates\providers\compare.html:14 .\templates\providers\list.html:174
 msgid "并排比较"
 msgstr ""
 
-#: .\templates\base.html:48 .\templates\base.html:113
+#: .\templates\base.html:53 .\templates\base.html:118
 #: .\templates\content\article_detail.html:10
 #: .\templates\content\article_list.html:10
 msgid "指南"
 msgstr ""
 
-#: .\templates\base.html:53 .\templates\base.html:115
-#: .\templates\components\disclaimer_footer.html:41
+#: .\templates\base.html:58 .\templates\base.html:120
+#: .\templates\components\disclaimer_footer.html:49
 #: .\templates\rfq\detail_provider.html:12 .\templates\rfq\wall.html:4
 #: .\templates\rfq\wall.html:16
 msgid "需求墙"
 msgstr ""
 
-#: .\templates\base.html:63 .\templates\components\disclaimer_footer.html:40
-#: .\templates\pages\home.html:172 .\templates\rfq\rfq_form.html:4
+#: .\templates\base.html:68 .\templates\components\disclaimer_footer.html:48
+#: .\templates\pages\home.html:183 .\templates\rfq\rfq_form.html:4
 #: .\templates\rfq\rfq_form.html:11
 msgid "发布需求"
 msgstr ""
 
-#: .\templates\base.html:72 .\templates\base.html:120
+#: .\templates\base.html:77 .\templates\base.html:125
 msgid "退出"
 msgstr ""
 
-#: .\templates\base.html:82
+#: .\templates\base.html:87
 msgid "免费注册"
 msgstr ""
 
-#: .\templates\base.html:89
+#: .\templates\base.html:94
 msgid "界面语言"
 msgstr ""
 
-#: .\templates\base.html:102
+#: .\templates\base.html:107
 msgid "打开菜单"
 msgstr ""
 
@@ -2117,7 +2190,7 @@ msgid "官方数据来源"
 msgstr ""
 
 #: .\templates\components\data_source_notice.html:18
-#: .\templates\components\disclaimer_footer.html:65
+#: .\templates\components\disclaimer_footer.html:73
 #, python-format
 msgid "最后同步 %(synced)s（香港时间）"
 msgstr ""
@@ -2130,41 +2203,47 @@ msgstr ""
 msgid "前往官方登记册核实"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:23
-msgid "香港持牌秘书公司的中立比较、真实评价与报价撮合平台。"
+#: .\templates\components\disclaimer_footer.html:28
+msgid "包公，取「包罗香港公司服务」之意，也取包拯「公道」之义。"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:28
+#: .\templates\components\disclaimer_footer.html:31
+msgid ""
+"香港持牌秘书公司的中立比较、真实评价与报价撮合平台。我们不替你选，只把证据摆"
+"齐。"
+msgstr ""
+
+#: .\templates\components\disclaimer_footer.html:36
 msgid "查找"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:30
+#: .\templates\components\disclaimer_footer.html:38
 msgid "持牌公司目录"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:32
+#: .\templates\components\disclaimer_footer.html:40
 msgid "协助银行开户的公司"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:37
-#: .\templates\pages\home.html:330 .\templates\rfq\wall.html:15
+#: .\templates\components\disclaimer_footer.html:45
+#: .\templates\rfq\wall.html:15
 msgid "撮合"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:44
-#: .\templates\pages\home.html:181
+#: .\templates\components\disclaimer_footer.html:52
+#: .\templates\pages\home.html:192
 msgid "注册后发布需求"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:51
+#: .\templates\components\disclaimer_footer.html:59
 msgid "数据"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:60
+#: .\templates\components\disclaimer_footer.html:68
 msgid "data.gov.hk 開放數據條款"
 msgstr ""
 
-#: .\templates\components\disclaimer_footer.html:75
+#: .\templates\components\disclaimer_footer.html:83
 msgid ""
 "本平台為獨立資訊比較平台，並非香港公司註冊處或任何政府機構，亦非信託或公司服"
 "務持牌人。 平台所載資料僅供一般參考，不構成法律、稅務、會計或任何專業意見，亦"
@@ -2173,8 +2252,17 @@ msgid ""
 "士。"
 msgstr ""
 
+#: .\templates\components\disclaimer_footer.html:89
+#: .\templates\components\logo.html:22 .\templates\components\logo.html:38
+msgid "包公 BaoGong"
+msgstr ""
+
 #: .\templates\components\form_fields.html:33
 msgid "可以写："
+msgstr ""
+
+#: .\templates\components\logo.html:31 .\templates\components\logo.html:48
+msgid "包公"
 msgstr ""
 
 #: .\templates\components\provider_card.html:27
@@ -2194,7 +2282,7 @@ msgid "尚未认领"
 msgstr ""
 
 #: .\templates\components\provider_card.html:59
-#: .\templates\providers\compare.html:125
+#: .\templates\providers\compare.html:129
 msgid "查看详情"
 msgstr ""
 
@@ -2278,6 +2366,38 @@ msgstr[1] ""
 msgid "暂无已验证评价"
 msgstr ""
 
+#: .\templates\content\_advisor_answer.html:24
+msgid "问一下"
+msgstr ""
+
+#: .\templates\content\_advisor_answer.html:27
+msgid "正在从指南里找答案…"
+msgstr ""
+
+#: .\templates\content\_advisor_answer.html:35
+msgid ""
+"这个小时问得有点多了，请稍后再试。想要更具体的答复，可以发一张需求单让持牌公"
+"司直接回答你。"
+msgstr ""
+
+#: .\templates\content\_advisor_answer.html:40
+msgid "回答"
+msgstr ""
+
+#: .\templates\content\_advisor_answer.html:54
+msgid "出处："
+msgstr ""
+
+#: .\templates\content\_advisor_answer.html:66
+msgid "本次未生成回答，以上只是平台指南的原文摘录，未经人工审阅。"
+msgstr ""
+
+#: .\templates\content\_advisor_answer.html:68
+msgid ""
+"以上由 AI 阅读本平台指南后生成，只引用平台自己写的内容，未经人工审阅，也不推"
+"荐任何一家公司。"
+msgstr ""
+
 #: .\templates\content\article_detail.html:9
 #: .\templates\providers\detail.html:17
 msgid "面包屑"
@@ -2309,7 +2429,7 @@ msgid "接着读"
 msgstr ""
 
 #: .\templates\content\article_list.html:4
-msgid "香港开公司指南 — QS Matching"
+msgid "香港开公司指南 — 包公 BaoGong"
 msgstr ""
 
 #: .\templates\content\article_list.html:5
@@ -2329,53 +2449,74 @@ msgid ""
 "牌照。"
 msgstr ""
 
-#: .\templates\content\article_list.html:20
+#: .\templates\content\article_list.html:17
+msgid "铁面无私：这些指南不推荐任何一家公司，也没有任何一家公司能付钱写进来。"
+msgstr ""
+
+#: .\templates\content\article_list.html:26
+msgid "在这些指南里找答案"
+msgstr ""
+
+#: .\templates\content\article_list.html:28
+msgid ""
+"只会引用本平台自己写的指南，并附上原文；找不到依据就直说没有，不会替你猜，也"
+"不会推荐任何一家公司。"
+msgstr ""
+
+#: .\templates\content\article_list.html:36
+#, python-format
+msgid ""
+"<a href=\"%(login_url)s\" class=\"font-medium text-brand-700 underline "
+"underline-offset-2\">登录</a>后可以直接提问。"
+msgstr ""
+
+#: .\templates\content\article_list.html:45
 msgid "文章分类"
 msgstr ""
 
-#: .\templates\content\article_list.html:23
+#: .\templates\content\article_list.html:48
 msgid "全部"
 msgstr ""
 
-#: .\templates\content\article_list.html:48
+#: .\templates\content\article_list.html:73
 #: .\templates\providers\_results.html:42
 msgid "分页"
 msgstr ""
 
-#: .\templates\content\article_list.html:51
+#: .\templates\content\article_list.html:76
 #: .\templates\providers\_results.html:50
 #: .\templates\providers\_results.html:52
 msgid "上一页"
 msgstr ""
 
-#: .\templates\content\article_list.html:53
+#: .\templates\content\article_list.html:78
 #, python-format
 msgid "第 %(current)s / %(total)s 页"
 msgstr ""
 
-#: .\templates\content\article_list.html:56
+#: .\templates\content\article_list.html:81
 #: .\templates\providers\_results.html:66
 #: .\templates\providers\_results.html:69
 msgid "下一页"
 msgstr ""
 
-#: .\templates\content\article_list.html:63
+#: .\templates\content\article_list.html:88
 msgid "这个分类下还没有文章"
 msgstr ""
 
-#: .\templates\content\article_list.html:63
+#: .\templates\content\article_list.html:88
 msgid ""
 "指南正在陆续补上。先看看公司目录，或发一张需求单让持牌公司来回答你的问题。"
 msgstr ""
 
-#: .\templates\content\article_list.html:63 .\templates\pages\home.html:282
+#: .\templates\content\article_list.html:88 .\templates\pages\home.html:293
 msgid "浏览公司目录"
 msgstr ""
 
 #: .\templates\emails\_footer.txt:1
 msgid ""
 "--\n"
-"QS Matching Platform\n"
+"包公 BaoGong\n"
 "本平台为独立信息比较平台，不是政府机构，与香港公司注册处无隶属关系，也不是信"
 "托或公司服务持牌人。\n"
 "本邮件不包含您提交的文件内容；如需查看，请登录后在平台上阅读。"
@@ -2589,6 +2730,33 @@ msgid ""
 "%(url)s"
 msgstr ""
 
+#: .\templates\emails\registry_digest.subject.txt:1
+#, python-format
+msgid "官方名单同步（%(sync_date)s）：%(count)s 项需要立即处理"
+msgstr ""
+
+#: .\templates\emails\registry_digest.txt:3
+msgid "以下条目需要人工处理（严重程度由规则判定，非模型判定）："
+msgstr ""
+
+#: .\templates\emails\registry_digest.txt:8
+msgid "下一步："
+msgstr ""
+
+#: .\templates\emails\registry_digest.txt:10
+msgid "其余变动："
+msgstr ""
+
+#: .\templates\emails\registry_digest.txt:12
+msgid "后台查看当日全部变动："
+msgstr ""
+
+#: .\templates\emails\registry_digest.txt:15
+msgid ""
+"本摘要的文字由 AI 生成、未经人工审阅；数字与严重程度由系统规则计算。请以官方"
+"登记册为准。"
+msgstr ""
+
 #: .\templates\emails\review_decided.subject.txt:1
 #, python-format
 msgid "您对 %(provider_name)s 的评价已发布"
@@ -2669,290 +2837,397 @@ msgid ""
 "平台会把各家报价按同一口径列出，没有列明的项目会显示为空白——空白不代表免费。"
 msgstr ""
 
-#: .\templates\pages\home.html:4
-msgid "QS Matching — 香港持牌秘书公司比较平台"
-msgstr ""
-
-#: .\templates\pages\home.html:21
+#: .\templates\pages\home.html:28
 msgid "只收录公司注册处公布的持牌名单"
 msgstr ""
 
-#: .\templates\pages\home.html:25
+#: .\templates\pages\home.html:32
 msgid "在香港开公司，先看清楚再决定"
 msgstr ""
 
-#: .\templates\pages\home.html:28
+#: .\templates\pages\home.html:39
 msgid ""
-"官方持牌名单每日同步，价格区间公开，评价须经文件核验。发一次需求，多家持牌公"
-"司按同一口径报价。"
+"包公不替你选，只把证据摆齐：官方持牌名单每日同步，价格区间公开，评价须经文件"
+"核验。发一次需求，多家持牌公司按同一口径报价。"
 msgstr ""
 
-#: .\templates\pages\home.html:36
+#: .\templates\pages\home.html:47
 msgid "搜索公司名称或牌照号"
 msgstr ""
 
-#: .\templates\pages\home.html:43
+#: .\templates\pages\home.html:54
 msgid "公司名称，或 TC 开头的牌照号"
 msgstr ""
 
-#: .\templates\pages\home.html:48
+#: .\templates\pages\home.html:59
 msgid "查目录"
 msgstr ""
 
-#: .\templates\pages\home.html:57
+#: .\templates\pages\home.html:68
 msgid "需求墙不显示您的联系方式"
 msgstr ""
 
-#: .\templates\pages\home.html:61
+#: .\templates\pages\home.html:72
 msgid "平台不代收服务费"
 msgstr ""
 
-#: .\templates\pages\home.html:65
+#: .\templates\pages\home.html:76
 msgid "评价须提交文件核验"
 msgstr ""
 
-#: .\templates\pages\home.html:76 .\templates\pages\home.html:234
+#: .\templates\pages\home.html:87 .\templates\pages\home.html:245
 msgid "在册持牌公司"
 msgstr ""
 
-#: .\templates\pages\home.html:77 .\templates\pages\home.html:243
+#: .\templates\pages\home.html:88 .\templates\pages\home.html:254
 msgid "覆盖地区"
 msgstr ""
 
-#: .\templates\pages\home.html:78 .\templates\pages\home.html:217
+#: .\templates\pages\home.html:89 .\templates\pages\home.html:228
 msgid "开放中的需求"
 msgstr ""
 
-#: .\templates\pages\home.html:79
+#: .\templates\pages\home.html:90
 msgid "已收录但已除名"
 msgstr ""
 
-#: .\templates\pages\home.html:83
+#: .\templates\pages\home.html:94
 #, python-format
 msgid "数据最后同步 %(synced)s（香港时间），来源为公司注册处持牌人登记册。"
 msgstr ""
 
-#: .\templates\pages\home.html:87
+#: .\templates\pages\home.html:98
 msgid "尚未完成首次同步，以上数字暂以本平台现有收录为准。"
 msgstr ""
 
-#: .\templates\pages\home.html:98
+#: .\templates\pages\home.html:109
 #, python-format
 msgid "最近 %(days)s 天"
 msgstr ""
 
-#: .\templates\pages\home.html:102
+#: .\templates\pages\home.html:113
 msgid "业务功能"
 msgstr ""
 
-#: .\templates\pages\home.html:102
+#: .\templates\pages\home.html:113
 msgid "秘书公司能替你办什么"
 msgstr ""
 
-#: .\templates\pages\home.html:102
+#: .\templates\pages\home.html:113
 msgid "每一项都可以直接筛出正在提供该服务的持牌公司。"
 msgstr ""
 
-#: .\templates\pages\home.html:102
+#: .\templates\pages\home.html:113
 msgid "看全部公司"
 msgstr ""
 
-#: .\templates\pages\home.html:113
+#: .\templates\pages\home.html:124
 #, python-format
 msgid "%(counter)s 间公司已公布"
 msgid_plural "%(counter)s 间公司已公布"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\templates\pages\home.html:124
+#: .\templates\pages\home.html:135
 msgid ""
 "服务范围由各公司自行填写，不是官方登记内容；本平台不提供上述任何服务，也不代"
 "办注册。"
 msgstr ""
 
-#: .\templates\pages\home.html:132
+#: .\templates\pages\home.html:143
 msgid "需要报价"
 msgstr ""
 
-#: .\templates\pages\home.html:134
+#: .\templates\pages\home.html:145
 msgid "发一次需求，收到可以并排比的报价"
 msgstr ""
 
-#: .\templates\pages\home.html:137
+#: .\templates\pages\home.html:148
 msgid ""
 "各家的报价单口径不同，很难直接比较。平台把每份报价拆成同一组项目：谁没有列出"
 "某一项，那一格就留白，不会被当成免费。"
 msgstr ""
 
-#: .\templates\pages\home.html:144
+#: .\templates\pages\home.html:155
 msgid "写下你的情况"
 msgstr ""
 
-#: .\templates\pages\home.html:145
+#: .\templates\pages\home.html:156
 msgid "公司类型、业务性质、需要哪些服务、什么时候要。不需要填联系方式。"
 msgstr ""
 
-#: .\templates\pages\home.html:151
+#: .\templates\pages\home.html:162
 msgid "持牌公司来报价"
 msgstr ""
 
-#: .\templates\pages\home.html:153
+#: .\templates\pages\home.html:164
 #, python-format
 msgid ""
 "只有完成认领、且仍在官方名单上的公司可以报价，每家每日免费 %(free)s 次。"
 msgstr ""
 
-#: .\templates\pages\home.html:162
+#: .\templates\pages\home.html:173
 msgid "同口径比较后再选"
 msgstr ""
 
-#: .\templates\pages\home.html:163
+#: .\templates\pages\home.html:174
 msgid "你选的是「跟谁谈」，合约与付款都在平台之外，平台不代收任何费用。"
 msgstr ""
 
-#: .\templates\pages\home.html:176
+#: .\templates\pages\home.html:187
 msgid "先看看需求墙"
 msgstr ""
 
-#: .\templates\pages\home.html:184
+#: .\templates\pages\home.html:195
 msgid "需求墙与需求内容须登录后才能查看。"
 msgstr ""
 
-#: .\templates\pages\home.html:191
+#: .\templates\pages\home.html:202
 msgid "最新开放中的需求"
 msgstr ""
 
-#: .\templates\pages\home.html:201 .\templates\rfq\wall.html:66
+#: .\templates\pages\home.html:212 .\templates\rfq\wall.html:70
 #, python-format
 msgid "已有 %(n)s 家报价"
 msgstr ""
 
-#: .\templates\pages\home.html:207
+#: .\templates\pages\home.html:218
 msgid "查看全部需求"
 msgstr ""
 
-#: .\templates\pages\home.html:215
+#: .\templates\pages\home.html:226
 msgid "目前的撮合情况"
 msgstr ""
 
-#: .\templates\pages\home.html:218
+#: .\templates\pages\home.html:229
 msgid "近 30 天报价"
 msgstr ""
 
-#: .\templates\pages\home.html:221
+#: .\templates\pages\home.html:232
 msgid ""
 "需求的内容只有登录用户看得到。需求墙上不会出现姓名、电话或邮箱——想联系你的公"
 "司，要先给出一份报价。"
 msgstr ""
 
-#: .\templates\pages\home.html:230
+#: .\templates\pages\home.html:241
 msgid "市场资讯"
 msgstr ""
 
-#: .\templates\pages\home.html:230
+#: .\templates\pages\home.html:241
 msgid "这个市场现在的样子"
 msgstr ""
 
-#: .\templates\pages\home.html:230
+#: .\templates\pages\home.html:241
 msgid "以下数字全部来自本平台对官方持牌人登记册的每日同步，不含估算。"
 msgstr ""
 
-#: .\templates\pages\home.html:234
+#: .\templates\pages\home.html:245
 msgid "当前仍在官方名单内"
 msgstr ""
 
-#: .\templates\pages\home.html:237
+#: .\templates\pages\home.html:248
 msgid "本平台新收录"
 msgstr ""
 
-#: .\templates\pages\home.html:240
+#: .\templates\pages\home.html:251
 msgid "近期从名单消失"
 msgstr ""
 
-#: .\templates\pages\home.html:243
+#: .\templates\pages\home.html:254
 msgid "有持牌公司登记地址的地区"
 msgstr ""
 
-#: .\templates\pages\home.html:249
+#: .\templates\pages\home.html:260
 msgid ""
 "牌照会失效，公司也会从名单上消失。本平台不会因此删掉该公司的页面，而是保留并"
 "标注——你正准备联系的公司是否还在名单上，是最值得先知道的一件事。"
 msgstr ""
 
-#: .\templates\pages\home.html:257
+#: .\templates\pages\home.html:268
 msgid "用家评语"
 msgstr ""
 
-#: .\templates\pages\home.html:257
+#: .\templates\pages\home.html:268
 msgid "经文件核验的真实评价"
 msgstr ""
 
-#: .\templates\pages\home.html:257
+#: .\templates\pages\home.html:268
 msgid ""
 "以下评价的作者都提交过 NNC1 文件，并由审核员确认确有合作，才会带上「已验"
 "证」。未经核验的评价不会出现在这里。"
 msgstr ""
 
-#: .\templates\pages\home.html:274 .\templates\providers\claim_detail.html:63
+#: .\templates\pages\home.html:285 .\templates\providers\claim_detail.html:63
 #: .\templates\reviews\_review_list.html:82
 #: .\templates\reviews\dispute_form.html:49
 #: .\templates\reviews\my_reviews.html:32
 msgid "已验证"
 msgstr ""
 
-#: .\templates\pages\home.html:282
+#: .\templates\pages\home.html:293
 msgid "还没有经核验的评价"
 msgstr ""
 
-#: .\templates\pages\home.html:282
+#: .\templates\pages\home.html:293
 msgid ""
 "评价要先通过 NNC1 文件核验才会公开显示。在此之前这里宁可空着，也不放未经核验"
 "的内容。"
 msgstr ""
 
-#: .\templates\pages\home.html:288
+#: .\templates\pages\home.html:315
+msgid "邀请已开公司的股东"
+msgstr ""
+
+#: .\templates\pages\home.html:319
+msgid "你踩过的坑，值得让下一个人少踩一次"
+msgstr ""
+
+#: .\templates\pages\home.html:322
+msgid ""
+"你的公司用过哪家秘书公司？把真实经历写下来，再上传 NNC1 或 NAR1 让审核员确认"
+"确有合作，你的评价就会带上「已验证」——这是本平台唯一算数的评价。"
+msgstr ""
+
+#: .\templates\pages\home.html:329
+msgid ""
+"在目录里找到那家公司，写下你实际经历的事：报价怎么算、多久回复、有没有额外收"
+"费。"
+msgstr ""
+
+#: .\templates\pages\home.html:335
+msgid ""
+"上传 NNC1 或 NAR1。我们只读三个栏位：公司名称、公司编号、文件上列明的秘书名称"
+"——董事姓名、住址、证件号码一律不入库。"
+msgstr ""
+
+#: .\templates\pages\home.html:341
+msgid ""
+"审核员确认文件上的秘书就是你评价的那家公司，评价发布并标记「已验证」，文件在"
+"决定后 90 日内删除。"
+msgstr ""
+
+#: .\templates\pages\home.html:349
+msgid "找到我用过的那家公司"
+msgstr ""
+
+#: .\templates\pages\home.html:355
+msgid "你已经是已核实用家，谢谢。"
+msgstr ""
+
+#: .\templates\pages\home.html:362
+msgid "留评价换到什么"
+msgstr ""
+
+#: .\templates\pages\home.html:368
+msgid "「已核实用家」标记"
+msgstr ""
+
+#: .\templates\pages\home.html:370
+msgid ""
+"此后你发出的每一张需求单都带上它。持牌公司看得到——他们知道对面是一位真的开过"
+"公司、且愿意留下经历的客户。"
+msgstr ""
+
+#: .\templates\pages\home.html:377
+msgid "需求单在需求墙上优先展示"
+msgstr ""
+
+#: .\templates\pages\home.html:379
+msgid ""
+"带标记的需求排在前面，通常拿到报价更快、更多。没有标记的需求不会被隐藏，只是"
+"排在后面。"
+msgstr ""
+
+#: .\templates\pages\home.html:386
+msgid "让价格真的可比"
+msgstr ""
+
+#: .\templates\pages\home.html:388
+msgid ""
+"每一条经核验的评价都会写进这家公司的公开分数。你花十分钟，换的是下一个人不用"
+"再猜。"
+msgstr ""
+
+#: .\templates\pages\home.html:397
+msgid ""
+"我们不付钱买评价。以上回报与你打几分无关——给一星的评价，拿到的标记和给五星的"
+"完全一样。"
+msgstr ""
+
+#: .\templates\pages\home.html:401
+msgid ""
+"被评公司有回覆权与申诉权；提出申诉不会隐藏你的评价。评价须基于可查证的亲身经"
+"历。"
+msgstr ""
+
+#: .\templates\pages\home.html:411
 msgid "热门搜索"
 msgstr ""
 
-#: .\templates\pages\home.html:288
+#: .\templates\pages\home.html:411
 msgid "大家常用的筛选条件"
 msgstr ""
 
-#: .\templates\pages\home.html:288
+#: .\templates\pages\home.html:411
 msgid ""
 "这些是目录里公司最多的几个条件，点一下直接筛出结果。数字是符合条件的公司数"
 "目。"
 msgstr ""
 
-#: .\templates\pages\home.html:299
+#: .\templates\pages\home.html:422
 msgid "目录还在同步中，稍后再来。"
 msgstr ""
 
-#: .\templates\pages\home.html:306
-msgid "这个平台的三条底线"
+#: .\templates\pages\home.html:446
+msgid "名字的意思"
 msgstr ""
 
-#: .\templates\pages\home.html:312
-msgid "透明"
+#: .\templates\pages\home.html:449
+msgid "包公的三条底线"
 msgstr ""
 
-#: .\templates\pages\home.html:314
+#: .\templates\pages\home.html:452
 msgid ""
-"只列公司注册处公布的持牌名单，每日同步，牌照状态与同步时间都写在页面上。"
+"「包公」取「包罗香港公司服务」之意，也取包拯「公道」之义。公道在这里不是形容"
+"词，是三件每天都要做到的事。"
 msgstr ""
 
-#: .\templates\pages\home.html:321
-msgid "可信"
+#: .\templates\pages\home.html:460
+msgid "明镜高悬 · 透明"
 msgstr ""
 
-#: .\templates\pages\home.html:323
+#: .\templates\pages\home.html:462
 msgid ""
-"评价须以文件核验「确有合作」为前提才标记为已验证，被评公司有回覆权与申诉权。"
+"只列公司注册处公布的持牌名单，每日同步，牌照状态与同步时间都写在页面上。牌照"
+"失效的公司不删页，改成标注——你正要联系的公司还在不在名单上，是最该先知道的"
+"事。"
 msgstr ""
 
-#: .\templates\pages\home.html:332
+#: .\templates\pages\home.html:469
+msgid "铁面无私 · 可信"
+msgstr ""
+
+#: .\templates\pages\home.html:471
 msgid ""
-"发布需求由公司主动报价，平台生成同口径比较表，并且不代收买卖双方的任何费用。"
+"评价要先用文件核验「确有合作」才标记为已验证，被评公司有回覆权与申诉权。付费"
+"买得到展示位置，买不到分数——这两件事在平台里走的是两条互不相通的路。"
+msgstr ""
+
+#: .\templates\pages\home.html:478
+msgid "一把尺量到底 · 撮合"
+msgstr ""
+
+#: .\templates\pages\home.html:480
+msgid ""
+"发一次需求，由持牌公司主动报价，平台把每份报价拆成同一组项目并排比：谁没列的"
+"那一格就留白，不会被当成免费。买卖双方的费用平台一分不代收。"
+msgstr ""
+
+#: .\templates\pages\home.html:486
+msgid ""
+"包公是个名字，不是身分：本平台不是政府机构，与香港公司注册处没有隶属关系，也"
+"不替任何人裁决谁好谁坏，更不会承诺开户结果。我们做的是把可查证的东西摆齐，判"
+"断留给你。"
 msgstr ""
 
 #: .\templates\providers\_results.html:12
@@ -3141,7 +3416,7 @@ msgid "提交认领申请"
 msgstr ""
 
 #: .\templates\providers\compare.html:4
-msgid "并排比较 — QS Matching"
+msgid "并排比较 — 包公 BaoGong"
 msgstr ""
 
 #: .\templates\providers\compare.html:13
@@ -3154,66 +3429,70 @@ msgid ""
 "最多可同时比较 %(limit)s 间公司。左侧是比较项目，横向对齐同一行即可看出差别。"
 msgstr ""
 
-#: .\templates\providers\compare.html:52 .\templates\providers\detail.html:103
-#: .\templates\providers\detail.html:296 .\templates\providers\list.html:67
+#: .\templates\providers\compare.html:22
+msgid "一把尺量到底：每一行都是同一个问题，横着看就是各家的答案。"
+msgstr ""
+
+#: .\templates\providers\compare.html:56 .\templates\providers\detail.html:103
+#: .\templates\providers\detail.html:296 .\templates\providers\list.html:71
 msgid "地区"
 msgstr ""
 
-#: .\templates\providers\compare.html:58
+#: .\templates\providers\compare.html:62
 msgid "评分"
 msgstr ""
 
-#: .\templates\providers\compare.html:71 .\templates\providers\compare.html:83
+#: .\templates\providers\compare.html:75 .\templates\providers\compare.html:87
 msgid "是"
 msgstr ""
 
-#: .\templates\providers\compare.html:73 .\templates\providers\compare.html:85
-#: .\templates\providers\compare.html:94 .\templates\providers\detail.html:166
+#: .\templates\providers\compare.html:77 .\templates\providers\compare.html:89
+#: .\templates\providers\compare.html:98 .\templates\providers\detail.html:166
 #: .\templates\providers\detail.html:173
 msgid "未提供"
 msgstr ""
 
-#: .\templates\providers\compare.html:90 .\templates\providers\detail.html:170
-#: .\templates\providers\list.html:77
+#: .\templates\providers\compare.html:94 .\templates\providers\detail.html:170
+#: .\templates\providers\list.html:81
 msgid "服务语言"
 msgstr ""
 
-#: .\templates\providers\compare.html:100 .\templates\providers\detail.html:66
+#: .\templates\providers\compare.html:104 .\templates\providers\detail.html:66
 #: .\templates\providers\detail.html:216
 msgid "服务与价格"
 msgstr ""
 
-#: .\templates\providers\compare.html:110
+#: .\templates\providers\compare.html:114
 msgid "未公布价格"
 msgstr ""
 
-#: .\templates\providers\compare.html:114
+#: .\templates\providers\compare.html:118
 msgid "未公布服务与价格"
 msgstr ""
 
-#: .\templates\providers\compare.html:120 .\templates\providers\detail.html:272
+#: .\templates\providers\compare.html:124 .\templates\providers\detail.html:272
 msgid "下一步"
 msgstr ""
 
-#: .\templates\providers\compare.html:137
+#: .\templates\providers\compare.html:141
 msgid ""
 "官方登记字段来自公司注册处登记册；服务与价格由公司提供或由本平台整理，仅供参"
 "考。"
 msgstr ""
 
-#: .\templates\providers\compare.html:142
+#: .\templates\providers\compare.html:146
 msgid "让它们按你的情况报价"
 msgstr ""
 
-#: .\templates\providers\compare.html:147
+#: .\templates\providers\compare.html:151
 msgid "回到目录，勾选公司左侧的方框，再点右下角的「并排比较」。"
 msgstr ""
 
-#: .\templates\providers\compare.html:149
+#: .\templates\providers\compare.html:153
 msgid "尚未选择要比较的公司"
 msgstr ""
 
-#: .\templates\providers\compare.html:149
+#: .\templates\providers\compare.html:153
 msgid "回到目录挑选"
 msgstr ""
 
@@ -3353,7 +3632,7 @@ msgid "已验证评价"
 msgstr ""
 
 #: .\templates\providers\list.html:4
-msgid "香港持牌秘书公司目录 — QS Matching"
+msgid "香港持牌秘书公司目录 — 包公 BaoGong"
 msgstr ""
 
 #: .\templates\providers\list.html:5
@@ -3368,65 +3647,69 @@ msgid ""
 "步，不增删名单本身。"
 msgstr ""
 
-#: .\templates\providers\list.html:35
-msgid "筛选条件"
+#: .\templates\providers\list.html:17
+msgid "明镜高悬：名单我们不增不删，牌照失效的公司也不会被删页，只会被标注。"
 msgstr ""
 
 #: .\templates\providers\list.html:39
+msgid "筛选条件"
+msgstr ""
+
+#: .\templates\providers\list.html:43
 msgid "已套用筛选"
 msgstr ""
 
-#: .\templates\providers\list.html:49
+#: .\templates\providers\list.html:53
 msgid "名称或牌照号"
 msgstr ""
 
-#: .\templates\providers\list.html:51
+#: .\templates\providers\list.html:55
 msgid "例如：TC000123 或公司名称"
 msgstr ""
 
-#: .\templates\providers\list.html:57
+#: .\templates\providers\list.html:61
 msgid "服务项目"
 msgstr ""
 
-#: .\templates\providers\list.html:59 .\templates\providers\list.html:69
-#: .\templates\providers\list.html:79 .\templates\providers\list.html:89
-#: .\templates\providers\list.html:99
+#: .\templates\providers\list.html:63 .\templates\providers\list.html:73
+#: .\templates\providers\list.html:83 .\templates\providers\list.html:93
+#: .\templates\providers\list.html:103
 msgid "不限"
 msgstr ""
 
-#: .\templates\providers\list.html:87
+#: .\templates\providers\list.html:91
 msgid "认证等级"
 msgstr ""
 
-#: .\templates\providers\list.html:97
+#: .\templates\providers\list.html:101
 msgid "银行类型经验"
 msgstr ""
 
-#: .\templates\providers\list.html:107
+#: .\templates\providers\list.html:111
 msgid "排序"
 msgstr ""
 
-#: .\templates\providers\list.html:116
+#: .\templates\providers\list.html:120
 msgid "更多条件"
 msgstr ""
 
-#: .\templates\providers\list.html:137
+#: .\templates\providers\list.html:141
 msgid "同时显示已不在官方名单内的公司"
 msgstr ""
 
-#: .\templates\providers\list.html:140
+#: .\templates\providers\list.html:144
 msgid "筛选"
 msgstr ""
 
-#: .\templates\providers\list.html:143
+#: .\templates\providers\list.html:147
 msgid "清除筛选"
 msgstr ""
 
-#: .\templates\providers\list.html:163
+#: .\templates\providers\list.html:167
 msgid "已选择"
 msgstr ""
 
-#: .\templates\providers\list.html:166
+#: .\templates\providers\list.html:170
 msgid "清空"
 msgstr ""
 
@@ -3624,32 +3907,36 @@ msgstr ""
 msgid "评价这家公司"
 msgstr ""
 
-#: .\templates\reviews\review_form.html:31
-msgid "评价须知"
-msgstr ""
-
-#: .\templates\reviews\review_form.html:34
-msgid "每个账号对同一家公司只能评价一次，提交后不可自行修改。"
+#: .\templates\reviews\review_form.html:24
+msgid "铁面无私：评价要有文件才算数；被评公司可以回覆和申诉，但买不到分数。"
 msgstr ""
 
 #: .\templates\reviews\review_form.html:35
+msgid "评价须知"
+msgstr ""
+
+#: .\templates\reviews\review_form.html:38
+msgid "每个账号对同一家公司只能评价一次，提交后不可自行修改。"
+msgstr ""
+
+#: .\templates\reviews\review_form.html:39
 msgid "评价先由人工审核，通过后才会公开显示。"
 msgstr ""
 
-#: .\templates\reviews\review_form.html:36
+#: .\templates\reviews\review_form.html:40
 msgid ""
 "只有上传 NNC1 文件并核验通过的评价，才会计入公司评分并显示「已验证」标记。"
 msgstr ""
 
-#: .\templates\reviews\review_form.html:37
+#: .\templates\reviews\review_form.html:41
 msgid "请勿填写他人姓名、电话、邮箱等个人资料，也请避免未经证实的指控。"
 msgstr ""
 
-#: .\templates\reviews\review_form.html:53
+#: .\templates\reviews\review_form.html:57
 msgid "各项评分"
 msgstr ""
 
-#: .\templates\reviews\review_form.html:101
+#: .\templates\reviews\review_form.html:105
 msgid "提交评价"
 msgstr ""
 
@@ -3755,7 +4042,7 @@ msgstr ""
 msgid "空白表示该公司没有列出这一项，并不代表免费。"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:16 .\templates\rfq\wall.html:86
+#: .\templates\rfq\detail_provider.html:16 .\templates\rfq\wall.html:97
 #, python-format
 msgid "发布于 %(published)s，%(expires)s 截止"
 msgstr ""
@@ -3789,7 +4076,7 @@ msgid "撤回不会退回已用掉的报价额度。"
 msgstr ""
 
 #: .\templates\rfq\detail_provider.html:67 .\templates\rfq\quote_form.html:19
-#: .\templates\rfq\wall.html:39
+#: .\templates\rfq\wall.html:43
 #, python-format
 msgid "今日剩余免费报价 %(free)s 次，已购额度 %(paid)s 次"
 msgstr ""
@@ -3803,7 +4090,7 @@ msgstr ""
 msgid "今日报价额度已用完，明日恢复或购买额度后可继续报价。"
 msgstr ""
 
-#: .\templates\rfq\detail_provider.html:82 .\templates\rfq\wall.html:51
+#: .\templates\rfq\detail_provider.html:82 .\templates\rfq\wall.html:55
 msgid "只有完成认领、且仍在官方持牌名单上的公司可以报价。"
 msgstr ""
 
@@ -3875,61 +4162,66 @@ msgstr ""
 msgid "填一次，多家持牌公司按同一口径向您报价。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:24
-msgid "填写需求并确认发布"
+#: .\templates\rfq\rfq_form.html:17
+msgid ""
+"需求墙上不会出现您的姓名、电话或邮箱——想联系您的公司，要先给出一份报价。"
 msgstr ""
 
 #: .\templates\rfq\rfq_form.html:28
-msgid "持牌公司在需求墙上报价"
+msgid "填写需求并确认发布"
 msgstr ""
 
 #: .\templates\rfq\rfq_form.html:32
+msgid "持牌公司在需求墙上报价"
+msgstr ""
+
+#: .\templates\rfq\rfq_form.html:36
 msgid "按同一口径比较后自行联系"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:42
+#: .\templates\rfq\rfq_form.html:46
 msgid "关于您的隐私"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:45
+#: .\templates\rfq\rfq_form.html:49
 msgid "需求墙上只显示需求内容，不显示您的姓名、电话或邮箱。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:46
+#: .\templates\rfq\rfq_form.html:50
 msgid "秘书公司通过平台报价，不会直接拿到您的联系方式。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:47
+#: .\templates\rfq\rfq_form.html:51
 msgid "需求先保存为草稿，您确认后才会公开。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:48
+#: .\templates\rfq\rfq_form.html:52
 msgid "本平台不代收代付服务费，选择哪一家、如何签约由您与该公司自行决定。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:63
+#: .\templates\rfq\rfq_form.html:67
 msgid "不知道怎么填？先用一段话说清楚"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:66
+#: .\templates\rfq\rfq_form.html:70
 msgid ""
 "我们会读这段话，帮您把下面的表单填好。填好的内容由您逐项确认后才会保存，秘书"
 "公司在您发布之前看不到任何内容。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:72
+#: .\templates\rfq\rfq_form.html:76
 msgid "帮我填写下面的表单"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:83
+#: .\templates\rfq\rfq_form.html:87
 msgid "已按关键词帮您预填，准确度有限，请逐项检查。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:85
+#: .\templates\rfq\rfq_form.html:89
 msgid "已按您的描述预填，请逐项检查后再保存。"
 msgstr ""
 
-#: .\templates\rfq\rfq_form.html:102
+#: .\templates\rfq\rfq_form.html:106
 msgid "保存草稿"
 msgstr ""
 
@@ -3937,26 +4229,34 @@ msgstr ""
 msgid "客户发布的需求，持牌并已认领的公司可以报价。"
 msgstr ""
 
-#: .\templates\rfq\wall.html:24
+#: .\templates\rfq\wall.html:22
+msgid "一把尺量到底：同一份需求，每家按同一组项目报价，平台不代收任何费用。"
+msgstr ""
+
+#: .\templates\rfq\wall.html:28
 msgid "我要发布需求"
 msgstr ""
 
-#: .\templates\rfq\wall.html:42
+#: .\templates\rfq\wall.html:46
 msgid "（额度已用完，明日恢复或购买额度）"
 msgstr ""
 
-#: .\templates\rfq\wall.html:52
+#: .\templates\rfq\wall.html:56
 msgid "查看公司目录"
 msgstr ""
 
-#: .\templates\rfq\wall.html:81
+#: .\templates\rfq\wall.html:85
 msgid "需要开户协助"
 msgstr ""
 
-#: .\templates\rfq\wall.html:91
+#: .\templates\rfq\wall.html:92
+msgid "已核实用家"
+msgstr ""
+
+#: .\templates\rfq\wall.html:102
 msgid "需求会在发布后立即出现在这里，并在截止日期后自动下墙。"
 msgstr ""
 
-#: .\templates\rfq\wall.html:92
+#: .\templates\rfq\wall.html:103
 msgid "目前没有开放中的需求"
 msgstr ""

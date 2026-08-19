@@ -1,6 +1,6 @@
 ---
 name: django-feature
-description: 在 QS Matching Platform 新增或修改一個 Django 功能模組的標準流程。當使用者說「加一個 XXX 功能」「做 XXX 模組」「改 XXX 的邏輯」「新增 model / API / 頁面」時觸發。強制走 model → selectors → services → views 分層、先寫規格再寫 code、先跑 migration 風險評估。
+description: 在 包公 BaoGong 新增或修改一個 Django 功能模組的標準流程。當使用者說「加一個 XXX 功能」「做 XXX 模組」「改 XXX 的邏輯」「新增 model / API / 頁面」時觸發。強制走 model → selectors → services → views 分層、先寫規格再寫 code、先跑 migration 風險評估。
 ---
 
 # django-feature
