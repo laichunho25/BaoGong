@@ -11,6 +11,7 @@
 | **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ✅** `agents.BaseAgent` + `AgentRun`/`AgentFeedback` + 三段 kill switch + Decimal 成本記帳、A4 評價審核（建議而非放行，排序人工佇列）、A3 NNC1 抽取（讀數擺在規則比對旁邊，不碰 `result`）、唯讀 run log admin、22 筆合成 golden set · **P4-4 ✅** Dispute（申訴不改動評價任何欄位、`due_at` 以工作天落實 COMPLIANCE §3 的 5 天承諾、逾期在後台印 `OVERDUE`、一則評價同時只有一宗未決申訴由 partial unique constraint 保證、隱藏／移除一律繞回 `hide_review`／`remove_review`；仲裁 agent 未做） | 已驗證評價可上線 | ✅ |
 | **P5 RFQ 撮合** | **P5-1 ✅** Rfq/Quote/QuoteLineItem/QuotaLedger 資料層與 services／selectors：需求單不帶買家身分、`structured` 只是 A1 草稿、報價以封閉 enum 的逐項明細存放（比較表同口徑）、只有已認領且仍在名單上的公司可報價、每日 3 單額度以流水帳實作（送出即扣、撤回不退、付費結餘跨日結轉）、需求 14 日到期（每小時 beat + 牆上再過濾一次） · **P5-2 ✅** 需求牆（登入才看得到）／RFQ 表單（草稿→發布兩步）／報價表單（總額 + 逐項明細 formset）／同口徑比較表（空白格代表沒報這一項，並逐項點名）、兩封通知（買家收到報價、公司知道自己被選上**或落選**）、報價依 `validity_days` 到期（每小時 beat） · **P5-3 ✅** A1 RfqIntake（HTMX 預填表單，**不寫任何 `Rfq` 列**，買家確認過的那一張才是被存的那一張，標 `is_ai_assisted`；原話先 redact；人民幣不換算成港元預算）、A5 QuoteAnalysis（`submit_quote` 於 `on_commit` 派發，只寫 `Quote.analysis` 一欄建議，不動金額不動排序；市場 p10/p50/p90 由 Postgres `PERCENTILE_CONT` 算，樣本不足 8 就明說「沒得比」；非 HKD 報價直接跳過）、兩份 22 筆合成 golden set + `evals/RESULTS.md` | 撮合閉環 | ✅ |
 | **P6 匹配 + 內容** | **P6-1 ✅** A2 MatchingAgent（硬篩在 SQL：仍在名單上、開戶協助、語言、預算內或未公開報價；候選 Top 30 先按命中服務數再按 §5 分數；模型只排序與解釋，`reasons`／`concerns` 逐句 grounding，對不上該公司公開資料的整句丟掉，模型與 fallback 同一個篩子；只寫 `Rfq.matches` 一欄建議，只出現在買家頁面；22 筆合成 golden set，nDCG@5 + grounding violation rate） · **P6-2 ✅** pgvector + `content` app（`Article`／`Chunk`；markdown 經 `nh3` 消毒後才進頁面——只有員工能寫稿，正是每一份 stored XSS 事後檢討的開場白；chunk 由正文在同一個 transaction 內重建，下架連同 chunk 一起刪，讀者打不開的頁面 Advisor 也不准引用；`embedding` 先留 NULL，檢索用 `icontains`，ivfflat index 待實際筆數再建）、指南列表／內文頁（公開、可被搜尋引擎索引、內文頁帶 COMPLIANCE §7 免責聲明）、sitemap 只收已發布；18 篇指南隨 app 出貨（`apps/content/library/*.md` + `load_articles` 指令：檔案只是起點，文章一旦進 DB 就歸後台編輯所有，重跑指令預設**跳過**已存在的 slug，要覆寫得明講 `--update`）· **A6 ✅** AdvisorAgent（只答自家指南：檢索 → 模型 → `screen_answer()` 逐條逐字核對引文，引文不成立／命中 banned phrase／點名任何一家持牌公司就整段丟掉換成拒答；尾部強制免責句，稅務／離岸／投資回報再加一句「請問持牌專業人士」；fallback 不生成任何句子，只回三段原文摘錄；`content:ask` 要登入 + 每帳號每小時 12 條，檢索不到段落就不呼叫模型；問題不落 DB，只留 `AgentRun` 的 input hash；32 筆合成 golden set） · **A7 ✅** RegistryDiffAgent（每日同步後把當日 `LicenseeChange` 寫成營運告警：severity 由`severity_for()` 依「頁面有沒有被認領／有沒有付費」重算，未認領公司的移除降級成 `info`，付費公司的牌照離開名單才是 `critical`；`suspend_paid_placement()` 立刻暫停該公司的付費曝光（新欄位 `paid_placement_suspended_at` + `effective_tier`，頁面照樣公開、除牌提示照樣在、帳務不動），這一步在呼叫模型之前就做完，所以模型掛掉那天營運照樣收到信；`screen_digest()` 丟掉模型對非 critical牌照寫的 item、替漏掉的補模板 item、`counts` 一律用 SQL 重算；prompt 禁止說出任何移除原因；12 筆合成 golden set，coverage + over-flag rate + 禁語率） | AI 完整上線 | ✅ |
+| **P7-0 公司自助後台** | 已認領公司登入後可自行編輯 profile（簡介／語言／銀行／服務與價格）、上傳 logo（走 `inspect_upload` + 掃毒）、每次修改留一列變更紀錄；新增公司簡介欄位並在寫入路徑上跑 `check_banned_phrases()`；`ProviderMember` 後台（誰能編輯哪一頁、停權、轉移擁有權）；詳情頁「認識這家公司」區塊 | 認領這件事終於有實際內容，`profile_completeness` 由公司自己填 | ⬜ |
 | **P7 商業化** | Plan/Subscription/CreditPack、Stripe（或 Airwallex）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
 | **P8 上線** | `compliance-review` 全綠、Sentry、備份、負載測試、法律覆核 | Production | ⬜ |
 
@@ -30,11 +31,22 @@
 牆上顯示為「已核實用家」標記）。回報與打幾分無關、頁面上明說不付錢買評價——這兩句是
 COMPLIANCE §3 的紅線，不是文案，見 `apps/core/tests/test_home.py::TestReviewInvitation`。
 
+**品牌與視覺識別（跨 phase）✅**：平台定名 **包公 BaoGong**，正式網域規劃為
+`www.baogong.com.hk`（www 為 canonical，因為 canonical tag 由 `request.get_host()` 組出來）。
+名字兩義都寫進畫面：首頁「名字的意思」段落、全站 footer 的一句話由來，以及六個頁面各自的
+一句品牌線（明鏡高懸／鐵面無私／一把尺量到底）。因為包拯是官，所以同一批頁面也必須說出
+**「包公是個名字，不是身分」**——不是政府機構、不替任何人裁決、不承諾開戶結果，並以
+`check_banned_phrases()` 對四個已渲染頁面斷言，防止「包」漂移成包過／包成功。
+視覺上換掉了原本的通用模板長相：朱砂紅印章標誌（`components/logo.html`）+ favicon、
+宋體 `font-display` 標題、回紋與祥雲兩條紋樣。硬規則寫在 `docs/BRAND.md` §5.3：
+印章永不作認證徽章、`seal` 永不作狀態色、紋樣一律 `aria-hidden` 且不承載資訊。
+Render 資源與 Python package 一併更名為 `baogong`，並補上生產環境**原本缺少的 `SITE_URL`**。
+
 ## 依賴關係
 
 ```
 P0 → P1 → P2 → P3 → P4 → P6
-                  └→ P5 → P7 → P8
+                  └→ P5 → P7-0 → P7 → P8
 ```
 
 ## Tech Debt
@@ -126,6 +138,24 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。
 - ~~`[UI] 首頁的業務功能與精選評語在空資料庫上是空的`~~ — 已補：`manage.py seed_demo`（`apps/core/management/commands/seed_demo.py`）造出服務、價格、三種狀態的評價、一張開放中的需求與三份報價，全部走 services，`--reset` 收回。**沒有 `DEBUG` 就拒跑**：它把虛構的評價與價格掛在真實持牌公司的名字下面，不得進生產。唯一繞過 service 的是掃毒——本機沒有掃描器，NNC1 永遠不可讀，所以 seed 自己把檔案標成 clean 再交給 `decide_verification` 決定。
 - ~~`[UI] seed 出來的頁面會露出英文服務名稱`~~ — 已補：`locale/zh_Hans/LC_MESSAGES/django.po` 翻好了所有**面向用戶**的 choice label（服務類別、銀行類型、語言、需求／報價狀態、報價項目、申訴理由等），「提供你需要的服务：Company incorporation」不會再出現。`.mo` 是建置產物、不進版控，因此 Dockerfile 與 CI 各自跑一次 `compilemessages`。
+- `[P3] 認領批准之後，公司還是不能自己編輯任何一個欄位` — 詳情頁對未認領公司寫著
+  「可認領此頁面並完善資料」，但 `approve_claim` 給的只有 `ProviderMember` 這一列權限；
+  `website`／`founded_year`／`team_size`／`languages`／服務與價格，全部仍然只有員工進
+  Django admin 才改得動 — **這是平台已經寫在畫面上的承諾沒有兌現**，而且它同時卡住三件事：
+  `profile_completeness`（排序權重的一部分）永遠靠員工手動填、公司無法自行更新價格、
+  認領的實際好處只剩「可以報價」。應排在 P7 之前，見 P7-0。
+- `[P3] ProviderMember 沒有任何後台` — `apps/accounts/admin.py` 只註冊了 `User` 與
+  `EmailVerification`，所以員工看不到「誰有權編輯哪一間公司的頁面」，也沒有停權的動作。
+  離職員工、批准給錯人、公司要求移除同事，目前都只能直接改資料庫 — 與上一條同一批做。
+- `[P2] Provider 沒有一個讓客人「了解這家公司」的欄位` — 平台補充區只有 `website`、
+  `founded_year`、`team_size`、幾個 boolean 與服務價格表；沒有公司簡介、沒有團隊或資歷、
+  沒有服務流程說明，`ServiceOffering.description` 是逐項的、不是整體的 — 買家要判斷
+  「這家跟那家有什麼不同」時，畫面上其實只有價格。加欄位同時要決定審核方式：
+  自由文字是公司對外的公開陳述，`check_banned_phrases()` 必須擋在寫入路徑上。
+- `[P0] Windows 本機的 celery worker 必須用 --pool=threads` — 預設 prefork pool 走
+  billiard 的 POSIX semaphore，在 Windows 上每個子進程都拋 `PermissionError: [WinError 5]`，
+  worker 會無限重生子進程、log 看起來活著但一個 task 都做不完 — Linux 與 Docker image
+  不受影響，所以 `render.yaml` 維持預設；已寫進 README「Local (no Docker)」。
 - `[UI] 沒有視覺回歸測試` — 現在只斷言「區塊在不在、數字對不對」，版面跑掉不會有人知道 — 頁面數穩定下來再考慮 Playwright 截圖比對；在那之前，改 template 後務必手動看一次並重建 `app.css`。
 
 ---

@@ -49,6 +49,23 @@ uv run mypy apps/
 Tests that do not touch the database run without a Postgres server. Anything
 marked `django_db` needs the `db` service from docker-compose.
 
+To see the scheduled work happen - the daily register sync above all - run the
+worker and the scheduler alongside `runserver`:
+
+```bash
+uv run python manage.py runserver
+uv run celery -A config worker -l info --pool=threads --concurrency 2
+uv run celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
+
+`--pool=threads` is not optional on Windows. Celery's default prefork pool uses
+POSIX semaphores through billiard, which raises `PermissionError: [WinError 5]`
+on every child; the worker then respawns them forever and looks alive in the
+log while completing no tasks at all. Linux and the Docker image are unaffected,
+which is why `render.yaml` leaves the pool at its default.
+
+Exactly one beat process, ever. Two schedulers means two register syncs a day.
+
 ## Demo data
 
 A freshly synced database holds 7,457 real licensees and nothing else, so every
