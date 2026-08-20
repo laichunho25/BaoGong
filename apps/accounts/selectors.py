@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from apps.accounts.models import EmailVerification, ProviderMember, Role, User
+from django.utils import timezone
+
+from apps.accounts.models import (
+    EmailVerification,
+    ProviderMember,
+    ProviderMemberInvite,
+    Role,
+    User,
+)
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -34,3 +42,47 @@ def provider_member_emails(provider: Provider) -> list[str]:
         .exclude(user__email="")
         .values_list("user__email", flat=True)
     )
+
+
+def provider_team(provider: Provider) -> QuerySet[ProviderMember]:
+    """Everyone who works on this page, past members included.
+
+    Deactivated rows stay in the list because the team page is also where an
+    owner checks that access they removed is actually gone.
+    """
+    return (
+        ProviderMember.objects.filter(provider=provider)
+        .select_related("user")
+        .order_by("-is_active", "member_role", "created_at")
+    )
+
+
+def open_invites(provider: Provider) -> QuerySet[ProviderMemberInvite]:
+    """Offers still waiting on a reply. Expired ones drop out on their own."""
+    return (
+        ProviderMemberInvite.objects.filter(
+            provider=provider,
+            accepted_at__isnull=True,
+            revoked_at__isnull=True,
+            expires_at__gt=timezone.now(),
+        )
+        .select_related("invited_by")
+        .order_by("created_at")
+    )
+
+
+def invite_for_token(token: str) -> ProviderMemberInvite | None:
+    """The still-open invitation a link points at, or ``None``.
+
+    ``hash_token`` is imported from the write layer because the hashing rule
+    and the token that satisfies it belong together; a second copy here would
+    be a second place to get wrong.
+    """
+    from apps.accounts.services import hash_token
+
+    invite = (
+        ProviderMemberInvite.objects.select_related("provider")
+        .filter(token_hash=hash_token(token))
+        .first()
+    )
+    return invite if invite is not None and invite.is_open else None

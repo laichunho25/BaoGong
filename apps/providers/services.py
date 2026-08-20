@@ -25,15 +25,18 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Final
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import MemberRole, ProviderMember, Role
+from apps.accounts.permissions import is_provider_member
 from apps.core.compliance import Severity, check_banned_phrases
 from apps.core.notifications import absolute_url, notify
-from apps.core.scanning import READABLE_STATUSES, ScanStatus, get_scanner
+from apps.core.scanning import READABLE_STATUSES, ScanStatus, scan_file
 from apps.providers.models import (
     Certification,
     CertificationType,
@@ -41,9 +44,11 @@ from apps.providers.models import (
     ClaimEvidence,
     ClaimStatus,
     EvidenceKind,
+    LogoReviewStatus,
     ProfileEditStatus,
     Provider,
     ProviderClaim,
+    ProviderLogoUpload,
     ProviderProfileEdit,
     ServiceOffering,
     Tier,
@@ -97,6 +102,21 @@ COMPLETENESS_FIELDS = (
 # tiers may write one (PRD section 3.7); counting it here would make the
 # ranking rise with the subscription, and the home page promises the opposite -
 # placement is for sale, the score is not.
+#
+# The same reasoning applies to the rest of this tuple, which is why the
+# denominator is not ``len(COMPLETENESS_FIELDS)``: most of these fields are
+# ones only a paying tier can fill in, so a fixed denominator would cap a free
+# page's completeness at a fraction no amount of effort could raise, and a
+# subscription would buy a place in the natural ranking. ``completeness_fields``
+# narrows the set to what this company's own tier can reach, so the number
+# answers "did they fill in what they can" rather than "what do they pay".
+# ``office_photos`` has no self-service path at any tier and therefore drops out
+# of every denominator until one exists.
+
+#: Fields open to every tier, outside the profile form. A logo goes through
+#: ``upload_logo``, and it is open to the free tier on purpose: it is how a
+#: buyer recognises a company in a list, not a promotion slot.
+ALL_TIER_FIELDS: Final[frozenset[str]] = frozenset({"logo"})
 
 SLUG_MAX_LENGTH = 140
 
@@ -149,21 +169,41 @@ def ensure_providers(*, licence_nos: Iterable[str] | None = None) -> BackfillRep
     return BackfillReport(created=created, skipped=len(new_providers) - created)
 
 
-def compute_profile_completeness(provider: Provider) -> Decimal:
-    """Share of the self-declared fields that carry information, 0-1.
+def completeness_fields(provider: Provider) -> tuple[str, ...]:
+    """The fields ``provider``'s own tier lets it fill in.
 
-    Deliberately counts only fields a provider controls. Rating and review
-    count are excluded: they are earned, not filled in, and they already carry
-    their own weight in the ranking.
+    The denominator of ``compute_profile_completeness``. Read from the tier's
+    editable set rather than listed again, so that moving a field between tiers
+    moves it here too - the alternative is a second list that drifts, and the
+    drift would be a paid ranking boost nobody wrote down.
     """
+    reachable = tier_editable_fields(provider.effective_tier) | ALL_TIER_FIELDS
+    return tuple(field for field in COMPLETENESS_FIELDS if field in reachable)
+
+
+def compute_profile_completeness(provider: Provider) -> Decimal:
+    """Share of the fields this company could fill in that carry information, 0-1.
+
+    Deliberately counts only fields a provider controls, and only those its own
+    tier can reach (COMPLIANCE section 6: a subscription may buy a placement,
+    never a position in the natural ranking). Rating and review count are
+    excluded from both halves: they are earned, not filled in, and they already
+    carry their own weight.
+    """
+    fields = completeness_fields(provider)
+    if not fields:
+        # Only reachable if a tier is given no completeness field at all. Zero
+        # is the honest answer then; dividing would raise.
+        return Decimal("0")
+
     filled = 0
-    for field in COMPLETENESS_FIELDS:
+    for field in fields:
         value = getattr(provider, field)
         if isinstance(value, list):
             filled += 1 if value else 0
         elif value:
             filled += 1
-    return (Decimal(filled) / Decimal(len(COMPLETENESS_FIELDS))).quantize(Decimal("0.001"))
+    return (Decimal(filled) / Decimal(len(fields))).quantize(Decimal("0.001"))
 
 
 def compute_review_volume_score(verified_review_count: int) -> Decimal:
@@ -376,9 +416,7 @@ def scan_evidence(evidence: ClaimEvidence) -> ClaimEvidence:
     if evidence.purged_at is not None or not evidence.file:
         return evidence
 
-    scanner = get_scanner()
-    with evidence.file.open("rb") as handle:
-        result = scanner.scan(iter(lambda: handle.read(SHA256_CHUNK), b""))
+    result = scan_file(evidence.file)
 
     evidence.scan_status = result.status
     evidence.scan_detail = result.detail[:255]
@@ -677,13 +715,22 @@ class EditPermission:
     reason: str = ""
 
 
+def tier_editable_fields(tier: str) -> frozenset[str]:
+    """What ``tier`` may edit, ignoring whether the licence is still listed.
+
+    Split out from ``editable_fields`` because the completeness denominator
+    needs the tier's reach and not today's permission: a page that has just
+    left the register should not have its ranking input redefined on the way
+    out, it should simply stop being editable.
+    """
+    return FREE_EDITABLE_FIELDS if tier == Tier.FREE else PAID_EDITABLE_FIELDS
+
+
 def editable_fields(provider: Provider) -> frozenset[str]:
     """The fields ``provider``'s tier permits it to set. Empty once delisted."""
     if not provider.is_on_register:
         return frozenset()
-    if provider.effective_tier == Tier.FREE:
-        return FREE_EDITABLE_FIELDS
-    return PAID_EDITABLE_FIELDS
+    return tier_editable_fields(provider.effective_tier)
 
 
 def last_allowance_edit(provider: Provider) -> ProviderProfileEdit | None:
@@ -912,3 +959,161 @@ def decide_profile_edit(
         extra={"edit": str(edit.pk), "approved": approve, "reviewer": str(reviewer.pk)},
     )
     return edit
+
+
+# --- Logo upload (PRD section 3.7, open to every tier) ----------------------
+
+
+class LogoError(Exception):
+    """A logo upload that must not proceed. The message is shown."""
+
+
+@transaction.atomic
+def upload_logo(
+    *, provider: Provider, actor: User, upload: UploadedFile[Any], inspected: InspectedUpload
+) -> ProviderLogoUpload:
+    """Queue a logo for scanning and review. Never touches ``Provider.logo``.
+
+    ``inspected`` comes from ``core.uploads.inspect_upload`` restricted to
+    images, so a PDF renamed to .png has already been refused by its leading
+    bytes. What is stored here is private and unpublished; the only path to the
+    public bucket is ``decide_logo``.
+    """
+    if not provider.is_on_register:
+        raise LogoError(_("该公司已不在官方持牌名单上，页面已锁定，无法上传标志。"))
+    if provider.claim_status != ClaimStatus.CLAIMED:
+        raise LogoError(_("请先认领本页面。"))
+    if provider.logo_uploads.filter(status=LogoReviewStatus.PENDING).exists():
+        raise LogoError(_("已有一份标志在等待审核，请先撤回后再上传新的。"))
+
+    logo = ProviderLogoUpload(
+        provider=provider,
+        uploaded_by=actor,
+        original_filename=(upload.name or "")[:255],
+        content_type=inspected.content_type,
+        extension=inspected.extension,
+        size_bytes=inspected.size_bytes,
+        sha256=_digest(upload),
+        scan_status=ScanStatus.PENDING,
+    )
+    logo.file.save(f"logo.{inspected.extension}", upload, save=False)
+    logo.save()
+    logger.info(
+        "provider logo uploaded",
+        extra={"provider": str(provider.pk), "logo": str(logo.pk)},
+    )
+    return logo
+
+
+def scan_provider_logo(logo: ProviderLogoUpload) -> ProviderLogoUpload:
+    """Record the scanner's verdict on a stored logo. Called from a task."""
+    if not logo.file:
+        return logo
+
+    result = scan_file(logo.file)
+    logo.scan_status = result.status
+    logo.scan_detail = result.detail[:255]
+    logo.scanner = result.scanner[:32]
+    logo.scanned_at = timezone.now()
+    logo.save(update_fields=["scan_status", "scan_detail", "scanner", "scanned_at", "updated_at"])
+    return logo
+
+
+@transaction.atomic
+def withdraw_logo(*, logo: ProviderLogoUpload, user: User) -> ProviderLogoUpload:
+    """Let the company take back an upload that is still waiting.
+
+    The bytes go with it. A withdrawn image is one the company decided not to
+    publish, and keeping a private copy of it serves nobody.
+    """
+    if not logo.is_pending:
+        raise LogoError(_("这份标志已经处理过了。"))
+    if not is_provider_member(user, str(logo.provider_id)):
+        raise LogoError(_("只有该公司的成员可以撤回。"))
+
+    if logo.file:
+        logo.file.delete(save=False)
+    logo.status = LogoReviewStatus.WITHDRAWN
+    logo.save(update_fields=["file", "status", "updated_at"])
+    return logo
+
+
+@transaction.atomic
+def decide_logo(
+    *, logo: ProviderLogoUpload, reviewer: User, approve: bool, note: str
+) -> ProviderLogoUpload:
+    """The only writer of ``Provider.logo``.
+
+    An approval copies the bytes out of the private bucket into the public one
+    and only then deletes the private copy - in that order, so a failure part
+    way through leaves the file that has not been published yet, rather than no
+    file at all. A refusal deletes it outright.
+
+    A logo the scanner never cleared cannot be published. There is no override
+    here on purpose: unlike claim evidence, which one moderator opens once and
+    which blocks a whole application while it waits, a logo is served to every
+    visitor of the page, and no reason to accept that risk is good enough.
+    """
+    if not logo.is_pending:
+        raise LogoError(_("This logo has already been decided."))
+    if not note.strip():
+        raise LogoError(_("A reason is required."))
+    if reviewer.role not in {Role.MODERATOR, Role.ADMIN} and not reviewer.is_superuser:
+        raise LogoError(_("Only the moderation team may decide this."))
+    if approve and not logo.is_readable:
+        raise LogoError(_("This file has not been cleared by the scanner."))
+
+    now = timezone.now()
+    if approve:
+        provider = Provider.objects.select_for_update().get(pk=logo.provider_id)
+        with logo.file.open("rb") as handle:
+            payload = handle.read()
+        provider.logo.save(f"{provider.slug}.{logo.extension}", ContentFile(payload), save=False)
+        provider.save(update_fields=["logo", "updated_at"])
+        logo.published_at = now
+        recompute_ranking_inputs(provider_ids=[str(provider.pk)])
+
+    if logo.file:
+        logo.file.delete(save=False)
+    logo.status = LogoReviewStatus.APPROVED if approve else LogoReviewStatus.REJECTED
+    logo.reviewed_by = reviewer
+    logo.reviewed_at = now
+    logo.review_note = note.strip()
+    logo.save(
+        update_fields=[
+            "file",
+            "status",
+            "reviewed_by",
+            "reviewed_at",
+            "review_note",
+            "published_at",
+            "updated_at",
+        ]
+    )
+    _announce_logo_decision(logo, approved=approve)
+    logger.info(
+        "provider logo decided",
+        extra={"logo": str(logo.pk), "approved": approve, "reviewer": str(reviewer.pk)},
+    )
+    return logo
+
+
+def _announce_logo_decision(logo: ProviderLogoUpload, *, approved: bool) -> None:
+    """Tell the company what happened, in the reviewer's own words."""
+    recipients = [
+        email
+        for email in ProviderMember.objects.filter(
+            provider_id=logo.provider_id, is_active=True
+        ).values_list("user__email", flat=True)
+        if email
+    ]
+    notify(
+        template="logo_decided",
+        recipients=recipients,
+        context={
+            "provider_name": logo.provider.display_name,
+            "approved": approved,
+            "reason": logo.review_note,
+            "url": absolute_url(reverse("providers:manage", kwargs={"slug": logo.provider.slug})),
+        },
+    )

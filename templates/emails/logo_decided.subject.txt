@@ -1,0 +1,1 @@
+{% load i18n %}{% if approved %}{% blocktranslate %}{{ provider_name }} 的公司标志已发布{% endblocktranslate %}{% else %}{% blocktranslate %}{{ provider_name }} 的公司标志未通过审核{% endblocktranslate %}{% endif %}

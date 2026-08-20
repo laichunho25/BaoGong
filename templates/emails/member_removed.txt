@@ -1,0 +1,10 @@
+{% load i18n %}{% blocktranslate %}您好，
+
+「{{ provider_name }}」的拥有者已取消您对该公司页面的管理权限。您的包公账号不受影响，仍可正常使用。
+
+如果这不是您预期的变动，请直接联系该公司；权限由公司自行管理，本平台不代为调整。
+
+我的账户：
+{{ url }}{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}

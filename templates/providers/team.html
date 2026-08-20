@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "成员管理" %} - {{ provider.display_name }} - 包公 BaoGong{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <header>
+    <a href="{% url 'providers:manage' provider.slug %}" class="inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700">
+      <span class="rotate-180">{% include "components/icon.html" with name="arrow-right" class="h-3.5 w-3.5" %}</span>
+      {% translate "管理公司页面" %}
+    </a>
+    <h1 class="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">{% translate "成员管理" %}</h1>
+    <p class="mt-1 text-sm text-ink-muted">
+      {% translate "员工可以编辑页面、回复评价、处理报价；拥有者还可以邀请和停用成员。" %}
+    </p>
+  </header>
+
+  {% comment %} Who is on the team, deactivated rows included: this page is also where an
+     owner checks that access they took away is actually gone. {% endcomment %}
+  <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+    {% include "components/section_heading.html" with eyebrow=_("团队") title=_("现有成员") %}
+    <ul class="mt-4 divide-y divide-line text-sm">
+      {% for member in team %}
+        <li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-4 {% if not member.is_active %}opacity-60{% endif %}">
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-medium text-ink">
+              {{ member.user.email }}
+              {% if member.pk == current_membership_id %}<span class="text-xs font-normal text-ink-muted">{% translate "（你）" %}</span>{% endif %}
+            </p>
+            <p class="mt-0.5 text-xs text-ink-muted">
+              {{ member.get_member_role_display }}
+              {% if member.is_active %}
+                · {% blocktranslate with date=member.created_at|date:"Y-m-d" %}{{ date }} 加入{% endblocktranslate %}
+              {% else %}
+                · {% translate "已停用" %}
+              {% endif %}
+            </p>
+          </div>
+          {% if member.is_active %}
+            <div class="flex shrink-0 items-center gap-2">
+              <form method="post" action="{% url 'providers:member_role' provider.slug member.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="member_role" value="{% if member.member_role == 'owner' %}staff{% else %}owner{% endif %}">
+                <button type="submit" class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-line-strong hover:text-ink">
+                  {% if member.member_role == 'owner' %}{% translate "改为员工" %}{% else %}{% translate "设为拥有者" %}{% endif %}
+                </button>
+              </form>
+              <form method="post" action="{% url 'providers:member_remove' provider.slug member.pk %}"
+                    x-data x-on:submit="if (!confirm('{% translate "停用后该成员将无法再编辑本页面，确定吗？" %}')) $event.preventDefault()">
+                {% csrf_token %}
+                <button type="submit" class="rounded-lg border border-danger-200 px-3 py-1.5 text-xs font-medium text-danger-700 transition hover:bg-danger-50">
+                  {% translate "停用" %}
+                </button>
+              </form>
+            </div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="mt-4 text-xs leading-relaxed text-ink-muted">
+      {% translate "公司至少要保留一位拥有者。要转移拥有权，请先把同事设为拥有者，再把自己改为员工。" %}
+    </p>
+  </section>
+
+  {% if invites %}
+    <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+      {% include "components/section_heading.html" with eyebrow=_("等待接受") title=_("已发出的邀请") %}
+      <ul class="mt-4 divide-y divide-line text-sm">
+        {% for invite in invites %}
+          <li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-ink">{{ invite.email }}</p>
+              <p class="mt-0.5 text-xs text-ink-muted">
+                {{ invite.get_member_role_display }} ·
+                {% blocktranslate with date=invite.expires_at|date:"Y-m-d" %}{{ date }} 前有效{% endblocktranslate %}
+              </p>
+            </div>
+            <form method="post" action="{% url 'providers:invite_revoke' provider.slug invite.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-line-strong hover:text-ink">
+                {% translate "撤回" %}
+              </button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if form %}
+    <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+      {% include "components/section_heading.html" with eyebrow=_("邀请") title=_("邀请同事加入") %}
+      <p class="mt-2 text-sm leading-relaxed text-ink-muted">
+        {% translate "填写邮箱后我们会发出邀请链接。对方需要用这个邮箱登录并接受，才会成为成员——账号不会被自动加入。" %}
+      </p>
+      <form method="post" class="mt-4 space-y-5">
+        {% csrf_token %}
+        {% include "components/form_fields.html" %}
+        <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+          {% translate "发送邀请" %}
+        </button>
+      </form>
+    </section>
+  {% else %}
+    <div class="flex gap-2 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-900" role="status">
+      <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+      <p>{% translate "该公司已不在官方持牌名单上，页面已锁定，暂时无法邀请新成员。" %}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

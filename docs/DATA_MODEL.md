@@ -21,7 +21,7 @@
 只存 token 的 SHA-256：DB 外洩時不應該連帶交出可用的驗證連結。
 
 ### ProviderMember
-`user(FK)`, `provider(FK providers.Provider)`, `member_role(owner|manager|staff)`,
+`user(FK)`, `provider(FK providers.Provider)`, `member_role(owner|staff)`,
 `is_active(bool, indexed)`, `claim(FK ProviderClaim, null)`
 `UNIQUE (user, provider)`、`INDEX (provider, is_active)`
 
@@ -32,6 +32,28 @@
 `moderator_required`）。
 `is_active=False` 與「從來不是成員」等價：公司請走員工時用停用，不刪列，紀錄要留。
 `claim` 記錄這個成員資格是由哪一份認領申請授予的。
+
+**兩級而非三級**（早期版本寫的是 `owner|manager|staff`）：`staff` 編輯頁面、回覆評價、處理報價；
+`owner` 另外決定誰是成員。中間那一級沒有任何一條規則會問到它，而一個沒有人查詢的欄位值
+只會讓「這個人到底能做什麼」多一種答案。判斷見 `permissions.is_provider_owner`。
+**一家公司永遠至少保留一位在職 owner**：`set_member_role` 與 `deactivate_member` 都會擋下
+最後一位 owner 的降級或停用（`services._active_owners`）。轉移擁有權＝先把同事設為 owner、
+再把自己改回 staff；平台沒有「還我權限」的按鈕，掉進沒有 owner 的狀態只能靠 moderator 手動撈。
+
+### ProviderMemberInvite
+`provider(FK)`, `email`, `member_role(owner|staff)`, `invited_by(FK User, null)`,
+`token_hash(unique, indexed)`, `expires_at`, `accepted_at`, `accepted_by(FK User, null)`,
+`revoked_at`
+`UNIQUE (provider, email) WHERE accepted_at IS NULL AND revoked_at IS NULL`
+
+**加人只有這一條路。** 平台不提供「把某個帳號直接加進某家公司」的動作：成員身分等於用一家
+持牌公司的名義說話，收下它應該是那個人自己按的。owner 發邀請 → 收件人用**該信箱**登入 →
+POST 接受，`services.accept_invite` 才建立 `ProviderMember`。
+- token 同 `EmailVerification` 只存 SHA-256，7 天到期（`INVITE_TTL`）；重發會先把舊的
+  `revoked_at` 標掉，所以一個信箱同時只有一條有效連結——舊信可能已經被轉寄出去了。
+- 接受時信箱必須與 `email` 相符，否則連結就是一張 bearer token：轉寄一次，陌生人就能在
+  一家持牌公司的公開頁面上寫字。
+- 接受同時視為完成郵箱驗證（token 只到過那個信箱），並把 `Role.BUYER` 升成 `PROVIDER_MEMBER`。
 
 ---
 
@@ -160,6 +182,33 @@ slug 為 `slugify(name_en) + "-" + licence_no`：登記冊裡真的有同名公�
   的那一步。放行只能經 `scan_override_by` 這條有署名、有理由的路，且 `infected` 不得放行。
 - `purge_at = 決策時間 + 90 日`（COMPLIANCE §4）。每日 Celery beat 刪掉 bytes，**保留列與
   sha256**：審核紀錄要留，個資不留。
+
+### ProviderProfileEdit
+`provider(FK)`, `actor(FK User, null)`, `changed_fields(JSON)`, `submitted_description`,
+`status(applied|pending|approved|rejected)`, `is_correction(bool)`,
+`reviewed_by(FK User, null)`, `reviewed_at`, `review_note`
+
+一列＝一次公司自己按下的儲存。聯絡資料等欄位即時生效（`applied`），公司簡介是自由文字，
+先進審核佇列（`pending`），通過才寫回 `Provider.description`——以公司名義刊登的長文，
+`check_banned_phrases()` 擋得住「保证开户成功」這種句子，擋不住一段讀起來像官方背書的文章。
+`is_correction=True` 的更正不消耗免費層一年一次的額度（PRD §3.7）。
+紀錄整列回顯給公司自己看：同事上週二改了什麼，只有這裡查得到。
+
+### ProviderLogoUpload
+`provider(FK)`, `uploaded_by(FK User, null)`, `file(FileField, private storage)`,
+`original_filename`, `content_type`, `extension`, `size_bytes`, `sha256`
+掃描：`scan_status`, `scan_detail`, `scanner`, `scanned_at`（欄位同 `ClaimEvidence`）
+審核：`status(pending|approved|rejected|withdrawn)`, `reviewed_by(FK User)`, `reviewed_at`,
+`review_note`, `published_at`
+`UNIQUE (provider) WHERE status = 'pending'`（`providers_one_pending_logo_per_provider`）
+
+`Provider.logo`（公開儲存）**唯一的寫入者是 `services.decide_logo`**。上傳只落在私有儲存，
+掃毒乾淨、moderator 讀過並寫下理由之後，bytes 才複製到公開儲存，然後刪掉私有副本
+（順序是先複製後刪：中途失敗留下的是還沒發佈的檔案，不是沒有檔案）。
+- **沒有 `scan_override`**，這一點與 `ClaimEvidence` 刻意不同：認領證明是一位審核員打開一次，
+  logo 是送到每一位訪客瀏覽器裡的檔案。
+- 需要人讀的理由不是儀式：圖片是 `check_banned_phrases()` 讀不到的文字。
+- 所有層都能上傳（PRD §3.7）。撤回與拒絕都直接刪 bytes，只留列。
 
 ### ServiceOffering
 `provider(FK)`, `category`: `incorporation | company_secretary | registered_address | accounting | audit_liaison | bank_account_assist | tax_filing | trademark | work_visa`
@@ -426,6 +475,9 @@ UNIQUE (providers_provider.licensee_id)
 UNIQUE (accounts_user.email)
 UNIQUE (accounts_providermember.user_id, accounts_providermember.provider_id)
 UNIQUE (providers_providerclaim.provider_id) WHERE status = 'pending'  -- 一頁一份待審申請
+UNIQUE (providers_providerlogoupload.provider_id) WHERE status = 'pending'  -- 一頁一份待審 logo
+UNIQUE (accounts_providermemberinvite.provider_id, email)
+       WHERE accepted_at IS NULL AND revoked_at IS NULL  -- 一個信箱一條有效邀請
 UNIQUE (providers_certification.provider_id, providers_certification.type)
 UNIQUE (reviews_review.provider_id, reviews_review.author_id)   -- 一人一公司一評
 UNIQUE (rfq_quote.rfq_id, rfq_quote.provider_id)                -- 一單一報價

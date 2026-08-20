@@ -11,7 +11,12 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.models import EmailVerification, ProviderMember, User
+from apps.accounts.models import (
+    EmailVerification,
+    ProviderMember,
+    ProviderMemberInvite,
+    User,
+)
 
 
 class EmailUserCreationForm(UserCreationForm):  # type: ignore[type-arg]
@@ -116,4 +121,32 @@ class ProviderMemberAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         self.message_user(request, _("Revoked %(count)d membership(s).") % {"count": updated})
 
     def has_delete_permission(self, request: Any, obj: Any = None) -> bool:
+        return False
+
+
+@admin.register(ProviderMemberInvite)
+class ProviderMemberInviteAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    """Standing offers of access, read-only.
+
+    Here so that "why does this person have access to that company?" has an
+    answer that predates the membership row. Nothing is editable: an invitation
+    is a record of what was sent to which mailbox, and the company withdraws
+    its own offers from the team page.
+    """
+
+    list_display = ("email", "provider", "member_role", "state", "invited_by", "created_at")
+    list_filter = ("member_role",)
+    list_select_related = ("provider", "invited_by")
+    search_fields = ("email", "provider__slug", "provider__licensee__name_en")
+    readonly_fields = (*(f.name for f in ProviderMemberInvite._meta.fields), "state")
+    ordering = ("-created_at",)
+
+    @admin.display(description=_("State"))
+    def state(self, obj: ProviderMemberInvite) -> str:
+        return obj.state
+
+    def has_add_permission(self, request: Any) -> bool:
+        return False
+
+    def has_change_permission(self, request: Any, obj: Any = None) -> bool:
         return False

@@ -27,6 +27,8 @@ from django.utils.translation import gettext_lazy as _
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from django.db.models.fields.files import FieldFile
+
 CHUNK_SIZE = 64 * 1024
 CLAMAV_TIMEOUT = 30
 
@@ -122,3 +124,14 @@ def get_scanner() -> Scanner:
     """Instantiate the configured backend."""
     scanner: Scanner = import_string(settings.FILE_SCANNER_BACKEND)()
     return scanner
+
+
+def scan_file(file: FieldFile) -> ScanResult:
+    """Run the configured scanner over a stored file.
+
+    Streamed in chunks rather than read whole: an uploaded file is attacker
+    sized, and the worker that scans it should not be the thing that decides
+    how much memory that is worth.
+    """
+    with file.open("rb") as handle:
+        return get_scanner().scan(iter(lambda: handle.read(CHUNK_SIZE), b""))

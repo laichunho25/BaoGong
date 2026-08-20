@@ -11,7 +11,7 @@
 | **P4 評價 + 核驗** | **P4-1 ✅** Review/ReviewScore/ReviewReply、貝氏評分演算法（v1 權重：已驗證 1.0／未驗證 0.0）、提交流程（登入＋郵箱驗證＋Turnstile）、`pending_moderation` 審核佇列（客製 admin，理由必填）、詳情頁評價區塊與公司答辯權 · **P4-2 ✅** NNC1 上傳（私有儲存、MIME/大小驗證、病毒掃描、決策後 90 日保留期）、規則式名稱比對（證據非放行條件）、moderator 核驗佇列（客製 admin，理由必填）、`decide_verification` 為 `is_verified` 唯一寫入者 · **P4-3 ✅** `agents.BaseAgent` + `AgentRun`/`AgentFeedback` + 三段 kill switch + Decimal 成本記帳、A4 評價審核（建議而非放行，排序人工佇列）、A3 NNC1 抽取（讀數擺在規則比對旁邊，不碰 `result`）、唯讀 run log admin、22 筆合成 golden set · **P4-4 ✅** Dispute（申訴不改動評價任何欄位、`due_at` 以工作天落實 COMPLIANCE §3 的 5 天承諾、逾期在後台印 `OVERDUE`、一則評價同時只有一宗未決申訴由 partial unique constraint 保證、隱藏／移除一律繞回 `hide_review`／`remove_review`；仲裁 agent 未做） | 已驗證評價可上線 | ✅ |
 | **P5 RFQ 撮合** | **P5-1 ✅** Rfq/Quote/QuoteLineItem/QuotaLedger 資料層與 services／selectors：需求單不帶買家身分、`structured` 只是 A1 草稿、報價以封閉 enum 的逐項明細存放（比較表同口徑）、只有已認領且仍在名單上的公司可報價、報價額度以流水帳實作（送出即扣、撤回不退、付費結餘跨日結轉；免費月制、付費日制見 PRD §3.7）、需求 14 日到期（每小時 beat + 牆上再過濾一次） · **P5-2 ✅** 需求牆（登入才看得到）／RFQ 表單（草稿→發布兩步）／報價表單（總額 + 逐項明細 formset）／同口徑比較表（空白格代表沒報這一項，並逐項點名）、兩封通知（買家收到報價、公司知道自己被選上**或落選**）、報價依 `validity_days` 到期（每小時 beat） · **P5-3 ✅** A1 RfqIntake（HTMX 預填表單，**不寫任何 `Rfq` 列**，買家確認過的那一張才是被存的那一張，標 `is_ai_assisted`；原話先 redact；人民幣不換算成港元預算）、A5 QuoteAnalysis（`submit_quote` 於 `on_commit` 派發，只寫 `Quote.analysis` 一欄建議，不動金額不動排序；市場 p10/p50/p90 由 Postgres `PERCENTILE_CONT` 算，樣本不足 8 就明說「沒得比」；非 HKD 報價直接跳過）、兩份 22 筆合成 golden set + `evals/RESULTS.md` | 撮合閉環 | ✅ |
 | **P6 匹配 + 內容** | **P6-1 ✅** A2 MatchingAgent（硬篩在 SQL：仍在名單上、開戶協助、語言、預算內或未公開報價；候選 Top 30 先按命中服務數再按 §5 分數；模型只排序與解釋，`reasons`／`concerns` 逐句 grounding，對不上該公司公開資料的整句丟掉，模型與 fallback 同一個篩子；只寫 `Rfq.matches` 一欄建議，只出現在買家頁面；22 筆合成 golden set，nDCG@5 + grounding violation rate） · **P6-2 ✅** pgvector + `content` app（`Article`／`Chunk`；markdown 經 `nh3` 消毒後才進頁面——只有員工能寫稿，正是每一份 stored XSS 事後檢討的開場白；chunk 由正文在同一個 transaction 內重建，下架連同 chunk 一起刪，讀者打不開的頁面 Advisor 也不准引用；`embedding` 先留 NULL，檢索用 `icontains`，ivfflat index 待實際筆數再建）、指南列表／內文頁（公開、可被搜尋引擎索引、內文頁帶 COMPLIANCE §7 免責聲明）、sitemap 只收已發布；18 篇指南隨 app 出貨（`apps/content/library/*.md` + `load_articles` 指令：檔案只是起點，文章一旦進 DB 就歸後台編輯所有，重跑指令預設**跳過**已存在的 slug，要覆寫得明講 `--update`）· **A6 ✅** AdvisorAgent（只答自家指南：檢索 → 模型 → `screen_answer()` 逐條逐字核對引文，引文不成立／命中 banned phrase／點名任何一家持牌公司就整段丟掉換成拒答；尾部強制免責句，稅務／離岸／投資回報再加一句「請問持牌專業人士」；fallback 不生成任何句子，只回三段原文摘錄；`content:ask` 要登入 + 每帳號每小時 12 條，檢索不到段落就不呼叫模型；問題不落 DB，只留 `AgentRun` 的 input hash；32 筆合成 golden set） · **A7 ✅** RegistryDiffAgent（每日同步後把當日 `LicenseeChange` 寫成營運告警：severity 由`severity_for()` 依「頁面有沒有被認領／有沒有付費」重算，未認領公司的移除降級成 `info`，付費公司的牌照離開名單才是 `critical`；`suspend_paid_placement()` 立刻暫停該公司的付費曝光（新欄位 `paid_placement_suspended_at` + `effective_tier`，頁面照樣公開、除牌提示照樣在、帳務不動），這一步在呼叫模型之前就做完，所以模型掛掉那天營運照樣收到信；`screen_digest()` 丟掉模型對非 critical牌照寫的 item、替漏掉的補模板 item、`counts` 一律用 SQL 重算；prompt 禁止說出任何移除原因；12 筆合成 golden set，coverage + over-flag rate + 禁語率） | AI 完整上線 | ✅ |
-| **P7-0 公司自助後台** | 已認領公司登入後可自行編輯 profile，能改哪些欄位、能改幾次由 `Tier` 決定（PRD §3.7）：`free` 只能改聯絡資料／網站／業務範疇且一年一次，`verified`／`premium` 不限；上傳 logo（走 `inspect_upload` + 掃毒）、每次修改留一列變更紀錄；新增公司簡介欄位並在寫入路徑上跑 `check_banned_phrases()`；牌照離開名單即全頁唯讀；打錯字走不佔額度的「更正申請」；`ProviderMember` 後台（誰能編輯哪一頁、停權、轉移擁有權）；詳情頁「認識這家公司」區塊 | 認領這件事終於有實際內容，`profile_completeness` 由公司自己填 | ⬜ |
+| **P7-0 公司自助後台** | 已認領公司登入後可自行編輯 profile，能改哪些欄位、能改幾次由 `Tier` 決定（PRD §3.7）：`free` 只能改聯絡資料／網站／業務範疇且一年一次，`verified`／`premium` 不限；牌照離開名單即全頁唯讀；打錯字走不佔額度的「更正申請」；公司簡介進審核佇列並在寫入路徑上跑 `check_banned_phrases()`；每次修改留一列變更紀錄並回顯給公司自己看 · **Logo ✅** 全部層都能傳（PRD §3.7 賣的是曝光不是辨識度）；上傳只進私有儲存 + 掃毒，`decide_logo` 是 `Provider.logo` 的唯一寫入者，且**沒有掃毒 override**（圖片是 `check_banned_phrases` 讀不到的文字，而它會送到每一位訪客眼前）；核准才把 bytes 複製到公開儲存並刪掉私有副本；`components/provider_avatar.html` 在目錄卡與詳情頁渲染，離開名單即退回名稱首字 · **完成度修正 ✅** `profile_completeness` 的分母改成「該層可編輯到的欄位」——原本 8 個欄位裡 7 個只有付費層改得到，等於訂閱直接抬高自然排序，與 COMPLIANCE §6 衝突 · **`ProviderMember` 後台 ✅** owner／staff 兩級（staff 編輯頁面，owner 才決定誰是成員）；加人一律走 `ProviderMemberInvite`（token 存 hash、7 天、必須用收到邀請的信箱登入後 POST 接受），所以每一列成員背後都有一個同意過的人；停用而非刪除（修改紀錄要留得住）；轉移擁有權＝先把同事設為 owner 再把自己改回 staff，最後一位 owner 不得降級或停用自己 · 詳情頁「認識這家公司」區塊 | 認領這件事終於有實際內容，`profile_completeness` 由公司自己填 | ✅ |
 | **P7 商業化** | PRD §3.7 三層方案落地：Plan/Subscription/CreditPack、Stripe（或 Airwallex）、訂閱週期額度取代或並行於每日免費額度、`premium` 置頂展示位（獨立區塊 + 「推廣」標示，不動自然排序）、佣金披露、Provider 分析後台 | 可收費 | ⬜ |
 | **P8 上線** | `compliance-review` 全綠、Sentry、備份、負載測試、法律覆核 | Production | ⬜ |
 
@@ -138,13 +138,14 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P4] helpful_count 沒有寫入者也沒有 UI` — 欄位存在但恆為 0 — P7 做「這則評價有用嗎」時才需要，屆時要一併想清楚防刷。
 - ~~`[UI] 首頁的業務功能與精選評語在空資料庫上是空的`~~ — 已補：`manage.py seed_demo`（`apps/core/management/commands/seed_demo.py`）造出服務、價格、三種狀態的評價、一張開放中的需求與三份報價，全部走 services，`--reset` 收回。**沒有 `DEBUG` 就拒跑**：它把虛構的評價與價格掛在真實持牌公司的名字下面，不得進生產。唯一繞過 service 的是掃毒——本機沒有掃描器，NNC1 永遠不可讀，所以 seed 自己把檔案標成 clean 再交給 `decide_verification` 決定。
 - ~~`[UI] seed 出來的頁面會露出英文服務名稱`~~ — 已補：`locale/zh_Hans/LC_MESSAGES/django.po` 翻好了所有**面向用戶**的 choice label（服務類別、銀行類型、語言、需求／報價狀態、報價項目、申訴理由等），「提供你需要的服务：Company incorporation」不會再出現。`.mo` 是建置產物、不進版控，因此 Dockerfile 與 CI 各自跑一次 `compilemessages`。
-- `[P3] 認領批准之後，公司還是不能自己編輯任何一個欄位` — 詳情頁對未認領公司寫著
+- ~~`[P3] 認領批准之後，公司還是不能自己編輯任何一個欄位`~~ — P7-0 已補（`/providers/<slug>/manage/`）。原文如下： — 詳情頁對未認領公司寫著
   「可認領此頁面並完善資料」，但 `approve_claim` 給的只有 `ProviderMember` 這一列權限；
   `website`／`founded_year`／`team_size`／`languages`／服務與價格，全部仍然只有員工進
   Django admin 才改得動 — **這是平台已經寫在畫面上的承諾沒有兌現**，而且它同時卡住三件事：
   `profile_completeness`（排序權重的一部分）永遠靠員工手動填、公司無法自行更新價格、
   認領的實際好處只剩「可以報價」。應排在 P7 之前，見 P7-0。
-- `[P3] ProviderMember 沒有任何後台` — `apps/accounts/admin.py` 只註冊了 `User` 與
+- ~~`[P3] ProviderMember 沒有任何後台`~~ — P7-0 已補：公司自己在 `/providers/<slug>/manage/team/` 管成員，員工端不必介入（也不該介入——誰能代表一家持牌公司說話，是那家公司的事）。原文如下：
+  `apps/accounts/admin.py` 只註冊了 `User` 與
   `EmailVerification`，所以員工看不到「誰有權編輯哪一間公司的頁面」，也沒有停權的動作。
   離職員工、批准給錯人、公司要求移除同事，目前都只能直接改資料庫 — 與上一條同一批做。
 - `[P2] Provider 沒有一個讓客人「了解這家公司」的欄位` — 平台補充區只有 `website`、
@@ -162,6 +163,27 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 
 
 - `[P5] 付費層目前只差在額度數字` — 3／15／40 每月在開站期很可能三層都用不完，訂閱就沒有真正的購買理由 — P7 要把「新需求通知速度」（付費即時、免費延遲，且規則在需求牆上公開）與報價分析做出來；自然排序仍不得受付費影響（COMPLIANCE §6）。
+- `[P7-0] 換層不會重算 profile_completeness` — 分母現在跟著 `effective_tier` 走，但 admin 裡改 `tier`
+  或 `paid_placement_suspended_at` 都不會呼叫 `recompute_ranking_inputs`，所以分數會停在換層前的值，
+  直到公司下一次編輯頁面 — 一列 signal 或 admin action 就能解，但要先想清楚「換層當下排序就跟著動」
+  是不是我們要的（COMPLIANCE §6 說的是付費不得買到自然排序，不是分母不得變）。
+- `[P7-0] logo 審核佇列沒有 SLA，也沒有人在看` — `ProviderLogoUploadAdmin` 有佇列有理由必填，
+  但沒有 `due_at`、沒有逾期標記、沒有告警，公司傳完只能等 — 與 `[P4] 逾期申訴沒有人看` 同一件事，
+  P8 接告警通道時一起做；在那之前至少該在管理頁寫出「一般 1–2 個工作天」。
+- `[P7-0] 掃毒器預設是 UnavailableScanner，所以本機永遠傳不出一個能發佈的 logo` — 這是刻意的
+  （沒有掃毒器就等於沒掃過），代價是新環境第一次跑會以為功能壞了 — 部署文件要寫明 `CLAMAV_HOST`，
+  P8 的 checklist 要驗一次真的掃得動。
+- `[P7-0] 成員邀請沒有頻率上限` — owner 可以連續對任意信箱發邀請，等於借平台的名義發信 —
+  真正要擋的是「拿邀請信當廣告發」；一家公司每日邀請數上限 + 同一信箱冷卻期，等看到第一次濫用再定數字，
+  但別等到收件人投訴才想起這件事。
+- `[P7-0] 沒有「我要退出這家公司」` — 成員只能被 owner 停用，自己走不掉；離職的人想斷開關聯，
+  目前得請前雇主按按鈕 — 一個 `leave_provider`（最後一位 owner 不得退出，與降級同一條不變量）
+  是小工，但要一併想清楚退出後那些以他名義發出的報價與回覆怎麼標示。
+- `[P7-0] admin 的「撤銷權限」動作繞過最後一位 owner 的不變量` — `ProviderMemberAdmin.deactivate_memberships`
+  直接 `update(is_active=False)`，所以員工端可以把一家公司的最後一位 owner 停掉，而
+  `services.deactivate_member` 在同樣的情況會拒絕 — 這是刻意留的員工救援出口（有時候正是要把
+  一個給錯的 owner 拔掉），但它現在沒有二次確認、沒有理由欄，也沒有記在任何地方；
+  改成呼叫 service 並帶一個 `force` + 必填理由，是下一次碰 admin 時該做的事。
 
 ## 每個 Phase 的驗收（DoD 見 CLAUDE.md §7）
 

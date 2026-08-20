@@ -6,7 +6,7 @@ The views validate input and delegate every write to ``services.py``
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,6 +17,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
+from apps.accounts import selectors as account_selectors
 from apps.accounts import services
 from apps.accounts.forms import EmailLoginForm, RegistrationForm
 from apps.accounts.models import Role
@@ -25,6 +26,8 @@ from apps.providers import selectors as provider_selectors
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
+
+    from apps.accounts.models import User
 
 
 def _client_ip(request: HttpRequest) -> str | None:
@@ -138,3 +141,37 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "managed_providers": provider_selectors.providers_for_member(str(request.user.pk)),
     }
     return render(request, "accounts/dashboard.html", context)
+
+
+@login_required
+def accept_invite(request: HttpRequest, token: str) -> HttpResponse:
+    """Join a company's page, having been invited to it.
+
+    Behind ``login_required`` on purpose. The point of the invitation flow is
+    that a membership always has a person behind it who agreed to it, and the
+    only way to know which person is reading the link is to make them sign in
+    first. Someone without an account registers and comes back; the link lives
+    long enough for that.
+
+    Accepting is a write, so it needs POST. The GET only shows what is on
+    offer, and says so plainly when the signed-in address is not the invited
+    one - the commonest way this goes wrong is a colleague forwarding the mail.
+    """
+    invite = account_selectors.invite_for_token(token)
+    if invite is None:
+        return render(request, "accounts/invite_invalid.html", status=404)
+
+    user = cast("User", request.user)
+    mismatch = user.email.strip().lower() != invite.email
+    if request.method == "POST" and not mismatch:
+        try:
+            membership = services.accept_invite(token=token, user=user)
+        except services.MembershipError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(
+                request, _("已加入「%(name)s」。") % {"name": invite.provider.display_name}
+            )
+            return redirect("providers:manage", slug=membership.provider.slug)
+
+    return render(request, "accounts/invite_accept.html", {"invite": invite, "mismatch": mismatch})

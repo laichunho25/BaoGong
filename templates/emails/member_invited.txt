@@ -1,0 +1,12 @@
+{% load i18n %}{% blocktranslate %}您好，
+
+「{{ provider_name }}」邀请您以「{{ role_label }}」的身份，在包公 BaoGong 管理其公司页面。
+
+接受后，您可以编辑该公司页面、回复买家评价、处理报价。
+
+接受邀请（7 天内有效，需用本邮箱登录）：
+{{ url }}
+
+如果您不认识这家公司，请忽略本邮件——不点击链接就不会有任何变化。{% endblocktranslate %}
+
+{% include "emails/_footer.txt" %}

@@ -13,5 +13,6 @@ urlpatterns = [
     path("verify/sent/", views.verification_sent, name="verification_sent"),
     path("verify/resend/", views.resend_verification, name="resend_verification"),
     path("verify/<str:token>/", views.verify_email, name="verify_email"),
+    path("invites/<str:token>/", views.accept_invite, name="accept_invite"),
     path("dashboard/", views.dashboard, name="dashboard"),
 ]

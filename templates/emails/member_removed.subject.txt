@@ -1,0 +1,1 @@
+{% load i18n %}{% blocktranslate %}您对 {{ provider_name }} 页面的管理权限已被取消{% endblocktranslate %}

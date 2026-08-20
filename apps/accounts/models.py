@@ -193,3 +193,73 @@ class EmailVerification(BaseModel):
 
     def is_usable(self, *, now: datetime | None = None) -> bool:
         return self.used_at is None and self.expires_at > (now or timezone.now())
+
+
+class ProviderMemberInvite(BaseModel):
+    """An offer of access to one company's page, sent to one mailbox.
+
+    A company cannot simply attach a colleague's account to itself: the person
+    has to sign in and accept. That is not politeness. A membership carries the
+    right to publish text on a licensed company's public page and to answer
+    reviews in its name, and nobody should acquire that because somebody typed
+    their address into a form.
+
+    The token is stored as a SHA-256 hash for the same reason
+    ``EmailVerification`` does it: a database dump must not be a bundle of
+    working access links.
+
+    ``revoked_at`` rather than deletion - who offered access to whom, and who
+    took it back, is exactly the history a disputed page needs.
+    """
+
+    provider = models.ForeignKey(
+        "providers.Provider", on_delete=models.CASCADE, related_name="member_invites"
+    )
+    email = models.EmailField(help_text="The address this invitation was sent to.")
+    member_role = models.CharField(
+        max_length=16, choices=MemberRole.choices, default=MemberRole.STAFF
+    )
+    invited_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="sent_member_invites"
+    )
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accepted_member_invites",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("provider member invitation")
+        verbose_name_plural = _("provider member invitations")
+        constraints = [
+            # One open offer per mailbox per company. Re-inviting revokes the
+            # previous offer first, so an address never has two live links.
+            models.UniqueConstraint(
+                fields=["provider", "email"],
+                condition=models.Q(accepted_at__isnull=True, revoked_at__isnull=True),
+                name="accounts_one_open_invite_per_email",
+            )
+        ]
+        indexes = [models.Index(fields=["provider", "accepted_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.email} -> {self.provider_id} ({self.state})"
+
+    @property
+    def state(self) -> str:
+        if self.accepted_at:
+            return "accepted"
+        if self.revoked_at:
+            return "revoked"
+        return "open" if self.expires_at > timezone.now() else "expired"
+
+    @property
+    def is_open(self) -> bool:
+        """Still waiting on the invitee, and still within its lifetime."""
+        return self.state == "open"

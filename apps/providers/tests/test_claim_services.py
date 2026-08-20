@@ -18,7 +18,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.accounts.models import ProviderMember, Role
-from apps.core.scanning import ScanResult, ScanStatus
+from apps.core.scanning import ScanStatus
 from apps.core.uploads import MAX_UPLOAD_BYTES, inspect_upload
 from apps.providers import services
 from apps.providers.models import (
@@ -163,16 +163,11 @@ class TestEvidence:
         make_provider: Callable[..., Provider],
         make_user: Callable[..., User],
         make_upload: Callable[..., SimpleUploadedFile],
-        monkeypatch: pytest.MonkeyPatch,
+        clean_scanner: None,
     ) -> None:
         claim = _submit(make_provider(), make_user())
         evidence = _attach(claim, make_upload())
 
-        class CleanScanner:
-            def scan(self, chunks: object) -> ScanResult:
-                return ScanResult(status=ScanStatus.CLEAN, detail="OK", scanner="fake")
-
-        monkeypatch.setattr(services, "get_scanner", CleanScanner)
         services.scan_evidence(evidence)
 
         evidence.refresh_from_db()

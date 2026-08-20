@@ -15,7 +15,13 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.form_styles import CHECKBOX_CLASSES, FILE_CLASSES, INPUT_CLASSES
-from apps.core.uploads import MAX_UPLOAD_BYTES, InspectedUpload, inspect_upload
+from apps.core.uploads import (
+    IMAGE_CONTENT_TYPES,
+    MAX_LOGO_BYTES,
+    MAX_UPLOAD_BYTES,
+    InspectedUpload,
+    inspect_upload,
+)
 from apps.providers.models import BankType, EvidenceKind, Language, ServiceCategory
 
 if TYPE_CHECKING:
@@ -251,3 +257,38 @@ class ProviderProfileForm(forms.Form):
         one, which would otherwise show up in the change log as a no-op.
         """
         return {name: self.cleaned_data[name] for name in self.fields}
+
+
+class ProviderLogoForm(forms.Form):
+    """One image, on its way to the review queue.
+
+    Kept apart from ``ProviderProfileForm`` rather than added as a field to it:
+    a logo is not applied when the form is saved. It is scanned, then read by a
+    moderator, and only then published - so it has a different lifecycle, a
+    different failure mode, and a different sentence to say to the company.
+    """
+
+    logo = forms.FileField(
+        label=_("公司标志"),
+        help_text=_(
+            "支持 JPG、PNG，不超过 %(limit)s MB。上传后需经我们审核才会显示在页面上；"
+            "标志内不得含有开户成功率、官方背书等说法。"
+        )
+        % {"limit": MAX_LOGO_BYTES // (1024 * 1024)},
+        widget=forms.ClearableFileInput(attrs={"class": FILE_CLASSES, "accept": "image/*"}),
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        #: Set by ``clean_logo``; the view passes it to ``services.upload_logo``.
+        self.inspected: InspectedUpload | None = None
+
+    def clean_logo(self) -> Any:
+        upload = self.cleaned_data["logo"]
+        # Images only, and a tighter size limit than evidence: this file is
+        # downloaded by every visitor of the page, not opened once by a
+        # moderator.
+        self.inspected = inspect_upload(
+            upload, allowed=IMAGE_CONTENT_TYPES, max_bytes=MAX_LOGO_BYTES
+        )
+        return upload

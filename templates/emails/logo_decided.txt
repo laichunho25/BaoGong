@@ -1,0 +1,19 @@
+{% load i18n %}{% if approved %}{% blocktranslate %}您好，
+
+「{{ provider_name }}」提交的公司标志已通过审核，现已显示在公司页面上。
+
+审核意见：
+{{ reason }}
+
+管理公司页面：
+{{ url }}{% endblocktranslate %}{% else %}{% blocktranslate %}您好，
+
+「{{ provider_name }}」提交的公司标志未获发布，页面上显示的仍是原来的标志。
+
+审核意见：
+{{ reason }}
+
+修改后可重新上传：
+{{ url }}{% endblocktranslate %}{% endif %}
+
+{% include "emails/_footer.txt" %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "接受邀请" %} - 包公 BaoGong{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-md">
+  <div class="rounded-2xl border border-line bg-white p-6 shadow-sm sm:p-8">
+    <h1 class="font-display text-2xl font-semibold tracking-tight text-ink">{% translate "接受邀请" %}</h1>
+    <p class="mt-3 text-sm leading-relaxed text-ink-soft">
+      {% blocktranslate with name=invite.provider.display_name role=invite.get_member_role_display %}「{{ name }}」邀请你以「{{ role }}」的身份管理其在包公的公司页面。{% endblocktranslate %}
+    </p>
+
+    {% comment %} Spelled out before the button, not after: accepting means writing on a
+       licensed company's public page in its name, and that is worth one
+       sentence of warning. {% endcomment %}
+    <p class="mt-3 text-xs leading-relaxed text-ink-muted">
+      {% translate "接受后，你可以编辑该公司页面、回复买家评价、处理报价。所有操作都会记录在公司的修改记录里。" %}
+    </p>
+
+    {% if mismatch %}
+      <div class="mt-5 flex gap-2 rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-900" role="status">
+        <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="alert" class="h-4 w-4" %}</span>
+        <p>
+          {% blocktranslate with email=invite.email %}这份邀请发给的是 {{ email }}。请用该邮箱登录后再打开此链接。{% endblocktranslate %}
+        </p>
+      </div>
+      <a href="{% url 'accounts:logout' %}"
+         class="mt-5 inline-flex w-full items-center justify-center rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-soft transition hover:border-line-strong hover:text-ink">
+        {% translate "切换账号" %}
+      </a>
+    {% else %}
+      <form method="post" class="mt-6">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex w-full items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+          {% translate "接受邀请" %}
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

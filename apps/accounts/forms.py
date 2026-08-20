@@ -15,7 +15,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.models import Role
+from apps.accounts.models import MemberRole, Role
 from apps.core import turnstile
 from apps.core.form_styles import INPUT_CLASSES
 
@@ -94,3 +94,26 @@ class EmailLoginForm(AuthenticationForm):
 
     def clean_username(self) -> str:
         return str(self.cleaned_data["username"]).strip().lower()
+
+
+class MemberInviteForm(forms.Form):
+    """Invite a colleague onto a company's page.
+
+    Only the address and the role. Whether the invitation may be sent at all -
+    who is asking, whether the page is still on the register, whether that
+    mailbox is already a member - is decided in ``services.invite_member``,
+    which is also reachable from the shell and the admin.
+    """
+
+    email = forms.EmailField(
+        label=_("同事邮箱"),
+        help_text=_("我们会发送邀请链接。对方需用这个邮箱登录并接受后才会成为成员。"),
+        widget=forms.EmailInput(attrs={"class": INPUT_CLASSES, "autocomplete": "off"}),
+    )
+    member_role = forms.ChoiceField(
+        label=_("角色"),
+        choices=MemberRole.choices,
+        initial=MemberRole.STAFF,
+        help_text=_("员工可以编辑页面、回复评价；拥有者还可以管理成员。"),
+        widget=forms.Select(attrs={"class": INPUT_CLASSES}),
+    )

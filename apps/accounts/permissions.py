@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from django.contrib.auth.views import redirect_to_login
 from django.http import Http404
 
-from apps.accounts.models import ProviderMember
+from apps.accounts.models import MemberRole, ProviderMember
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -44,6 +44,21 @@ def is_provider_member(user: User, provider: Provider | str) -> bool:
     provider_id = provider if isinstance(provider, str) else provider.pk
     return ProviderMember.objects.filter(
         user=user, provider_id=provider_id, is_active=True
+    ).exists()
+
+
+def is_provider_owner(user: User, provider: Provider | str) -> bool:
+    """Whether ``user`` may decide who else works on ``provider``'s page.
+
+    Staff members edit the page; owners decide who is a member at all. The
+    split exists so that handing a colleague the keys to the profile form does
+    not also hand them the ability to lock the founder out.
+    """
+    if not user.is_authenticated or not user.is_active:
+        return False
+    provider_id = provider if isinstance(provider, str) else provider.pk
+    return ProviderMember.objects.filter(
+        user=user, provider_id=provider_id, is_active=True, member_role=MemberRole.OWNER
     ).exists()
 
 

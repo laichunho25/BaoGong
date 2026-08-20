@@ -16,20 +16,30 @@ from django.utils.safestring import SafeString, mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
-from apps.accounts.permissions import is_moderator, is_provider_member, verified_email_required
+from apps.accounts import selectors as account_selectors
+from apps.accounts import services as account_services
+from apps.accounts.forms import MemberInviteForm
+from apps.accounts.models import ProviderMember, ProviderMemberInvite
+from apps.accounts.permissions import (
+    is_moderator,
+    is_provider_member,
+    is_provider_owner,
+    verified_email_required,
+)
 from apps.core.storage import signed_url
 from apps.providers import selectors, services
-from apps.providers.forms import ClaimSubmissionForm, ProviderProfileForm
+from apps.providers.forms import ClaimSubmissionForm, ProviderLogoForm, ProviderProfileForm
 from apps.providers.models import (
     BankType,
     ClaimEvidence,
     Language,
     Provider,
     ProviderClaim,
+    ProviderLogoUpload,
     ServiceCategory,
     Tier,
 )
-from apps.providers.tasks import scan_claim_evidence
+from apps.providers.tasks import scan_claim_evidence, scan_logo_upload
 from apps.providers.verification import WELL_KNOWN_PATH
 from apps.registry.selectors import registry_last_synced_at
 
@@ -49,6 +59,7 @@ if TYPE_CHECKING:
     from django.http.response import HttpResponseBase
 
     from apps.accounts.models import User
+    from apps.core.uploads import InspectedUpload
 
 PAGE_SIZE = 20
 
@@ -200,6 +211,22 @@ def _profile_initial(provider: Provider) -> dict[str, Any]:
     }
 
 
+def _manageable_provider(request: HttpRequest, slug: str) -> tuple[Provider, User]:
+    """The provider this account may act for, or 404.
+
+    Not 403: a page that is not yours is a page you have no business learning
+    the management URL of, and the directory already tells anyone who asks that
+    the company exists.
+    """
+    provider = selectors.get_provider_detail(slug)
+    if provider is None:
+        raise Http404("No such provider")
+    user = cast("User", request.user)
+    if not is_provider_member(user, provider):
+        raise Http404("No such provider")
+    return provider, user
+
+
 @login_required
 def provider_manage(request: HttpRequest, slug: str) -> HttpResponse:
     """Where a company edits its own page.
@@ -213,13 +240,7 @@ def provider_manage(request: HttpRequest, slug: str) -> HttpResponse:
     from ``edit_permission`` is shown instead of a form, and the same check runs
     again inside the service, because this view is not the only caller.
     """
-    provider = selectors.get_provider_detail(slug)
-    if provider is None:
-        raise Http404("No such provider")
-    user = cast("User", request.user)
-    if not is_provider_member(user, provider):
-        raise Http404("No such provider")
-
+    provider, user = _manageable_provider(request, slug)
     is_correction = request.GET.get("correction") == "1"
     permission = services.edit_permission(provider, is_correction=is_correction)
     form: ProviderProfileForm | None = None
@@ -264,9 +285,101 @@ def provider_manage(request: HttpRequest, slug: str) -> HttpResponse:
             "is_free_tier": provider.effective_tier == Tier.FREE,
             "pending_edits": selectors.pending_description_edits(provider),
             "recent_edits": selectors.recent_profile_edits(provider),
+            # The logo has its own form and its own queue: it is not applied
+            # when the profile form is saved, so it cannot share that form's
+            # success message either.
+            "logo_form": ProviderLogoForm() if provider.is_on_register else None,
+            "pending_logo": selectors.pending_logo_upload(provider),
+            "recent_logos": selectors.recent_logo_uploads(provider),
+            # Staff manage the page; only owners manage who the staff are.
+            "is_owner": is_provider_owner(user, provider),
             **_shared_context(request),
         },
     )
+
+
+@login_required
+@require_POST
+def provider_logo_upload(request: HttpRequest, slug: str) -> HttpResponse:
+    """Submit a logo for scanning and review.
+
+    Open to every tier, unlike the rest of the profile form: a logo is how a
+    buyer tells one row of the directory from another, not a promotion slot
+    (PRD section 3.7). It does not consume the free tier's annual allowance
+    either - what limits it is the queue, one upload at a time.
+    """
+    provider, user = _manageable_provider(request, slug)
+    form = ProviderLogoForm(request.POST, request.FILES)
+    if not form.is_valid():
+        for error in form.errors.get("logo", []):
+            messages.error(request, str(error))
+        return redirect("providers:manage", slug=provider.slug)
+
+    try:
+        logo = services.upload_logo(
+            provider=provider,
+            actor=user,
+            upload=form.cleaned_data["logo"],
+            inspected=cast("InspectedUpload", form.inspected),
+        )
+    except services.LogoError as exc:
+        messages.error(request, str(exc))
+    else:
+        transaction.on_commit(_scan_logo_later(str(logo.pk)))
+        messages.success(request, _("标志已提交，通过审核后会显示在页面上。"))
+    return redirect("providers:manage", slug=provider.slug)
+
+
+@login_required
+@require_POST
+def provider_logo_withdraw(request: HttpRequest, logo_id: str) -> HttpResponse:
+    """Take back a logo that is still waiting on a decision."""
+    logo = ProviderLogoUpload.objects.select_related("provider").filter(pk=logo_id).first()
+    if logo is None:
+        raise Http404("No such upload")
+    user = cast("User", request.user)
+    if not is_provider_member(user, logo.provider):
+        raise Http404("No such upload")
+
+    try:
+        services.withdraw_logo(logo=logo, user=user)
+    except services.LogoError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.info(request, _("标志上传已撤回。"))
+    return redirect("providers:manage", slug=logo.provider.slug)
+
+
+@login_required
+def provider_logo_preview(request: HttpRequest, logo_id: str) -> HttpResponseBase:
+    """Show a submitted logo to the moderator deciding on it.
+
+    The same three gates as an evidence file, in the same order: the requester
+    is a member of the company or a moderator; the file has been scanned; and
+    only then a short-lived signed URL or a streamed response. This is the only
+    way to see the bytes before they are published - the private bucket is not
+    reachable by URL, which is the point of storing them there.
+    """
+    logo = ProviderLogoUpload.objects.select_related("provider").filter(pk=logo_id).first()
+    if logo is None:
+        raise Http404("No such file")
+    requester = cast("User", request.user)
+    if not is_moderator(requester) and not is_provider_member(requester, logo.provider):
+        raise Http404("No such file")
+    if not logo.is_readable:
+        raise Http404("This file is not available")
+
+    url = signed_url(logo.file.name or "")
+    if url:
+        return redirect(url)
+    response = FileResponse(logo.file.open("rb"), content_type=logo.content_type)
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _scan_logo_later(logo_id: str) -> Callable[[], None]:
+    """Bind one logo id for ``on_commit`` - see ``_scan_later``."""
+    return lambda: scan_logo_upload.delay(logo_id)
 
 
 def _scan_later(evidence_id: str) -> Callable[[], None]:
@@ -444,3 +557,121 @@ def provider_compare(request: HttpRequest) -> HttpResponse:
             **_shared_context(request),
         },
     )
+
+
+def _owned_provider(request: HttpRequest, slug: str) -> tuple[Provider, User]:
+    """The provider this account may manage the team of, or 404.
+
+    Stricter than ``_manageable_provider``: a staff member edits the page but
+    does not decide who else can. 404 rather than 403 for the same reason as
+    everywhere else here - the URL is not theirs to have found.
+    """
+    provider = selectors.get_provider_detail(slug)
+    if provider is None:
+        raise Http404("No such provider")
+    user = cast("User", request.user)
+    if not is_provider_owner(user, provider):
+        raise Http404("No such provider")
+    return provider, user
+
+
+@login_required
+def provider_team(request: HttpRequest, slug: str) -> HttpResponse:
+    """Who may work on this page, and the standing invitations.
+
+    Owners only. Sending an invitation grants nothing by itself: the row it
+    creates is an offer, and the membership appears when the invitee signs in
+    with that address and accepts.
+    """
+    provider, user = _owned_provider(request, slug)
+    form = MemberInviteForm()
+
+    if request.method == "POST":
+        form = MemberInviteForm(request.POST)
+        if form.is_valid():
+            try:
+                account_services.invite_member(
+                    provider=provider,
+                    actor=user,
+                    email=form.cleaned_data["email"],
+                    member_role=form.cleaned_data["member_role"],
+                )
+            except account_services.MembershipError as exc:
+                form.add_error(None, str(exc))
+            else:
+                messages.success(request, _("邀请已发送，对方接受后即成为成员。"))
+                return redirect("providers:team", slug=provider.slug)
+
+    return render(
+        request,
+        "providers/team.html",
+        {
+            "provider": provider,
+            "form": form if provider.is_on_register else None,
+            "team": account_selectors.provider_team(provider),
+            "invites": account_selectors.open_invites(provider),
+            # So the page can say "this is you" and hide the controls that
+            # would only fail: an owner cannot demote or remove themselves
+            # while they are the last one.
+            "current_membership_id": ProviderMember.objects.filter(user=user, provider=provider)
+            .values_list("pk", flat=True)
+            .first(),
+            **_shared_context(request),
+        },
+    )
+
+
+@login_required
+@require_POST
+def provider_member_role(request: HttpRequest, slug: str, member_id: str) -> HttpResponse:
+    """Promote a member to owner, or put them back to staff."""
+    provider, user = _owned_provider(request, slug)
+    membership = ProviderMember.objects.filter(pk=member_id, provider=provider).first()
+    if membership is None:
+        raise Http404("No such member")
+
+    try:
+        account_services.set_member_role(
+            membership=membership, actor=user, member_role=request.POST.get("member_role", "")
+        )
+    except account_services.MembershipError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, _("成员角色已更新。"))
+    return redirect("providers:team", slug=provider.slug)
+
+
+@login_required
+@require_POST
+def provider_member_remove(request: HttpRequest, slug: str, member_id: str) -> HttpResponse:
+    """Take away a member's access, keeping the record that they had it."""
+    provider, user = _owned_provider(request, slug)
+    membership = ProviderMember.objects.filter(pk=member_id, provider=provider).first()
+    if membership is None:
+        raise Http404("No such member")
+
+    try:
+        account_services.deactivate_member(membership=membership, actor=user)
+    except account_services.MembershipError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, _("已停用该成员的访问权限。"))
+    return redirect("providers:team", slug=provider.slug)
+
+
+@login_required
+@require_POST
+def provider_invite_revoke(request: HttpRequest, slug: str, invite_id: str) -> HttpResponse:
+    """Withdraw an invitation that has not been accepted yet."""
+    provider, user = _owned_provider(request, slug)
+    invite = ProviderMemberInvite.objects.filter(pk=invite_id, provider=provider).first()
+    if invite is None:
+        raise Http404("No such invitation")
+
+    try:
+        account_services.revoke_invite(invite=invite, actor=user)
+    except account_services.MembershipError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, _("邀请已撤回。"))
+    return redirect("providers:team", slug=provider.slug)

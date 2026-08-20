@@ -16,6 +16,12 @@
     <p class="mt-1 text-sm text-ink-muted">
       {% blocktranslate with tier=tier_label %}当前方案：{{ tier }}{% endblocktranslate %}
     </p>
+    {% if is_owner %}
+      <a href="{% url 'providers:team' provider.slug %}" class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 transition hover:text-brand-800">
+        {% translate "成员管理" %}
+        {% include "components/icon.html" with name="arrow-right" class="h-4 w-4" %}
+      </a>
+    {% endif %}
   </header>
 
   {% comment %} The official row, in the official greys, so that the person editing can
@@ -67,6 +73,67 @@
       </button>
     </form>
   {% endif %}
+
+  {% comment %} Its own card, not a field in the form above: a logo is not applied when
+     that form is saved. It is scanned, then read by a person, and only then
+     copied onto the page - so it needs its own state and its own sentence.
+     Open to every tier, including the free one (PRD section 3.7). {% endcomment %}
+  <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">
+    {% include "components/section_heading.html" with eyebrow=_("公司标志") title=_("上传公司标志") %}
+    <div class="mt-4 flex items-start gap-4">
+      {% include "components/provider_avatar.html" with provider=provider size="h-16 w-16" rounding="rounded-2xl" text="text-xl" %}
+      <p class="text-sm leading-relaxed text-ink-muted">
+        {% if provider.logo %}
+          {% translate "这是目前显示在公司页面与目录列表上的标志。上传新的会替换它。" %}
+        {% else %}
+          {% translate "目前页面上显示的是公司名称首字。上传标志后，买家在目录列表中更容易认出贵公司。" %}
+        {% endif %}
+      </p>
+    </div>
+
+    {% if pending_logo %}
+      <div class="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface-sunken p-4 text-sm">
+        <div class="min-w-0 flex-1">
+          <p class="font-medium text-ink">{% translate "有一份标志正在等待审核" %}</p>
+          <p class="mt-1 text-xs text-ink-muted">
+            {{ pending_logo.created_at|date:"Y-m-d H:i" }} · {{ pending_logo.original_filename }}
+            {% if not pending_logo.is_readable %} · {% translate "正在进行安全扫描" %}{% endif %}
+          </p>
+        </div>
+        <form method="post" action="{% url 'providers:logo_withdraw' pending_logo.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-line-strong hover:text-ink">
+            {% translate "撤回" %}
+          </button>
+        </form>
+      </div>
+    {% elif logo_form %}
+      <form method="post" action="{% url 'providers:logo_upload' provider.slug %}"
+            enctype="multipart/form-data" class="mt-5 space-y-4">
+        {% csrf_token %}
+        {% include "components/form_fields.html" with form=logo_form %}
+        <button type="submit"
+                class="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+          {% translate "提交审核" %}
+        </button>
+      </form>
+    {% endif %}
+
+    {% if recent_logos %}
+      <ul class="mt-5 divide-y divide-line border-t border-line text-sm">
+        {% for item in recent_logos %}
+          <li class="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
+            <span class="tabular text-xs text-ink-muted">{{ item.created_at|date:"Y-m-d H:i" }}</span>
+            <span class="truncate text-ink-soft">{{ item.original_filename }}</span>
+            <span class="ml-auto text-xs text-ink-muted">{{ item.get_status_display }}</span>
+            {% if item.review_note %}
+              <p class="w-full text-xs leading-relaxed text-ink-muted">{% translate "审核意见：" %}{{ item.review_note }}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
 
   {% if pending_edits %}
     <section class="rounded-2xl border border-line bg-white p-6 shadow-sm">

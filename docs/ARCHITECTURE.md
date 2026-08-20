@@ -36,7 +36,7 @@ baogong/
 │   └── wsgi.py asgi.py
 ├── apps/
 │   ├── core/          # BaseModel(uuid, created_at, updated_at), middleware, money, i18n utils
-│   ├── accounts/      # User(AbstractUser), ProviderMember, EmailVerification, permissions.py
+│   ├── accounts/      # User(AbstractUser), ProviderMember, ProviderMemberInvite, EmailVerification, permissions.py
 │   ├── registry/      # Licensee, SyncRun, LicenseeChange
 │   ├── providers/     # Provider, ProviderClaim, ClaimEvidence, ServiceOffering, PriceItem, Certification
 │   ├── reviews/       # Review, ReviewScore, ReviewReply, Nnc1Verification, Dispute
@@ -74,8 +74,9 @@ baogong/
 唯一與「誰在看」有關的是需求預覽——數字公開，需求內容須登入（COMPLIANCE §4）。
 介面本身的規範見 `docs/DESIGN_SYSTEM.md`。
 
-**授權**：不裝 django-guardian。全站只有兩個判斷——「是不是這間 provider 的成員」與「是不是
-moderator」——都由 `apps/accounts/permissions.py` 從 `ProviderMember` / `User.role` 回答。
+**授權**：不裝 django-guardian。全站只有三個判斷——「是不是這間 provider 的成員」、
+「是不是它的 owner（誰能決定成員名單）」與「是不是 moderator」——都由
+`apps/accounts/permissions.py` 從 `ProviderMember` / `User.role` 回答。
 存在與否本身即資訊的頁面（別人的認領申請、moderator 佇列）一律回 **404 而非 403**。
 
 **審核佇列**：P3 的認領審核用**客製 Django admin**（並排顯示申請內容與官方登記冊、證明檔案

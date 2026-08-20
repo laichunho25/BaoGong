@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pytest
+from django.utils import timezone
 
 from apps.providers import services
 from apps.providers.models import Provider, Tier
@@ -113,9 +114,33 @@ class TestProfileCompleteness:
         assert services.compute_profile_completeness(make_provider()) == Decimal("0")
 
     def test_filling_fields_raises_it(self, make_provider: Callable[..., Provider]) -> None:
+        # A free page's denominator is {website, logo}: founded_year is not a
+        # field this tier can reach, so filling it moves nothing.
         provider = make_provider(website="https://example.com", founded_year=2015)
 
-        assert services.compute_profile_completeness(provider) == Decimal("0.250")
+        assert services.compute_profile_completeness(provider) == Decimal("0.500")
+
+    def test_the_denominator_is_what_this_tier_can_reach(
+        self, make_provider: Callable[..., Provider]
+    ) -> None:
+        """COMPLIANCE section 6: a subscription must not move a page up the
+        natural ranking. A fixed denominator did exactly that - six of the eight
+        fields are paid-only, so a free page could never pass 0.25 however
+        completely it filled in what it was allowed to."""
+        free = make_provider(website="https://example.com")
+        paid = make_provider(website="https://example.com", tier=Tier.VERIFIED)
+
+        assert services.completeness_fields(free) == ("website", "logo")
+        assert services.compute_profile_completeness(free) == Decimal("0.500")
+        # The same page, with more fields it may fill and none of them filled.
+        assert services.compute_profile_completeness(paid) < Decimal("0.500")
+
+    def test_a_suspended_page_is_measured_as_the_free_tier(
+        self, make_provider: Callable[..., Provider]
+    ) -> None:
+        provider = make_provider(tier=Tier.PREMIUM, paid_placement_suspended_at=timezone.now())
+
+        assert services.completeness_fields(provider) == ("website", "logo")
 
     def test_an_empty_list_does_not_count_as_filled(
         self, make_provider: Callable[..., Provider]
@@ -181,7 +206,8 @@ class TestRecomputeRankingInputs:
 
         provider.refresh_from_db()
         assert changed == 1
-        assert provider.profile_completeness == Decimal("0.125")
+        # Premium: seven reachable fields, one of them filled.
+        assert provider.profile_completeness == Decimal("0.143")
         assert provider.ranking_score > Decimal("0")
 
     def test_a_second_pass_reports_nothing_changed(

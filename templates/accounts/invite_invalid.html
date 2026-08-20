@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "邀请链接无效" %} - 包公 BaoGong{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-md">
+  <div class="rounded-2xl border border-line bg-white p-6 text-center shadow-sm sm:p-8">
+    <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-warning-50 text-warning-700">
+      {% include "components/icon.html" with name="alert" class="h-6 w-6" %}
+    </span>
+    <h1 class="mt-4 font-display text-2xl font-semibold tracking-tight text-ink">{% translate "邀请链接无效" %}</h1>
+    {% comment %} One message for unknown, revoked, expired and already-accepted links, for
+       the same reason the verification page gives one: the difference between
+       them is information about links that exist. {% endcomment %}
+    <p class="mt-2 text-sm leading-relaxed text-ink-muted">
+      {% translate "该邀请链接已失效、已被撤回或已经使用过。请联系邀请你的同事重新发送。" %}
+    </p>
+    <a href="{% url 'accounts:dashboard' %}"
+       class="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700">
+      {% translate "返回我的账户" %}
+    </a>
+  </div>
+</div>
+{% endblock %}

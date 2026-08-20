@@ -32,6 +32,7 @@ from apps.providers.models import (
     PriceItem,
     Provider,
     ProviderClaim,
+    ProviderLogoUpload,
     ProviderProfileEdit,
     ServiceOffering,
 )
@@ -540,3 +541,100 @@ class ProviderProfileEditAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         self, request: HttpRequest, queryset: QuerySet[ProviderProfileEdit]
     ) -> HttpResponse | None:
         return self._decide_descriptions(request, queryset, approve=False)
+
+
+@admin.register(ProviderLogoUpload)
+class ProviderLogoUploadAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+    """The queue for company logos, and the record of what was decided.
+
+    A logo needs a human for the same reason a self-introduction does, and for
+    one the description queue does not face: an image is text no phrase list can
+    read. ``check_banned_phrases`` catches "guaranteed bank account" in a
+    paragraph and is blind to the same words drawn inside a PNG, so the only
+    check left is somebody looking at it.
+
+    Nothing is editable, and the preview goes through the permission-checked
+    view rather than through ``.url``: the file sits in the private bucket
+    until it is published, and an unscanned image must not be rendered in a
+    moderator's browser either.
+    """
+
+    list_display = ("provider", "status", "scan_status", "uploaded_by", "created_at")
+    list_filter = ("status", "scan_status")
+    search_fields = ("provider__slug", "provider__licensee__name_en", "uploaded_by__email")
+    date_hierarchy = "created_at"
+    actions = ("publish_logos", "reject_logos")
+    readonly_fields = (*tuple(f.name for f in ProviderLogoUpload._meta.fields), "preview")
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[ProviderLogoUpload]:
+        queryset: QuerySet[ProviderLogoUpload] = super().get_queryset(request)
+        return queryset.select_related("provider__licensee", "uploaded_by", "reviewed_by")
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    @admin.display(description=_("Preview"))
+    def preview(self, obj: ProviderLogoUpload) -> str:
+        if not obj.is_readable:
+            return str(_("Not available until the scanner has cleared this file."))
+        return format_html(
+            '<img src="{}" alt="" style="max-height:120px;background:#fff;padding:4px;'
+            'border:1px solid #ddd">',
+            reverse("providers:logo_preview", args=[obj.pk]),
+        )
+
+    def _decide_logos(
+        self, request: HttpRequest, queryset: QuerySet[ProviderLogoUpload], *, approve: bool
+    ) -> HttpResponse | None:
+        action = "publish_logos" if approve else "reject_logos"
+        form = ReasonForm(request.POST if "apply_reason" in request.POST else None)
+        if form.is_valid():
+            decided = 0
+            for logo in queryset:
+                try:
+                    services.decide_logo(
+                        logo=logo,
+                        reviewer=request.user,  # type: ignore[arg-type]
+                        approve=approve,
+                        note=form.cleaned_data["reason"],
+                    )
+                except services.LogoError as exc:
+                    self.message_user(request, f"{logo.provider.slug}: {exc}", messages.ERROR)
+                else:
+                    decided += 1
+            if decided:
+                self.message_user(
+                    request, _("%(count)s logo(s) decided.") % {"count": decided}, messages.SUCCESS
+                )
+            return None
+
+        return render(
+            request,
+            "admin/decision_reason.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": _("Publish company logos") if approve else _("Reject company logos"),
+                "objects": queryset,
+                "form": form,
+                "action": action,
+                "opts": self.model._meta,
+            },
+        )
+
+    @admin.action(description=_("Publish selected logos (reason required)"))
+    def publish_logos(
+        self, request: HttpRequest, queryset: QuerySet[ProviderLogoUpload]
+    ) -> HttpResponse | None:
+        return self._decide_logos(request, queryset, approve=True)
+
+    @admin.action(description=_("Reject selected logos (reason required)"))
+    def reject_logos(
+        self, request: HttpRequest, queryset: QuerySet[ProviderLogoUpload]
+    ) -> HttpResponse | None:
+        return self._decide_logos(request, queryset, approve=False)

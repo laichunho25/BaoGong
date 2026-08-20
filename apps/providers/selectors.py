@@ -30,10 +30,12 @@ from apps.providers.models import (
     ClaimDecision,
     ClaimStatus,
     Language,
+    LogoReviewStatus,
     PriceItem,
     ProfileEditStatus,
     Provider,
     ProviderClaim,
+    ProviderLogoUpload,
     ProviderProfileEdit,
     ServiceCategory,
     ServiceOffering,
@@ -519,4 +521,23 @@ def providers_for_member(user_id: str) -> list[Provider]:
         directory_queryset()
         .filter(members__user__pk=user_id, members__is_active=True)
         .order_by("slug")
+    )
+
+
+def pending_logo_upload(provider: Provider) -> ProviderLogoUpload | None:
+    """The logo waiting on a decision, if there is one. At most one by constraint."""
+    return provider.logo_uploads.filter(status=LogoReviewStatus.PENDING).first()
+
+
+def recent_logo_uploads(provider: Provider, *, limit: int = 5) -> list[ProviderLogoUpload]:
+    """What this company has submitted, and what became of it."""
+    return list(provider.logo_uploads.order_by("-created_at")[:limit])
+
+
+def pending_logo_queue() -> QuerySet[ProviderLogoUpload]:
+    """Every logo nobody has decided on, oldest first."""
+    return (
+        ProviderLogoUpload.objects.filter(status=LogoReviewStatus.PENDING)
+        .select_related("provider", "provider__licensee", "uploaded_by")
+        .order_by("created_at")
     )

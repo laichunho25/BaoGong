@@ -1,0 +1,21 @@
+{% comment %} The company's mark, or its initial when it has none.
+
+   Most rows in the directory are unclaimed and will never have artwork, so the
+   initial is the normal case rather than a fallback - a grid of identical
+   placeholder boxes reads worse than nothing.
+
+   A logo is platform data, supplied by the company itself: once the licence
+   leaves the register it comes off the page with everything else the company
+   told us (PRD section 3.7), and the initial takes its place. The alt text is
+   empty on purpose - the company name is rendered next to it in every caller,
+   and a screen reader announcing it twice is noise, not information.
+
+   Params: provider, size (height/width classes), rounding, text (initial size). {% endcomment %}
+{% if provider.logo and provider.is_on_register %}
+  <img src="{{ provider.logo.url }}" alt="" loading="lazy" decoding="async"
+       class="{{ size|default:'h-10 w-10' }} shrink-0 {{ rounding|default:'rounded-xl' }} border border-line bg-white object-contain p-1">
+{% else %}
+  <span class="flex {{ size|default:'h-10 w-10' }} shrink-0 items-center justify-center {{ rounding|default:'rounded-xl' }} bg-brand-50 {{ text|default:'text-sm' }} font-semibold uppercase text-brand-700">
+    {{ provider.display_name|slice:":1" }}
+  </span>
+{% endif %}

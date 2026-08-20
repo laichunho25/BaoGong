@@ -6,12 +6,13 @@ import logging
 
 from celery import shared_task
 
-from apps.providers.models import ClaimEvidence
+from apps.providers.models import ClaimEvidence, ProviderLogoUpload
 from apps.providers.services import (
     ensure_providers,
     purge_expired_evidence,
     recompute_ranking_inputs,
     scan_evidence,
+    scan_provider_logo,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,3 +78,24 @@ def purge_claim_evidence() -> int:
     if purged:
         logger.info("Purged %s expired claim evidence file(s)", purged)
     return purged
+
+
+@shared_task(  # type: ignore[untyped-decorator]
+    name="providers.scan_logo_upload",
+    autoretry_for=(Exception,),
+    retry_backoff=30,
+    max_retries=3,
+    time_limit=300,
+)
+def scan_logo_upload(logo_id: str) -> str:
+    """Scan one uploaded logo before a moderator can publish it.
+
+    Until this runs the upload is ``scan_pending``, and ``decide_logo`` refuses
+    to copy it into the public bucket - so a stuck worker delays a logo rather
+    than serving an unscanned file to every visitor of the page.
+    """
+    logo = ProviderLogoUpload.objects.filter(pk=logo_id).first()
+    if logo is None:
+        logger.warning("Logo upload %s vanished before it could be scanned", logo_id)
+        return "missing"
+    return str(scan_provider_logo(logo).scan_status)

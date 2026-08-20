@@ -598,3 +598,100 @@ class ProviderProfileEdit(BaseModel):
     def counts_towards_allowance(self) -> bool:
         """Whether this edit starts the free tier's twelve-month clock."""
         return not self.is_correction and self.status != ProfileEditStatus.REJECTED
+
+
+class LogoReviewStatus(models.TextChoices):
+    PENDING = "pending", _("Awaiting review")
+    APPROVED = "approved", _("Published")
+    REJECTED = "rejected", _("Rejected")
+    WITHDRAWN = "withdrawn", _("Withdrawn by the company")
+
+
+def provider_logo_path(instance: ProviderLogoUpload, filename: str) -> str:
+    """Storage key inside the private bucket, until a moderator publishes it."""
+    return f"logos/{instance.provider_id}/{instance.pk}.{instance.extension}"
+
+
+class ProviderLogoUpload(BaseModel):
+    """A logo a company submitted, on its way to (or away from) the page.
+
+    Two gates stand between the bytes and the directory, and they answer
+    different questions. The scanner answers "is this file safe to serve"; a
+    moderator answers "is this image something the platform is willing to
+    print". Both are needed, because an image is free text that no phrase list
+    can read: ``check_banned_phrases`` catches "guaranteed bank account" in a
+    description and cannot see it drawn inside a PNG.
+
+    The file lives in private storage while it waits, exactly like claim
+    evidence, and is copied into the public ``Provider.logo`` only by
+    ``services.decide_logo``. Nothing unscanned and unread is ever reachable by
+    URL. The private copy is deleted at the decision either way: once it is
+    published it exists in the public bucket, and once it is refused there is
+    no reason to keep it.
+    """
+
+    provider = models.ForeignKey(Provider, on_delete=models.CASCADE, related_name="logo_uploads")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    file = models.FileField(storage=private_storage, upload_to=provider_logo_path)
+    original_filename = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=64)
+    extension = models.CharField(max_length=8)
+    size_bytes = models.PositiveIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, db_index=True)
+
+    scan_status = models.CharField(
+        max_length=16, choices=ScanStatus.choices, default=ScanStatus.PENDING, db_index=True
+    )
+    scan_detail = models.CharField(max_length=255, blank=True)
+    scanner = models.CharField(max_length=32, blank=True)
+    scanned_at = models.DateTimeField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=16,
+        choices=LogoReviewStatus.choices,
+        default=LogoReviewStatus.PENDING,
+        db_index=True,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = _("provider logo upload")
+        verbose_name_plural = _("provider logo uploads")
+        constraints = [
+            # One in the queue at a time. Without it a company could push ten
+            # images at a moderator and use the queue as a preview tool, and
+            # "which pending upload wins" would have no answer.
+            models.UniqueConstraint(
+                fields=["provider"],
+                condition=models.Q(status="pending"),
+                name="providers_one_pending_logo_per_provider",
+            ),
+        ]
+        indexes = [models.Index(fields=["status", "created_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.provider_id} logo ({self.status})"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == LogoReviewStatus.PENDING
+
+    @property
+    def is_readable(self) -> bool:
+        """Whether these bytes may be opened - by a moderator, or by anyone.
+
+        Pending counts as unreadable, the same as for claim evidence: the
+        reviewer's browser must not be what discovers the file was malicious.
+        """
+        return bool(self.file) and self.scan_status in READABLE_STATUSES

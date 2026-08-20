@@ -9,11 +9,7 @@
 <article class="group relative flex flex-col gap-4 rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:border-brand-200 hover:shadow-card sm:flex-row sm:items-start sm:justify-between">
   <div class="min-w-0 flex-1">
     <div class="flex items-start gap-3">
-      {% comment %} An initial, not a logo: most rows are unclaimed and have no artwork, and
-         a grid of identical placeholder boxes reads worse than nothing. {% endcomment %}
-      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-sm font-semibold uppercase text-brand-700">
-        {{ provider.display_name|slice:":1" }}
-      </span>
+      {% include "components/provider_avatar.html" with provider=provider size="h-10 w-10" rounding="rounded-xl" text="text-sm" %}
       <div class="min-w-0">
         <h3 class="truncate text-base font-semibold text-ink">
           <a class="transition hover:text-brand-700" href="{{ provider.get_absolute_url }}">{{ provider.display_name }}</a>

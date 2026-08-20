@@ -7,6 +7,7 @@ without opening the gate would prove the gate does not work.
 
 from __future__ import annotations
 
+import base64
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -14,6 +15,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from apps.accounts.models import Role, User
+from apps.core import scanning
+from apps.core.scanning import ScanResult, ScanStatus
 from apps.providers.models import Provider
 from apps.providers.services import ensure_providers
 from apps.registry.models import LicenceStatus, Licensee, allow_registry_writes
@@ -85,6 +88,43 @@ def make_upload() -> Callable[..., SimpleUploadedFile]:
         return SimpleUploadedFile(name, content, content_type="application/pdf")
 
     return _make
+
+
+#: A real 1x1 PNG. Same reasoning as ``PDF_BYTES``: the sniffer reads the
+#: leading bytes, so a file of zeros would be refused for the wrong reason.
+PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAE"
+    "hQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+@pytest.fixture
+def make_image_upload() -> Callable[..., SimpleUploadedFile]:
+    def _make(name: str = "logo.png", content: bytes = PNG_BYTES) -> SimpleUploadedFile:
+        return SimpleUploadedFile(name, content, content_type="image/png")
+
+    return _make
+
+
+@pytest.fixture
+def clean_scanner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the configured scanner report every file clean.
+
+    Patched on ``core.scanning``, where ``scan_file`` resolves it, rather than
+    on the caller: the default backend reports ``pending``, so without this a
+    test of anything downstream of a scan would be testing the absence of a
+    scanner.
+    """
+
+    class CleanScanner:
+        name = "fake"
+
+        def scan(self, chunks: Any) -> ScanResult:
+            for _chunk in chunks:
+                pass
+            return ScanResult(status=ScanStatus.CLEAN, detail="OK", scanner="fake")
+
+    monkeypatch.setattr(scanning, "get_scanner", CleanScanner)
 
 
 @pytest.fixture
