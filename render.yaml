@@ -147,6 +147,25 @@ envVarGroups:
       # and notification mail ships a dead link.
       - key: SITE_URL
         value: https://www.baogong.com.hk
+      # Mail. prod.py refuses to boot without the API key and without a From
+      # address on a verified domain: Django's fallback is SMTP on localhost:25,
+      # which in a Render container fails inside a Celery task where nobody
+      # sees it. Verify baogong.com.hk with the provider before first deploy,
+      # or every message is dropped by the receiving side instead.
+      - key: DEFAULT_FROM_EMAIL
+        value: 包公 BaoGong <no-reply@baogong.com.hk>
+      # Host/port/user default to Resend in prod.py; only the key is secret.
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      # FILE_SCANNER_BACKEND is deliberately NOT set here. Left unset the code
+      # falls back to UnavailableScanner, which reports every file `pending` -
+      # and `pending` counts as unreadable, so no logo and no claim evidence
+      # can be approved. That is the intended state until a scanner exists:
+      # the alternative is publishing unscanned bytes to every visitor.
+      # To turn it on, add a private ClamAV service (see docs/DEPLOY_RENDER.md
+      # section 3.1) and set:
+      #   FILE_SCANNER_BACKEND=apps.core.scanning.ClamAvScanner
+      #   CLAMAV_HOST=baogong-clamav
       - key: AGENT_BUDGET_DAILY_USD
         value: "20"
       - key: TCSP_CSV_URL

@@ -36,7 +36,7 @@ from apps.accounts.models import MemberRole, ProviderMember, Role
 from apps.accounts.permissions import is_provider_member
 from apps.core.compliance import Severity, check_banned_phrases
 from apps.core.notifications import absolute_url, notify
-from apps.core.scanning import READABLE_STATUSES, ScanStatus, scan_file
+from apps.core.scanning import READABLE_STATUSES, ScanStatus, scan_file, scanning_available
 from apps.providers.models import (
     Certification,
     CertificationType,
@@ -979,6 +979,12 @@ def upload_logo(
     bytes. What is stored here is private and unpublished; the only path to the
     public bucket is ``decide_logo``.
     """
+    if not scanning_available():
+        # Refused here and not only in the template: a form that is missing from
+        # the page is still reachable by anyone who kept the URL. Taking the
+        # file would build a queue no moderator can clear, because an unscanned
+        # logo can never be approved.
+        raise LogoError(_("标志上传功能正在准备中，暂时无法提交。"))
     if not provider.is_on_register:
         raise LogoError(_("该公司已不在官方持牌名单上，页面已锁定，无法上传标志。"))
     if provider.claim_status != ClaimStatus.CLAIMED:

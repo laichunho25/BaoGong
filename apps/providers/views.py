@@ -26,6 +26,7 @@ from apps.accounts.permissions import (
     is_provider_owner,
     verified_email_required,
 )
+from apps.core.scanning import scanning_available
 from apps.core.storage import signed_url
 from apps.providers import selectors, services
 from apps.providers.forms import ClaimSubmissionForm, ProviderLogoForm, ProviderProfileForm
@@ -288,7 +289,14 @@ def provider_manage(request: HttpRequest, slug: str) -> HttpResponse:
             # The logo has its own form and its own queue: it is not applied
             # when the profile form is saved, so it cannot share that form's
             # success message either.
-            "logo_form": ProviderLogoForm() if provider.is_on_register else None,
+            # No scanner means nothing can ever be approved, so the box is
+            # taken away and the reason is printed. Offering a form whose
+            # every submission ends in silence teaches companies the site is
+            # broken; saying we are not ready yet does not.
+            "logo_form": (
+                ProviderLogoForm() if provider.is_on_register and scanning_available() else None
+            ),
+            "scanning_available": scanning_available(),
             "pending_logo": selectors.pending_logo_upload(provider),
             "recent_logos": selectors.recent_logo_uploads(provider),
             # Staff manage the page; only owners manage who the staff are.

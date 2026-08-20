@@ -135,3 +135,17 @@ def scan_file(file: FieldFile) -> ScanResult:
     """
     with file.open("rb") as handle:
         return get_scanner().scan(iter(lambda: handle.read(CHUNK_SIZE), b""))
+
+
+def scanning_available() -> bool:
+    """Whether a real scanner is configured.
+
+    For the pages that offer an upload, not for the code that decides on one.
+    ``UnavailableScanner`` leaves every file ``pending``, so an upload box wired
+    to it accepts files that can never be approved - and a company that hears
+    nothing back concludes the site is broken rather than that we have not
+    finished building it. The check is a name comparison rather than a probe:
+    whether clamd answers right now is a health question, not a "should this
+    form be here" question.
+    """
+    return get_scanner().name != UnavailableScanner.name

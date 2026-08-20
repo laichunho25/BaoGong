@@ -64,6 +64,35 @@ if ADMIN_URL == "admin/":
 # and the allowlist has to read the address the proxy appended.
 ADMIN_TRUST_PROXY_IP = env.bool("ADMIN_TRUST_PROXY_IP", default=True)
 
+# ---------------------------------------------------------------- mail
+
+# Django's default backend is SMTP on localhost:25, and a Render container has
+# no MTA - so leaving this unset does not disable mail, it makes every send
+# raise ConnectionRefusedError inside a Celery task where nobody is looking.
+# Email is not a side channel here: an account cannot be verified and a
+# colleague cannot join a company without a link that arrived in a mailbox.
+# So the credential is required at boot like any other, and a deploy that
+# would come up unable to send simply does not come up.
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.resend.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="resend")
+EMAIL_HOST_PASSWORD = _required("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=20)
+
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ImproperlyConfigured("EMAIL_USE_TLS and EMAIL_USE_SSL are mutually exclusive")
+
+# The sender has to be a domain the provider has verified. The base default
+# ends in example.com, which is accepted by nothing and would bounce every
+# message, so prod refuses to inherit it.
+DEFAULT_FROM_EMAIL = _required("DEFAULT_FROM_EMAIL")
+if "example.com" in DEFAULT_FROM_EMAIL:
+    raise ImproperlyConfigured("DEFAULT_FROM_EMAIL still points at example.com")
+SERVER_EMAIL = env("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
+
 # ---------------------------------------------------------------- security
 
 SECURE_SSL_REDIRECT = True

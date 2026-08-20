@@ -49,6 +49,7 @@ Render **沒有香港 region**。可選：Oregon / Ohio / Virginia / Frankfurt /
 | `S3_ENDPOINT_URL` | 見 §3 | 同上 |
 | `S3_BUCKET` | 見 §3 | 同上 |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | 見 §3 | 同上 |
+| `EMAIL_HOST_PASSWORD` | Resend → API Keys（見 §3.2） | `prod.py` 直接 `ImproperlyConfigured`。沒有它就沒有郵箱驗證、沒有成員邀請 |
 | `SENTRY_DSN` | sentry.io 專案設定 | 可留空，只是沒有告警 |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | Cloudflare → Turnstile | P3 註冊流程才用到 |
 
@@ -76,6 +77,66 @@ Render **不提供 S3**。NNC1 上傳檔（加密個資，`COMPLIANCE.md §4`）
 Bucket 必須 **private**，一律用簽名 URL 存取（`prod.py` 已設 `default_acl: private`、
 `querystring_auth: True`）。
 
+### 3.1 檔案掃毒（Render 沒有託管 ClamAV）
+
+`FILE_SCANNER_BACKEND` **刻意不寫進 `render.yaml`**。不設就是 `UnavailableScanner`，
+它對每個檔案回 `pending`，而 `pending` 在我們的規則裡等於「不可讀」——所以 logo 發佈不了、
+認領證明也打不開。這是 fail-closed 的預期狀態，不是壞掉：另一個選項是把沒掃過的 bytes
+送到每一位訪客眼前。
+
+**現況（首次部署）**：不開掃毒器。`upload_logo()` 直接拒收，管理頁把上傳框整個拿掉並寫明
+「標志上傳功能正在準備中」。拿掉表單擋不住記得 URL 的人，所以拒絕寫在 service 層而不是模板。
+NNC1 與認領證明照舊可以上傳（那條路徑本來就假設要等人審），只是永遠停在待掃描。
+
+**要開啟時**，在 `render.yaml` 加一個私有服務：
+
+```yaml
+  - type: pserv
+    name: baogong-clamav
+    runtime: image
+    image:
+      url: docker.io/clamav/clamav:stable
+    region: singapore
+    plan: standard        # clamd 載入病毒庫要 ~2GB RAM，starter 的 512MB 會 OOM
+    ipAllowList: []       # 私有網路而已，不對外
+```
+
+然後在 `baogong-shared` 加兩個變數：
+
+```yaml
+      - key: FILE_SCANNER_BACKEND
+        value: apps.core.scanning.ClamAvScanner
+      - key: CLAMAV_HOST
+        value: baogong-clamav   # Render 私有網路的服務名
+```
+
+`CLAMAV_PORT` 預設 3310，不用設。開啟後 `scanning_available()` 變 `True`，上傳框自己會回來。
+
+> 掃不到 clamd 時 `ClamAvScanner` 回 `ERROR` 而不是放行——連不上掃毒器等於沒掃過。
+> 所以 pserv 掛掉的後果是「審核卡住」，不是「未掃描的檔案上線」。這是刻意的取捨。
+
+### 3.2 寄信（Resend）
+
+Django 預設的 backend 是 `smtp` 指向 `localhost:25`。Render 的容器裡沒有 MTA，
+所以**不設定不等於關掉寄信**，等於每一次寄送都在 Celery task 裡丟 `ConnectionRefusedError`
+而沒有人看到。郵箱驗證、成員邀請、認領與 logo 決定通知全部靠它，因此 `prod.py`
+把 API key 列為**啟動必要**：寄不出信的版本乾脆不要起來。
+
+| 變數 | 值 | 說明 |
+|---|---|---|
+| `EMAIL_HOST` | `smtp.resend.com` | `prod.py` 預設，換供應商才要設 |
+| `EMAIL_PORT` | `587` | 預設，STARTTLS |
+| `EMAIL_HOST_USER` | `resend` | Resend 的固定使用者名 |
+| `EMAIL_HOST_PASSWORD` | `re_...` | **Resend API key，dashboard 手填** |
+| `DEFAULT_FROM_EMAIL` | `包公 BaoGong <no-reply@baogong.com.hk>` | 已在 `render.yaml` |
+
+`prod.py` 另外擋兩件事：`EMAIL_USE_TLS` 與 `EMAIL_USE_SSL` 同時為真（設定衝突，會靜默
+連不上），以及 `DEFAULT_FROM_EMAIL` 還留著 `example.com`（沒有收件方會收）。
+
+**先做網域驗證再部署**：Resend 要在 `baogong.com.hk` 加 SPF 與 DKIM 的 TXT 記錄。
+沒驗證之前 API key 是有效的、程式也不會報錯，信會被**收件方**丟掉——這種失敗最難查，
+因為我們這一端看起來一切正常。DNS 記錄與 §10.3 的網域設定一起做。
+
 ## 4. 首次部署步驟
 
 ```bash
@@ -93,7 +154,20 @@ git push -u origin main
 `healthCheckPath: /healthz` 會讓 Render 在 DB 或 Redis 掛掉時把該版本判定為不健康、
 不切流量。這是刻意的。
 
-### 4.1 名單新鮮度監控 `/healthz/registry`
+### 4.1 帳號裡已經有別的 project 怎麼辦
+
+一個 Render workspace 可以同時跑多個 Blueprint，彼此不共用任何東西。要注意的只有三件：
+
+- **服務名稱全 workspace 唯一。** 這裡全部叫 `baogong-*`，跟舊 project 撞不到；
+  真撞了 Blueprint apply 會直接失敗，不會覆蓋既有服務。
+- **一個 repo 一份 `render.yaml`。** Blueprint 是綁 repo 的，所以這個平台要有**自己的
+  GitHub repo**，不能塞進既有 project 的 repo 裡。Render 那邊連的還是同一個 GitHub 帳號，
+  在 New → Blueprint 的清單裡挑新 repo 就行，不必另開 Render 帳號。
+- **費用是相加的。** §7 那張表是這個 Blueprint 自己的成本，與既有 project 各算各的。
+  Free Postgres 每個 workspace 只有一個而且 30 天後刪除，所以無論舊 project 有沒有用掉，
+  這裡都要用付費方案。
+
+### 4.2 名單新鮮度監控 `/healthz/registry`
 
 `/healthz` 只答「這個 process 活著嗎」——每日同步悄悄停掉時它照樣回 200。
 `/healthz/registry` 答的是「資料還值得顯示嗎」：最後一次**成功**同步超過 26 小時
@@ -159,6 +233,9 @@ Django admin 是全站權限最高的介面，而 `/admin/` 是掃描器第一�
 > IP allowlist 是第二道。P8 再評估是否加 TOTP。
 
 ## 9. 尚未處理
+
+- **檔案掃毒**：首次部署不開（§3.1）。在那之前 logo 上傳整個關閉，NNC1 與認領證明
+  可以上傳但永遠停在待掃描——認領流程因此還不能完整走完，這是上線時就知道的缺口。
 
 - **備份**：Render Postgres 有自動 daily backup，但還原演練腳本是 P8 的事。
 - **Image 體積**：目前 `Dockerfile` 連 dev 依賴一起裝（單一 image，本機／CI／prod 一致）。

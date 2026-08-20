@@ -107,6 +107,14 @@
           </button>
         </form>
       </div>
+    {% elif not scanning_available %}
+      {% comment %} The upload box is gone, not disabled, and this says why. A
+         file we cannot scan cannot be approved, so accepting one would only
+         produce a queue nobody can clear. {% endcomment %}
+      <div class="mt-5 rounded-xl border border-line bg-surface-sunken p-4 text-sm leading-relaxed text-ink-muted">
+        {% translate "标志上传功能正在准备中，暂时无法提交。" %}
+        {% translate "所有上传的文件都要先通过安全扫描才会显示在页面上，扫描服务尚未就绪之前，我们不会收下无法处理的文件。" %}
+      </div>
     {% elif logo_form %}
       <form method="post" action="{% url 'providers:logo_upload' provider.slug %}"
             enctype="multipart/form-data" class="mt-5 space-y-4">

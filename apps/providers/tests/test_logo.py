@@ -39,7 +39,21 @@ if TYPE_CHECKING:
 
     from apps.accounts.models import User
 
+# A scanner has to be configured for the upload box to exist at all: without
+# one every file stays `pending`, nothing can ever be approved, and
+# ``upload_logo`` refuses the file rather than build a queue nobody can clear.
+# What the scanner answers is a separate question - ``clean_scanner`` decides
+# that per test. The refusal itself is covered by ``TestWithoutAScanner``.
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def _scanner_configured(settings: Any) -> None:
+    """Every test in this file runs with a scanner configured, unless it says
+    otherwise. Which backend does not matter here - nothing in these tests
+    reaches a socket, because ``clean_scanner`` replaces the verdict wherever
+    one is needed."""
+    settings.FILE_SCANNER_BACKEND = "apps.core.scanning.ClamAvScanner"
 
 
 @pytest.fixture
@@ -549,3 +563,72 @@ class TestViews:
         )
 
         assert response.status_code == 404
+
+
+class TestWithoutAScanner:
+    """What a company sees before the scanner exists.
+
+    This is the state the platform actually deploys in first: Render has no
+    managed ClamAV, and the fail-closed default means every file would sit at
+    ``pending`` forever. Accepting uploads into that would be worse than not
+    offering the box, because the company hears nothing back and concludes the
+    site is broken rather than unfinished.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _no_scanner(self, settings: Any) -> None:
+        settings.FILE_SCANNER_BACKEND = "apps.core.scanning.UnavailableScanner"
+
+    def test_the_upload_is_refused_rather_than_queued(
+        self,
+        claimed: Callable[..., Provider],
+        make_user: Callable[..., User],
+        make_image_upload: Callable[..., SimpleUploadedFile],
+    ) -> None:
+        provider = claimed()
+
+        with pytest.raises(services.LogoError):
+            _submit(provider, make_user(), make_image_upload())
+
+        assert provider.logo_uploads.count() == 0
+
+    def test_the_manage_page_says_why_instead_of_offering_a_form(
+        self,
+        client: Client,
+        claimed: Callable[..., Provider],
+        make_user: Callable[..., User],
+    ) -> None:
+        provider = claimed()
+        owner = make_user()
+        _member(provider, owner)
+        client.force_login(owner)
+
+        response = client.get(reverse("providers:manage", kwargs={"slug": provider.slug}))
+
+        assert response.status_code == 200
+        assert response.context["logo_form"] is None
+        assert response.context["scanning_available"] is False
+        assert "正在准备中" in response.content.decode()
+
+    def test_a_kept_url_does_not_get_around_the_missing_form(
+        self,
+        client: Client,
+        claimed: Callable[..., Provider],
+        make_user: Callable[..., User],
+        make_image_upload: Callable[..., SimpleUploadedFile],
+    ) -> None:
+        """The form is absent from the page, which stops nobody who bookmarked
+        the endpoint - so the refusal lives in the service, not the template."""
+        provider = claimed()
+        owner = make_user()
+        _member(provider, owner)
+        client.force_login(owner)
+
+        response = client.post(
+            reverse("providers:logo_upload", kwargs={"slug": provider.slug}),
+            {"logo": make_image_upload()},
+            follow=True,
+        )
+
+        assert provider.logo_uploads.count() == 0
+        assert list(response.context["messages"])
