@@ -67,8 +67,11 @@ services:
     dockerfilePath: ./Dockerfile
     region: singapore
     plan: starter
+    # Only web migrates; this waits for it instead of crash-looping until the
+    # tables exist. See scripts/wait_for_migrations.sh.
     dockerCommand: >-
       sh -c "python scripts/check_env.py &&
+             sh scripts/wait_for_migrations.sh &&
              celery -A config worker -l info --concurrency 2"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
@@ -101,8 +104,11 @@ services:
     dockerfilePath: ./Dockerfile
     region: singapore
     plan: starter
+    # DatabaseScheduler reads django_celery_beat_* on the first tick, so beat is
+    # the service that notices a missing migration first.
     dockerCommand: >-
       sh -c "python scripts/check_env.py &&
+             sh scripts/wait_for_migrations.sh &&
              celery -A config beat -l info
              --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     envVars:

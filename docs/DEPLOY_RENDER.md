@@ -214,6 +214,28 @@ Better Stack／Render Cron 打 `curl -f`）盯 503。
 不需登入，因為 monitor 要打得到；回傳內容不是網站本來就要公開的
 （COMPLIANCE §1 的 `last_synced_at`、筆數）就是純數字。
 
+### 4.3 只有 web 跑 migration，worker 與 beat 等它
+
+`migrate` 只寫在 **web** 的 `dockerCommand` 裡。三個服務同時 migrate 會搶同一組鎖，
+可能留下套用到一半的 schema——比崩一次糟得多，所以改 schema 的權限只給一個服務。
+
+但 Render 是三個服務**同時**啟動的。凡是帶新 migration 的部署，worker 與 beat 都會先
+碰到還沒建好的表。beat 最容易中招，因為 `DatabaseScheduler` 第一個 tick 就要讀
+`django_celery_beat_*`：
+
+```
+django.db.utils.ProgrammingError: relation "django_celery_beat_clockedschedule" does not exist
+```
+
+它會崩、Render 重啟、web 那邊 migrate 完了就自己好——**但 log 裡留下一段跟真故障
+一模一樣的 traceback**。真出事的時候，這種假警報會讓人把它當雜訊略過。
+
+所以兩者改成 `scripts/wait_for_migrations.sh` 安靜地等：`migrate --check` 在有未套用
+migration 時回非零，正好就是「等 web 做完」的條件。
+
+等待是**有上限**的（預設 100 次 × 3 秒 = 5 分鐘，可用 `MIGRATION_WAIT_ATTEMPTS` /
+`MIGRATION_WAIT_INTERVAL` 調）。真的連不上資料庫要大聲失敗，而不是永遠卡在 starting。
+
 ## 5. pgvector
 
 Render Postgres 支援 pgvector，但 extension 要自己開。P6（content app）之前，
