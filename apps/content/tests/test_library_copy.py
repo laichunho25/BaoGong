@@ -2,7 +2,7 @@
 
 Everything else on the site that speaks to a buyer is screened - provider
 blurbs on the write path, Advisor answers before they are returned. These
-eighteen files were the exception, and they are the only pages where the
+twenty-two files were the exception, and they are the only pages where the
 platform is the author rather than the host.
 """
 
@@ -18,7 +18,7 @@ LIBRARY = sorted(DEFAULT_PATH.glob("*.md"))
 
 def test_the_library_is_not_empty() -> None:
     """Guards the parametrisation below: an empty glob would pass vacuously."""
-    assert len(LIBRARY) >= 18
+    assert len(LIBRARY) >= 22
 
 
 @pytest.mark.parametrize("path", LIBRARY, ids=lambda p: p.stem)
