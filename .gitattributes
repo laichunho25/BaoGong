@@ -1,2 +1,6 @@
 # The register ships CRLF; the fixtures mirror it, so keep their line endings.
 apps/registry/tests/fixtures/*.csv -text
+
+# Shell scripts run in the Linux container. A CRLF checkout on a developer's
+# Windows box would ship "\r" into the shebang and every argument.
+*.sh text eol=lf
