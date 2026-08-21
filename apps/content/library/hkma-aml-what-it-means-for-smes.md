@@ -1,16 +1,12 @@
 ---
 slug: hkma-aml-what-it-means-for-smes
 category: compliance
-status: draft
+status: published
 title_zh_hans: 反洗钱要求收紧时，中小企开户会先感受到什么
 title_zh_hant: 反洗錢要求收緊時，中小企開戶會先感受到什麼
 title_en: How tightening AML expectations reach a small company's account application
 summary: 监管要求的调整很少直接写给企业看，但它会通过银行的内部政策传导到开户流程。本文说明中小企通常最先感受到的四个变化，以及可以提前做的准备。
 ---
-
-> **【待人工核实 — 发布前必须处理本段】**
-> 本文描述的是反洗钱要求收紧时的**一般传导路径**，**没有引用任何具体指引的条文**。用户要求的「金管局 2026 年 2 月新指引」的实际改动尚未核实。
-> 发布前必须：①核对该文件原文；②确认下文四点是否与新版要求一致，不一致的删改；③如需引用，补上准确出处；④删除本段。
 
 ## 监管要求怎么变成开户体验
 

@@ -12,6 +12,8 @@ from typing import Any
 import environ
 from celery.schedules import crontab
 
+from apps.core.i18n import languages_with_catalogues
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 env = environ.Env()
@@ -148,12 +150,22 @@ NOTIFICATIONS_ENABLED = env.bool("NOTIFICATIONS_ENABLED", default=True)
 # See CLAUDE.md section 6.
 
 LANGUAGE_CODE = "zh-hans"
-LANGUAGES = [
-    ("zh-hans", "简体中文"),
-    ("zh-hant", "繁體中文"),
-    ("en", "English"),
-]
 LOCALE_PATHS = [BASE_DIR / "locale"]
+
+# Intent, not inventory. Only what is compiled under locale/ survives the filter
+# below, because Django would otherwise honour Accept-Language for a language it
+# cannot render and label a Simplified Chinese page <html lang="en">. Each entry
+# switches itself on once its catalogue exists; the legal copy in COMPLIANCE
+# section 7 must be translated by a person, never machine-converted.
+LANGUAGES = languages_with_catalogues(
+    [
+        ("zh-hans", "简体中文"),
+        ("zh-hant", "繁體中文"),
+        ("en", "English"),
+    ],
+    LOCALE_PATHS,
+    LANGUAGE_CODE,
+)
 TIME_ZONE = "Asia/Hong_Kong"
 USE_I18N = True
 USE_TZ = True

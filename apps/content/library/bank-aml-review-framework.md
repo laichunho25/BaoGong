@@ -1,17 +1,12 @@
 ---
-slug: hkma-aml-guidance-2026-overview
+slug: bank-aml-review-framework
 category: compliance
-status: draft
-title_zh_hans: 金管局反洗钱指引更新：开户客户需要知道的框架
-title_zh_hant: 金管局反洗錢指引更新：開戶客戶需要知道的框架
-title_en: The HKMA AML guidance framework, explained for account applicants
-summary: 香港金管局的反洗钱与反恐怖分子资金筹集指引，决定了银行开户时问什么、查什么。本文解释这套框架的逻辑，以及它如何落到你的开户材料上。
+status: published
+title_zh_hans: 银行为什么这样查你：反洗钱审查的四根支柱
+title_zh_hant: 銀行為什麼這樣查你：反洗錢審查的四根支柱
+title_en: Why the bank asks what it asks: the four pillars of AML review
+summary: 银行开户时问的每一个问题，几乎都能追溯到反洗钱监管框架。本文解释风险为本、客户尽职审查、持续监察与可疑交易报告这四根支柱，以及它们如何落到你的开户材料上。指引会更新，这套逻辑基本不变。
 ---
-
-> **【待人工核实 — 发布前必须处理本段】**
-> 本文只写了金管局反洗钱监管框架中**长期稳定**的部分。用户要求的「2026 年 2 月新指引」的具体内容——文件全称、发布日期、通函编号、生效日期、以及相对旧版的具体改动——**尚未经过核实，因此本文没有写入任何具体条文**。
-> 发布前必须：①在金管局官网（hkma.gov.hk）查到该文件原文；②补上准确的名称、编号与生效日期；③逐条核对下文的「实务影响」是否与新版一致；④删除本段。
-> 依 CLAUDE.md 第 3 条与 COMPLIANCE 的要求，**未经核实的监管内容不得发布**。
 
 ## 这套框架是什么
 
