@@ -2,21 +2,36 @@
 
 Required secrets have no defaults: a missing value raises ImproperlyConfigured
 at import time rather than silently booting with an insecure fallback.
+
+The whole environment is validated up front, in one pass, so a half-configured
+deploy reports every missing variable at once. Raising on the first one turned
+provisioning into a queue of identical crash-restart cycles, one per secret.
 """
 
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
 from .base import BASE_DIR, env
+from .env_spec import SPEC
+from .env_spec import problems as _env_problems
 
 DEBUG = False
 
+_values = {var.name: env(var.name, default="") for var in SPEC}
+_values["ALLOWED_HOSTS"] = env("ALLOWED_HOSTS", default="")
+_values["RENDER_EXTERNAL_HOSTNAME"] = env("RENDER_EXTERNAL_HOSTNAME", default="")
+
+_problems = _env_problems(_values)
+if _problems:
+    _detail = "\n".join(f"  - {line}" for line in _problems)
+    raise ImproperlyConfigured(
+        f"Environment is not fit for production, {len(_problems)} problem(s):\n{_detail}"
+    )
+
 
 def _required(name: str) -> str:
-    value = env(name, default="")
-    if not value:
-        raise ImproperlyConfigured(f"Missing required environment variable: {name}")
-    return value
+    """Read a value already proven present by the check above."""
+    return env(name)
 
 
 SECRET_KEY = _required("SECRET_KEY")
@@ -33,32 +48,17 @@ if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS = [*ALLOWED_HOSTS, RENDER_EXTERNAL_HOSTNAME]
     CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, f"https://{RENDER_EXTERNAL_HOSTNAME}"]
 
-if not ALLOWED_HOSTS:
-    raise ImproperlyConfigured("ALLOWED_HOSTS is empty and RENDER_EXTERNAL_HOSTNAME is unset")
-
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["CONN_MAX_AGE"] = 60
 # Render Postgres terminates TLS; refuse to connect in the clear.
 DATABASES["default"].setdefault("OPTIONS", {})
 DATABASES["default"]["OPTIONS"]["sslmode"] = env("DATABASE_SSLMODE", default="require")
 
-for _name in (
-    "REDIS_URL",
-    "ANTHROPIC_API_KEY",
-    "S3_BUCKET",
-    "S3_PRIVATE_BUCKET",
-    "S3_ACCESS_KEY",
-    "S3_SECRET_KEY",
-):
-    _required(_name)
-
 # ---------------------------------------------------------------- admin
 
 # A production console on the default path is found by scanners within hours of
 # the first deploy, so the secret prefix is required rather than recommended.
 ADMIN_URL = _required("ADMIN_URL").strip("/") + "/"
-if ADMIN_URL == "admin/":
-    raise ImproperlyConfigured("ADMIN_URL must not be the default 'admin/' in production")
 
 # Render always fronts the app with its own proxy, so REMOTE_ADDR is the proxy
 # and the allowlist has to read the address the proxy appended.
@@ -89,8 +89,6 @@ if EMAIL_USE_TLS and EMAIL_USE_SSL:
 # ends in example.com, which is accepted by nothing and would bounce every
 # message, so prod refuses to inherit it.
 DEFAULT_FROM_EMAIL = _required("DEFAULT_FROM_EMAIL")
-if "example.com" in DEFAULT_FROM_EMAIL:
-    raise ImproperlyConfigured("DEFAULT_FROM_EMAIL still points at example.com")
 SERVER_EMAIL = env("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 
 # ---------------------------------------------------------------- security

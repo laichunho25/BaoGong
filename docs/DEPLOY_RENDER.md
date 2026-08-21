@@ -55,6 +55,32 @@ Render **沒有香港 region**。可選：Oregon / Ohio / Virginia / Frankfurt /
 
 **起不來是刻意的**：`prod.py` 對缺失 secret 直接拋錯，不給不安全預設值。
 
+### 2.4 一次看清楚缺哪些：`scripts/check_env.py`
+
+清單的唯一真實來源是 [`config/settings/env_spec.py`](../config/settings/env_spec.py)。
+`prod.py` 與檢查腳本都讀它，所以兩邊永遠一致。
+
+```bash
+python scripts/check_env.py                  # 檢查當前環境
+python scripts/check_env.py --env-file .env  # 部署前先驗本機檔案
+python scripts/check_env.py --show-optional  # 連「可留空但功能會關掉」的一起列
+```
+
+輸出長這樣，一次列完，缺一個就 exit 1：
+
+```
+check_env: 2 problem(s) - production will not boot:
+  - ANTHROPIC_API_KEY is not set - every AI agent call; no key means no matching, ...
+  - ADMIN_URL is not set - secret prefix for the admin console
+```
+
+三個服務的 `dockerCommand` 都以它開頭，所以**環境沒填好時看到的是這份清單，
+不是一段講「第一個被讀到的 secret」的 Django traceback**。`prod.py` 本身也改成
+一次收集全部問題再拋一個錯——以前是讀到第一個缺的就炸，填一個、重啟、再炸下一個。
+
+腳本刻意不 import Django，也不 import `config/__init__.py`（那裡會拉 Celery），
+用檔案路徑載入 `env_spec`：需要它的時刻，正好是應用起不來的時刻。
+
 ## 3. 物件儲存（Render 沒有）
 
 Render **不提供 S3**。NNC1 上傳檔（加密個資，`COMPLIANCE.md §4`）必須有 S3-compatible
@@ -146,8 +172,9 @@ git push -u origin main
 ```
 
 2. Render Dashboard → **New → Blueprint** → 選這個 repo → Apply。
-3. 第一次會失敗（`sync: false` 的變數還是空的）。到 **Env Groups → baogong-shared**
-   填好 §2.3 的值 → Manual Deploy。
+3. 第一次會失敗（`sync: false` 的變數還是空的）。看 web service 的 log，
+   `check_env` 會把缺的變數**一次列完**。到 **Env Groups → baogong-shared**
+   照 §2.3 填好 → Manual Deploy。（想先在本機確認，見 §2.4。）
 4. 開 `https://<service>.onrender.com/healthz`，應該回 `200` 與
    `{"status":"ok","checks":{"database":{"ok":true},"redis":{"ok":true}}}`。
 

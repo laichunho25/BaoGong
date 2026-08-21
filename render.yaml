@@ -36,8 +36,12 @@ services:
       - www.baogong.com.hk
       - baogong.com.hk
     # Render sets $PORT; gunicorn must bind it, not the Dockerfile's 8000.
+    # check_env runs first so a half-filled env group prints one readable list
+    # of what is missing, instead of a Django traceback about whichever secret
+    # happened to be read first.
     dockerCommand: >-
-      sh -c "python manage.py migrate --noinput &&
+      sh -c "python scripts/check_env.py &&
+             python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
              gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 60"
     envVars:
@@ -63,7 +67,9 @@ services:
     dockerfilePath: ./Dockerfile
     region: singapore
     plan: starter
-    dockerCommand: celery -A config worker -l info --concurrency 2
+    dockerCommand: >-
+      sh -c "python scripts/check_env.py &&
+             celery -A config worker -l info --concurrency 2"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.prod
@@ -96,8 +102,9 @@ services:
     region: singapore
     plan: starter
     dockerCommand: >-
-      celery -A config beat -l info
-      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      sh -c "python scripts/check_env.py &&
+             celery -A config beat -l info
+             --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.prod
