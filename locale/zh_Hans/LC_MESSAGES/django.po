@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: qs-matching\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-20 00:30+0800\n"
+"POT-Creation-Date: 2026-08-22 17:48+0800\n"
 "PO-Revision-Date: 2026-08-18 18:00+0800\n"
 "Language-Team: none\n"
 "Language: zh_Hans\n"
@@ -22,37 +22,41 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: .\apps\accounts\admin.py:45
+#: .\apps\accounts\admin.py:50
 msgid "Personal info"
 msgstr ""
 
-#: .\apps\accounts\admin.py:48
+#: .\apps\accounts\admin.py:53
 msgid "Role"
 msgstr ""
 
-#: .\apps\accounts\admin.py:50
+#: .\apps\accounts\admin.py:55
 msgid "Permissions"
 msgstr ""
 
-#: .\apps\accounts\admin.py:53
+#: .\apps\accounts\admin.py:58
 msgid "Dates"
 msgstr ""
 
-#: .\apps\accounts\admin.py:59
+#: .\apps\accounts\admin.py:64
 msgid "Email verified"
 msgstr ""
 
-#: .\apps\accounts\admin.py:108
+#: .\apps\accounts\admin.py:113
 msgid "From claim"
 msgstr ""
 
-#: .\apps\accounts\admin.py:113
+#: .\apps\accounts\admin.py:118
 msgid "Revoke access (keep the record)"
 msgstr ""
 
-#: .\apps\accounts\admin.py:116
+#: .\apps\accounts\admin.py:121
 #, python-format
 msgid "Revoked %(count)d membership(s)."
+msgstr ""
+
+#: .\apps\accounts\admin.py:144
+msgid "State"
 msgstr ""
 
 #: .\apps\accounts\forms.py:40 .\apps\reviews\forms.py:100
@@ -85,6 +89,22 @@ msgstr ""
 
 #: .\apps\accounts\forms.py:72
 msgid "该邮箱已注册，请直接登录。"
+msgstr ""
+
+#: .\apps\accounts\forms.py:109
+msgid "同事邮箱"
+msgstr ""
+
+#: .\apps\accounts\forms.py:110
+msgid "我们会发送邀请链接。对方需用这个邮箱登录并接受后才会成为成员。"
+msgstr ""
+
+#: .\apps\accounts\forms.py:114
+msgid "角色"
+msgstr ""
+
+#: .\apps\accounts\forms.py:117
+msgid "员工可以编辑页面、回复评价；拥有者还可以管理成员。"
 msgstr ""
 
 #: .\apps\accounts\models.py:33
@@ -139,28 +159,81 @@ msgstr ""
 msgid "email verifications"
 msgstr ""
 
-#: .\apps\accounts\permissions.py:99
+#: .\apps\accounts\models.py:238
+msgid "provider member invitation"
+msgstr ""
+
+#: .\apps\accounts\models.py:239
+msgid "provider member invitations"
+msgstr ""
+
+#: .\apps\accounts\permissions.py:114
 msgid "请先验证邮箱，再提交认领申请。"
 msgstr ""
 
-#: .\apps\accounts\services.py:85
+#: .\apps\accounts\services.py:92
 msgid "请验证您的邮箱 - 包公 BaoGong"
 msgstr ""
 
-#: .\apps\accounts\views.py:52
+#: .\apps\accounts\services.py:202
+msgid "只有该公司的拥有者可以管理成员。"
+msgstr ""
+
+#: .\apps\accounts\services.py:226
+msgid "该公司已不在官方持牌名单上，页面已锁定。"
+msgstr ""
+
+#: .\apps\accounts\services.py:228 .\apps\accounts\services.py:319
+msgid "未知的成员角色。"
+msgstr ""
+
+#: .\apps\accounts\services.py:232
+msgid "请填写邮箱地址。"
+msgstr ""
+
+#: .\apps\accounts\services.py:236
+msgid "该邮箱已经是本公司的成员。"
+msgstr ""
+
+#: .\apps\accounts\services.py:269 .\apps\accounts\services.py:272
+msgid "邀请链接无效或已过期。"
+msgstr ""
+
+#: .\apps\accounts\services.py:274
+msgid "请用收到邀请的邮箱登录后再接受邀请。"
+msgstr ""
+
+#: .\apps\accounts\services.py:302
+msgid "这份邀请已经失效了。"
+msgstr ""
+
+#: .\apps\accounts\services.py:321
+msgid "该成员已停用。"
+msgstr ""
+
+#: .\apps\accounts\services.py:327 .\apps\accounts\services.py:349
+msgid "公司至少要保留一位拥有者，请先指定另一位拥有者。"
+msgstr ""
+
+#: .\apps\accounts\views.py:55
 msgid "注册成功。我们已发送验证邮件，请查收。"
 msgstr ""
 
-#: .\apps\accounts\views.py:101
+#: .\apps\accounts\views.py:104
 msgid "邮箱验证成功。"
 msgstr ""
 
-#: .\apps\accounts\views.py:113
+#: .\apps\accounts\views.py:116
 msgid "该邮箱已验证。"
 msgstr ""
 
-#: .\apps\accounts\views.py:118
+#: .\apps\accounts\views.py:121
 msgid "验证邮件已重新发送。"
+msgstr ""
+
+#: .\apps\accounts\views.py:173
+#, python-format
+msgid "已加入「%(name)s」。"
 msgstr ""
 
 #: .\apps\agents\admin.py:39
@@ -231,7 +304,7 @@ msgstr ""
 msgid "可远程办理，无需亲自到港"
 msgstr ""
 
-#: .\apps\agents\matching.py:298 .\apps\providers\forms.py:206
+#: .\apps\agents\matching.py:298 .\apps\providers\forms.py:212
 msgid "提供简体中文服务"
 msgstr ""
 
@@ -459,7 +532,8 @@ msgstr "持续合规"
 msgid "Draft"
 msgstr "草稿"
 
-#: .\apps\content\models.py:42 .\apps\reviews\models.py:57
+#: .\apps\content\models.py:42 .\apps\providers\models.py:605
+#: .\apps\reviews\models.py:57
 msgid "Published"
 msgstr "已发布"
 
@@ -487,324 +561,365 @@ msgstr ""
 msgid "Operations"
 msgstr ""
 
-#: .\apps\core\scanning.py:42
+#: .\apps\core\scanning.py:44
 msgid "Scan pending"
 msgstr ""
 
-#: .\apps\core\scanning.py:43
+#: .\apps\core\scanning.py:45
 msgid "Clean"
 msgstr ""
 
-#: .\apps\core\scanning.py:44
+#: .\apps\core\scanning.py:46
 msgid "Infected"
 msgstr ""
 
-#: .\apps\core\scanning.py:45
+#: .\apps\core\scanning.py:47
 msgid "Scan error"
 msgstr ""
 
-#: .\apps\core\scanning.py:46
+#: .\apps\core\scanning.py:48
 msgid "Scan skipped by a reviewer"
 msgstr ""
 
-#: .\apps\core\uploads.py:78
+#: .\apps\core\uploads.py:110
 msgid "文件为空，请重新选择。"
 msgstr ""
 
-#: .\apps\core\uploads.py:81
+#: .\apps\core\uploads.py:113
 #, python-format
 msgid "文件不得大于 %(limit)s MB。"
 msgstr ""
 
-#: .\apps\core\uploads.py:93
-msgid "仅支持 PDF、JPG 或 PNG 文件。"
+#: .\apps\core\uploads.py:126
+#, python-format
+msgid "仅支持 %(formats)s 文件。"
 msgstr ""
 
-#: .\apps\providers\admin.py:107
+#: .\apps\providers\admin.py:108
 msgid "Reason (recorded on the claim)"
 msgstr ""
 
-#: .\apps\providers\admin.py:136 .\apps\reviews\admin.py:315
+#: .\apps\providers\admin.py:137 .\apps\reviews\admin.py:315
 msgid "Scan"
 msgstr ""
 
-#: .\apps\providers\admin.py:139 .\apps\reviews\admin.py:318
+#: .\apps\providers\admin.py:140 .\apps\reviews\admin.py:318
 msgid "Purged (retention)"
 msgstr ""
 
-#: .\apps\providers\admin.py:143 .\apps\providers\admin.py:395
+#: .\apps\providers\admin.py:144 .\apps\providers\admin.py:396
 msgid "File"
 msgstr ""
 
-#: .\apps\providers\admin.py:149 .\apps\providers\admin.py:399
+#: .\apps\providers\admin.py:150 .\apps\providers\admin.py:400
 msgid "Not available - not cleared by a scanner"
 msgstr ""
 
-#: .\apps\providers\admin.py:150 .\apps\providers\admin.py:400
+#: .\apps\providers\admin.py:151 .\apps\providers\admin.py:401
 #: .\apps\reviews\admin.py:346
 msgid "Open"
 msgstr ""
 
-#: .\apps\providers\admin.py:227 .\apps\providers\admin.py:264
+#: .\apps\providers\admin.py:228 .\apps\providers\admin.py:265
 msgid "Website"
 msgstr ""
 
-#: .\apps\providers\admin.py:231
+#: .\apps\providers\admin.py:232
 msgid "Evidence"
 msgstr ""
 
-#: .\apps\providers\admin.py:236
+#: .\apps\providers\admin.py:237
 #, python-format
 msgid "%(total)s file(s), %(blocked)s not cleared"
 msgstr ""
 
-#: .\apps\providers\admin.py:240
+#: .\apps\providers\admin.py:241
 #, python-format
 msgid "%(total)s file(s)"
 msgstr ""
 
-#: .\apps\providers\admin.py:242
+#: .\apps\providers\admin.py:243
 msgid "Application vs official register"
 msgstr ""
 
-#: .\apps\providers\admin.py:254
+#: .\apps\providers\admin.py:255
 msgid "Company"
 msgstr ""
 
-#: .\apps\providers\admin.py:255 .\apps\reviews\admin.py:285
+#: .\apps\providers\admin.py:256 .\apps\reviews\admin.py:285
 msgid "Chinese name"
 msgstr ""
 
-#: .\apps\providers\admin.py:256 .\apps\reviews\admin.py:286
+#: .\apps\providers\admin.py:257 .\apps\reviews\admin.py:286
 msgid "Licence no."
 msgstr ""
 
-#: .\apps\providers\admin.py:257 .\apps\reviews\admin.py:287
+#: .\apps\providers\admin.py:258 .\apps\reviews\admin.py:287
 msgid "Licence status"
 msgstr ""
 
-#: .\apps\providers\admin.py:258
+#: .\apps\providers\admin.py:259
 msgid "Address"
 msgstr ""
 
-#: .\apps\providers\admin.py:260
+#: .\apps\providers\admin.py:261
 msgid "BR number"
 msgstr ""
 
-#: .\apps\providers\admin.py:262
+#: .\apps\providers\admin.py:263
 msgid "not published in the register"
 msgstr ""
 
-#: .\apps\providers\admin.py:276
+#: .\apps\providers\admin.py:277
 msgid "Applicant"
 msgstr ""
 
-#: .\apps\providers\admin.py:277 .\apps\reviews\admin.py:302
+#: .\apps\providers\admin.py:278 .\apps\reviews\admin.py:302
 msgid "Official register"
 msgstr ""
 
-#: .\apps\providers\admin.py:279
+#: .\apps\providers\admin.py:280
 msgid "Register data last synced:"
 msgstr ""
 
-#: .\apps\providers\admin.py:283
+#: .\apps\providers\admin.py:284
 msgid "Website verification trail"
 msgstr ""
 
-#: .\apps\providers\admin.py:286
+#: .\apps\providers\admin.py:287
 msgid "Never attempted"
 msgstr ""
 
-#: .\apps\providers\admin.py:330
+#: .\apps\providers\admin.py:331
 #, python-format
 msgid "%(count)s claim(s) updated."
 msgstr ""
 
-#: .\apps\providers\admin.py:348
+#: .\apps\providers\admin.py:349
 msgid "Approve selected claims (reason required)"
 msgstr ""
 
-#: .\apps\providers\admin.py:356
+#: .\apps\providers\admin.py:357
 msgid "Approve claims"
 msgstr ""
 
-#: .\apps\providers\admin.py:360
+#: .\apps\providers\admin.py:361
 msgid "Reject selected claims (reason required)"
 msgstr ""
 
-#: .\apps\providers\admin.py:368
+#: .\apps\providers\admin.py:369
 msgid "Reject claims"
 msgstr ""
 
-#: .\apps\providers\admin.py:402
+#: .\apps\providers\admin.py:403
 msgid "Release without a scan (reason required)"
 msgstr ""
 
-#: .\apps\providers\admin.py:429
+#: .\apps\providers\admin.py:430
 #, python-format
 msgid "%(count)s file(s) released."
 msgstr ""
 
-#: .\apps\providers\admin.py:439
+#: .\apps\providers\admin.py:440
 msgid "Release files without a scan"
 msgstr ""
 
-#: .\apps\providers\admin.py:483
+#: .\apps\providers\admin.py:484
 msgid "Changed"
 msgstr ""
 
-#: .\apps\providers\admin.py:512
+#: .\apps\providers\admin.py:513
 #, python-format
 msgid "%(count)s description(s) decided."
 msgstr ""
 
-#: .\apps\providers\admin.py:522
+#: .\apps\providers\admin.py:523
 msgid "Publish company descriptions"
 msgstr ""
 
-#: .\apps\providers\admin.py:524
+#: .\apps\providers\admin.py:525
 msgid "Reject company descriptions"
 msgstr ""
 
-#: .\apps\providers\admin.py:532
+#: .\apps\providers\admin.py:533
 msgid "Publish selected descriptions (reason required)"
 msgstr ""
 
-#: .\apps\providers\admin.py:538
+#: .\apps\providers\admin.py:539
 msgid "Reject selected descriptions (reason required)"
 msgstr ""
 
-#: .\apps\providers\forms.py:54
+#: .\apps\providers\admin.py:582
+msgid "Preview"
+msgstr ""
+
+#: .\apps\providers\admin.py:585
+msgid "Not available until the scanner has cleared this file."
+msgstr ""
+
+#: .\apps\providers\admin.py:613
+#, python-format
+msgid "%(count)s logo(s) decided."
+msgstr ""
+
+#: .\apps\providers\admin.py:622
+msgid "Publish company logos"
+msgstr ""
+
+#: .\apps\providers\admin.py:622
+msgid "Reject company logos"
+msgstr ""
+
+#: .\apps\providers\admin.py:630
+msgid "Publish selected logos (reason required)"
+msgstr ""
+
+#: .\apps\providers\admin.py:636
+msgid "Reject selected logos (reason required)"
+msgstr ""
+
+#: .\apps\providers\forms.py:60
 msgid "联系人姓名"
 msgstr ""
 
-#: .\apps\providers\forms.py:59
+#: .\apps\providers\forms.py:65
 msgid "职务"
 msgstr ""
 
-#: .\apps\providers\forms.py:65 .\apps\providers\forms.py:154
-#: .\apps\providers\models.py:517 .\templates\providers\detail.html:250
+#: .\apps\providers\forms.py:71 .\apps\providers\forms.py:160
+#: .\apps\providers\models.py:517 .\templates\providers\detail.html:248
 msgid "联系电话"
 msgstr ""
 
-#: .\apps\providers\forms.py:71
+#: .\apps\providers\forms.py:77
 msgid "商业登记号码（BR）"
 msgstr ""
 
-#: .\apps\providers\forms.py:74
+#: .\apps\providers\forms.py:80
 msgid "官方持牌名单不含 BR 号码，此项仅供审核人核对，不会公开显示。"
 msgstr ""
 
-#: .\apps\providers\forms.py:78 .\apps\providers\forms.py:166
+#: .\apps\providers\forms.py:84 .\apps\providers\forms.py:172
 #: .\apps\providers\models.py:519
 msgid "公司网站"
 msgstr ""
 
-#: .\apps\providers\forms.py:83
+#: .\apps\providers\forms.py:89
 msgid "用于网站所有权验证（DNS TXT 或网页 meta 标签）。没有网站可留空。"
 msgstr ""
 
-#: .\apps\providers\forms.py:87
+#: .\apps\providers\forms.py:93
 msgid "证明文件类型"
 msgstr ""
 
-#: .\apps\providers\forms.py:93 .\templates\providers\claim_detail.html:119
+#: .\apps\providers\forms.py:99 .\templates\providers\claim_detail.html:119
 msgid "证明文件"
 msgstr ""
 
-#: .\apps\providers\forms.py:95
+#: .\apps\providers\forms.py:101
 #, python-format
 msgid ""
 "支持 PDF、JPG、PNG，单个文件不超过 %(limit)s MB，最多 %(count)s 个。文件将加"
 "密存放于私有存储，仅审核人员可查看，审核结束 90 日后自动删除。"
 msgstr ""
 
-#: .\apps\providers\forms.py:102
+#: .\apps\providers\forms.py:108
 msgid "补充说明（选填）"
 msgstr ""
 
-#: .\apps\providers\forms.py:107
+#: .\apps\providers\forms.py:113
 msgid "本人确认获该公司授权提交此申请，所提供资料真实无误。"
 msgstr ""
 
-#: .\apps\providers\forms.py:120
+#: .\apps\providers\forms.py:126
 msgid "请至少上传一份证明文件。"
 msgstr ""
 
-#: .\apps\providers\forms.py:122
+#: .\apps\providers\forms.py:128
 #, python-format
 msgid "最多上传 %(count)s 个文件。"
 msgstr ""
 
-#: .\apps\providers\forms.py:149 .\apps\providers\models.py:516
-#: .\templates\providers\detail.html:256
+#: .\apps\providers\forms.py:155 .\apps\providers\models.py:516
+#: .\templates\providers\detail.html:254
 msgid "联系邮箱"
 msgstr ""
 
-#: .\apps\providers\forms.py:160 .\apps\providers\models.py:518
+#: .\apps\providers\forms.py:166 .\apps\providers\models.py:518
 msgid "微信号"
 msgstr ""
 
-#: .\apps\providers\forms.py:169
+#: .\apps\providers\forms.py:175
 msgid "更换网址后需要重新完成一次网站所有权验证。"
 msgstr ""
 
-#: .\apps\providers\forms.py:173 .\apps\providers\models.py:520
+#: .\apps\providers\forms.py:179 .\apps\providers\models.py:520
 msgid "业务范畴"
 msgstr ""
 
-#: .\apps\providers\forms.py:179 .\templates\providers\manage.html:102
+#: .\apps\providers\forms.py:185 .\templates\providers\manage.html:179
 msgid "公司简介"
 msgstr ""
 
-#: .\apps\providers\forms.py:183
+#: .\apps\providers\forms.py:189
 msgid ""
 "简介会以贵公司的名义刊登在页面上，提交后需经我们审核才会显示，一般 3 个工作日"
 "内处理。请勿写入开户成功率或任何官方背书的说法。"
 msgstr ""
 
-#: .\apps\providers\forms.py:189 .\apps\providers\models.py:521
+#: .\apps\providers\forms.py:195 .\apps\providers\models.py:521
 msgid "成立年份"
 msgstr ""
 
-#: .\apps\providers\forms.py:195 .\apps\providers\models.py:522
+#: .\apps\providers\forms.py:201 .\apps\providers\models.py:522
 msgid "团队人数"
 msgstr ""
 
-#: .\apps\providers\forms.py:201 .\apps\providers\models.py:523
-#: .\templates\providers\compare.html:94 .\templates\providers\detail.html:186
+#: .\apps\providers\forms.py:207 .\apps\providers\models.py:523
+#: .\templates\providers\compare.html:94 .\templates\providers\detail.html:184
 #: .\templates\providers\list.html:81
 msgid "服务语言"
 msgstr ""
 
-#: .\apps\providers\forms.py:207
+#: .\apps\providers\forms.py:213
 msgid "可全程远程办理"
 msgstr ""
 
-#: .\apps\providers\forms.py:208
+#: .\apps\providers\forms.py:214
 msgid "协助开立银行账户"
 msgstr ""
 
-#: .\apps\providers\forms.py:210 .\apps\providers\models.py:527
+#: .\apps\providers\forms.py:216 .\apps\providers\models.py:527
 msgid "合作银行类型"
 msgstr ""
 
-#: .\apps\providers\forms.py:216
+#: .\apps\providers\forms.py:222
 msgid "有非本地股东办理经验"
 msgstr ""
 
-#: .\apps\providers\forms.py:219 .\apps\providers\models.py:529
+#: .\apps\providers\forms.py:225 .\apps\providers\models.py:529
 msgid "行业专长"
 msgstr ""
 
-#: .\apps\providers\forms.py:221
+#: .\apps\providers\forms.py:227
 #, python-format
 msgid "用逗号分隔，最多 %(count)s 项。"
 msgstr ""
 
-#: .\apps\providers\forms.py:243
+#: .\apps\providers\forms.py:249
 #, python-format
 msgid "最多填写 %(count)s 项行业专长。"
+msgstr ""
+
+#: .\apps\providers\forms.py:272 .\templates\providers\manage.html:84
+msgid "公司标志"
+msgstr ""
+
+#: .\apps\providers\forms.py:274
+#, python-format
+msgid ""
+"支持 JPG、PNG，不超过 %(limit)s MB。上传后需经我们审核才会显示在页面上；标志"
+"内不得含有开户成功率、官方背书等说法。"
 msgstr ""
 
 #: .\apps\providers\models.py:35
@@ -868,6 +983,7 @@ msgid "Approved"
 msgstr "已通过"
 
 #: .\apps\providers\models.py:210 .\apps\providers\models.py:509
+#: .\apps\providers\models.py:606
 msgid "Rejected"
 msgstr "已拒绝"
 
@@ -991,9 +1107,7 @@ msgstr "高级标识"
 msgid "Applied immediately"
 msgstr ""
 
-#: .\apps\providers\models.py:507
-#, fuzzy
-#| msgid "Pending review"
+#: .\apps\providers\models.py:507 .\apps\providers\models.py:604
 msgid "Awaiting review"
 msgstr "待审核"
 
@@ -1021,109 +1135,173 @@ msgstr ""
 msgid "profile edits"
 msgstr ""
 
-#: .\apps\providers\selectors.py:289
-#: .\templates\components\provider_card.html:47
-#: .\templates\providers\compare.html:70 .\templates\providers\detail.html:43
-#: .\templates\providers\detail.html:194 .\templates\providers\list.html:128
+#: .\apps\providers\models.py:607 .\apps\rfq\models.py:221
+msgid "Withdrawn by the company"
+msgstr "公司已撤回"
+
+#: .\apps\providers\models.py:669
+msgid "provider logo upload"
+msgstr ""
+
+#: .\apps\providers\models.py:670
+msgid "provider logo uploads"
+msgstr ""
+
+#: .\apps\providers\selectors.py:291
+#: .\templates\components\provider_card.html:42
+#: .\templates\providers\compare.html:70 .\templates\providers\detail.html:41
+#: .\templates\providers\detail.html:192 .\templates\providers\list.html:128
 msgid "协助银行开户"
 msgstr ""
 
-#: .\apps\providers\selectors.py:294
-#: .\templates\components\provider_card.html:50
-#: .\templates\providers\compare.html:82 .\templates\providers\detail.html:46
-#: .\templates\providers\detail.html:198 .\templates\providers\list.html:133
+#: .\apps\providers\selectors.py:296
+#: .\templates\components\provider_card.html:45
+#: .\templates\providers\compare.html:82 .\templates\providers\detail.html:44
+#: .\templates\providers\detail.html:196 .\templates\providers\list.html:133
 msgid "可远程办理"
 msgstr ""
 
-#: .\apps\providers\selectors.py:299
+#: .\apps\providers\selectors.py:301
 msgid "普通话服务"
 msgstr ""
 
-#: .\apps\providers\selectors.py:304
+#: .\apps\providers\selectors.py:306
 msgid "虚拟银行经验"
 msgstr ""
 
-#: .\apps\providers\services.py:717
+#: .\apps\providers\services.py:764
 msgid ""
 "该公司已不在官方持牌名单上，页面已锁定，无法编辑。如属续期或资料有误，请先向"
 "公司注册处更新，我们每日同步。"
 msgstr ""
 
-#: .\apps\providers\services.py:723
+#: .\apps\providers\services.py:770 .\apps\providers\services.py:991
 msgid "请先认领本页面。"
 msgstr ""
 
-#: .\apps\providers\services.py:743
+#: .\apps\providers\services.py:790
 #, python-format
 msgid ""
 "通用模式每 12 个月可更新一次资料，下次可更新时间为 %(date)s。联络方式填错了可"
 "随时提交更正，不占用这个次数。"
 msgstr ""
 
-#: .\apps\providers\services.py:763
+#: .\apps\providers\services.py:810
 #, python-format
 msgid "以下说法不能刊登（见平台规则）：%(phrases)s。请改写后再提交。"
 msgstr ""
 
-#: .\apps\providers\services.py:792
+#: .\apps\providers\services.py:839
 #, python-format
 msgid "当前方案不能修改：%(fields)s。"
 msgstr ""
 
-#: .\apps\providers\services.py:818
+#: .\apps\providers\services.py:865
 msgid "没有任何改动。"
 msgstr ""
 
-#: .\apps\providers\services.py:893
+#: .\apps\providers\services.py:940
 msgid "This edit has already been decided."
 msgstr ""
 
-#: .\apps\providers\services.py:895
+#: .\apps\providers\services.py:942 .\apps\providers\services.py:1066
 msgid "A reason is required."
 msgstr ""
 
-#: .\apps\providers\services.py:897
+#: .\apps\providers\services.py:944 .\apps\providers\services.py:1068
 msgid "Only the moderation team may decide this."
 msgstr ""
 
-#: .\apps\providers\views.py:59
+#: .\apps\providers\services.py:987 .\templates\providers\manage.html:118
+msgid "标志上传功能正在准备中，暂时无法提交。"
+msgstr ""
+
+#: .\apps\providers\services.py:989
+msgid "该公司已不在官方持牌名单上，页面已锁定，无法上传标志。"
+msgstr ""
+
+#: .\apps\providers\services.py:993
+msgid "已有一份标志在等待审核，请先撤回后再上传新的。"
+msgstr ""
+
+#: .\apps\providers\services.py:1036
+msgid "这份标志已经处理过了。"
+msgstr ""
+
+#: .\apps\providers\services.py:1038
+msgid "只有该公司的成员可以撤回。"
+msgstr ""
+
+#: .\apps\providers\services.py:1064
+msgid "This logo has already been decided."
+msgstr ""
+
+#: .\apps\providers\services.py:1070
+msgid "This file has not been cleared by the scanner."
+msgstr ""
+
+#: .\apps\providers\views.py:71
 msgid "推荐排序"
 msgstr ""
 
-#: .\apps\providers\views.py:60
+#: .\apps\providers\views.py:72
 msgid "评分由高到低"
 msgstr ""
 
-#: .\apps\providers\views.py:61
+#: .\apps\providers\views.py:73
 msgid "按名称"
 msgstr ""
 
-#: .\apps\providers\views.py:62
+#: .\apps\providers\views.py:74
 msgid "最新登记"
 msgstr ""
 
-#: .\apps\providers\views.py:244
+#: .\apps\providers\views.py:266
 msgid "资料已更新。公司简介已提交审核，通过后才会显示在页面上。"
 msgstr ""
 
-#: .\apps\providers\views.py:247
+#: .\apps\providers\views.py:269
 msgid "资料已更新，页面已即时生效。"
 msgstr ""
 
-#: .\apps\providers\views.py:324
+#: .\apps\providers\views.py:337
+msgid "标志已提交，通过审核后会显示在页面上。"
+msgstr ""
+
+#: .\apps\providers\views.py:357
+msgid "标志上传已撤回。"
+msgstr ""
+
+#: .\apps\providers\views.py:445
 msgid "认领申请已提交，我们会在 3 个工作日内回复。"
 msgstr ""
 
-#: .\apps\providers\views.py:379
+#: .\apps\providers\views.py:500
 msgid "网站所有权验证成功。"
 msgstr ""
 
-#: .\apps\providers\views.py:381
+#: .\apps\providers\views.py:502
 msgid "尚未找到验证记录。DNS 生效可能需要数小时，请稍后重试。"
 msgstr ""
 
-#: .\apps\providers\views.py:394
+#: .\apps\providers\views.py:515
 msgid "认领申请已撤回。"
+msgstr ""
+
+#: .\apps\providers\views.py:610
+msgid "邀请已发送，对方接受后即成为成员。"
+msgstr ""
+
+#: .\apps\providers\views.py:648
+msgid "成员角色已更新。"
+msgstr ""
+
+#: .\apps\providers\views.py:666
+msgid "已停用该成员的访问权限。"
+msgstr ""
+
+#: .\apps\providers\views.py:684
+msgid "邀请已撤回。"
 msgstr ""
 
 #: .\apps\registry\models.py:84
@@ -1885,7 +2063,7 @@ msgstr ""
 msgid "可选项，不计入首年总额"
 msgstr ""
 
-#: .\apps\rfq\forms.py:354 .\templates\providers\detail.html:113
+#: .\apps\rfq\forms.py:354 .\templates\providers\detail.html:111
 msgid "备注"
 msgstr ""
 
@@ -1984,10 +2162,6 @@ msgstr "已接受"
 #: .\apps\rfq\models.py:220
 msgid "Not selected"
 msgstr "未获选"
-
-#: .\apps\rfq\models.py:221
-msgid "Withdrawn by the company"
-msgstr "公司已撤回"
 
 #: .\apps\rfq\models.py:324
 msgid "Government incorporation fee"
@@ -2157,8 +2331,12 @@ msgstr ""
 msgid "报价已撤回。已用掉的报价额度不会退回。"
 msgstr ""
 
+#: .\config\settings\base.py:338
+msgid "香港公司註冊處《信託或公司服務持牌人登記冊》／data.gov.hk"
+msgstr "香港公司注册处《信托或公司服务持牌人登记册》／data.gov.hk"
+
 #: .\templates\accounts\dashboard.html:4 .\templates\accounts\dashboard.html:13
-#: .\templates\base.html:72 .\templates\base.html:122
+#: .\templates\base.html:72 .\templates\base.html:126
 msgid "我的账号"
 msgstr ""
 
@@ -2187,8 +2365,8 @@ msgstr ""
 msgid "我管理的公司页面"
 msgstr ""
 
-#: .\templates\accounts\dashboard.html:58 .\templates\providers\detail.html:40
-#: .\templates\providers\detail.html:94
+#: .\templates\accounts\dashboard.html:58 .\templates\providers\detail.html:38
+#: .\templates\providers\detail.html:92
 msgid "已不在官方名单内"
 msgstr ""
 
@@ -2200,7 +2378,7 @@ msgstr ""
 msgid "我的认领申请"
 msgstr ""
 
-#: .\templates\accounts\dashboard.html:104 .\templates\base.html:121
+#: .\templates\accounts\dashboard.html:104 .\templates\base.html:125
 #: .\templates\components\disclaimer_footer.html:50
 #: .\templates\rfq\detail_buyer.html:12 .\templates\rfq\my_rfqs.html:4
 #: .\templates\rfq\my_rfqs.html:10
@@ -2266,9 +2444,48 @@ msgid ""
 "本平台不是政府机构，与香港公司注册处无隶属关系。"
 msgstr ""
 
+#: .\templates\accounts\invite_accept.html:4
+#: .\templates\accounts\invite_accept.html:9
+#: .\templates\accounts\invite_accept.html:38
+msgid "接受邀请"
+msgstr ""
+
+#: .\templates\accounts\invite_accept.html:11
+#, python-format
+msgid "「%(name)s」邀请你以「%(role)s」的身份管理其在包公的公司页面。"
+msgstr ""
+
+#: .\templates\accounts\invite_accept.html:19
+msgid ""
+"接受后，你可以编辑该公司页面、回复买家评价、处理报价。所有操作都会记录在公司"
+"的修改记录里。"
+msgstr ""
+
+#: .\templates\accounts\invite_accept.html:26
+#, python-format
+msgid "这份邀请发给的是 %(email)s。请用该邮箱登录后再打开此链接。"
+msgstr ""
+
+#: .\templates\accounts\invite_accept.html:31
+msgid "切换账号"
+msgstr ""
+
+#: .\templates\accounts\invite_invalid.html:4
+#: .\templates\accounts\invite_invalid.html:12
+msgid "邀请链接无效"
+msgstr ""
+
+#: .\templates\accounts\invite_invalid.html:18
+msgid "该邀请链接已失效、已被撤回或已经使用过。请联系邀请你的同事重新发送。"
+msgstr ""
+
+#: .\templates\accounts\invite_invalid.html:22
+msgid "返回我的账户"
+msgstr ""
+
 #: .\templates\accounts\login.html:4 .\templates\accounts\login.html:12
 #: .\templates\accounts\login.html:21 .\templates\accounts\register.html:56
-#: .\templates\base.html:83 .\templates\base.html:128
+#: .\templates\base.html:83 .\templates\base.html:132
 #: .\templates\components\disclaimer_footer.html:53
 msgid "登录"
 msgstr ""
@@ -2361,24 +2578,24 @@ msgstr ""
 msgid "跳到主要内容"
 msgstr ""
 
-#: .\templates\base.html:45 .\templates\base.html:116
+#: .\templates\base.html:45 .\templates\base.html:120
 #: .\templates\providers\list.html:10
 msgid "公司目录"
 msgstr ""
 
-#: .\templates\base.html:49 .\templates\base.html:117
+#: .\templates\base.html:49 .\templates\base.html:121
 #: .\templates\components\disclaimer_footer.html:39
 #: .\templates\providers\compare.html:14 .\templates\providers\list.html:174
 msgid "并排比较"
 msgstr ""
 
-#: .\templates\base.html:53 .\templates\base.html:118
+#: .\templates\base.html:53 .\templates\base.html:122
 #: .\templates\content\article_detail.html:10
 #: .\templates\content\article_list.html:10
 msgid "指南"
 msgstr ""
 
-#: .\templates\base.html:58 .\templates\base.html:120
+#: .\templates\base.html:58 .\templates\base.html:124
 #: .\templates\components\disclaimer_footer.html:49
 #: .\templates\rfq\detail_provider.html:12 .\templates\rfq\wall.html:4
 #: .\templates\rfq\wall.html:16
@@ -2391,7 +2608,7 @@ msgstr ""
 msgid "发布需求"
 msgstr ""
 
-#: .\templates\base.html:77 .\templates\base.html:125
+#: .\templates\base.html:77 .\templates\base.html:129
 msgid "退出"
 msgstr ""
 
@@ -2399,11 +2616,11 @@ msgstr ""
 msgid "免费注册"
 msgstr ""
 
-#: .\templates\base.html:94
+#: .\templates\base.html:98
 msgid "界面语言"
 msgstr ""
 
-#: .\templates\base.html:107
+#: .\templates\base.html:111
 msgid "打开菜单"
 msgstr ""
 
@@ -2463,7 +2680,7 @@ msgstr ""
 
 #: .\templates\components\disclaimer_footer.html:68
 msgid "data.gov.hk 開放數據條款"
-msgstr ""
+msgstr "data.gov.hk 开放数据条款"
 
 #: .\templates\components\disclaimer_footer.html:83
 msgid ""
@@ -2472,7 +2689,7 @@ msgid ""
 "不構成對任何服務商的推薦或保證。 銀行開戶與否由銀行全權決定，本平台不對開戶結"
 "果作任何承諾。 用戶應自行向官方登記冊核實牌照狀態，並在需要時諮詢持牌專業人"
 "士。"
-msgstr ""
+msgstr "本平台为独立资讯比较平台，并非香港公司注册处或任何政府机构，亦非信托或公司服务持牌人。 平台所载资料仅供一般参考，不构成法律、税务、会计或任何专业意见，亦不构成对任何服务商的推荐或保证。 银行开户与否由银行全权决定，本平台不对开户结果作任何承诺。 用户应自行向官方登记册核实牌照状态，并在需要时咨询持牌专业人士。"
 
 #: .\templates\components\disclaimer_footer.html:89
 #: .\templates\components\logo.html:22 .\templates\components\logo.html:38
@@ -2487,23 +2704,23 @@ msgstr ""
 msgid "包公"
 msgstr ""
 
-#: .\templates\components\provider_card.html:27
+#: .\templates\components\provider_card.html:22
 #: .\templates\components\provider_matches.html:39
-#: .\templates\providers\detail.html:88 .\templates\providers\detail.html:363
+#: .\templates\providers\detail.html:86 .\templates\providers\detail.html:361
 msgid "牌照号"
 msgstr ""
 
-#: .\templates\components\provider_card.html:42
-#: .\templates\providers\detail.html:33
+#: .\templates\components\provider_card.html:37
+#: .\templates\providers\detail.html:31
 msgid "已认领"
 msgstr ""
 
-#: .\templates\components\provider_card.html:44
-#: .\templates\providers\detail.html:35
+#: .\templates\components\provider_card.html:39
+#: .\templates\providers\detail.html:33
 msgid "尚未认领"
 msgstr ""
 
-#: .\templates\components\provider_card.html:59
+#: .\templates\components\provider_card.html:54
 #: .\templates\providers\compare.html:129
 msgid "查看详情"
 msgstr ""
@@ -2842,6 +3059,85 @@ msgstr ""
 #, python-format
 msgid ""
 "查看公司页面：\n"
+"%(url)s"
+msgstr ""
+
+#: .\templates\emails\logo_decided.subject.txt:1
+#, python-format
+msgid "%(provider_name)s 的公司标志已发布"
+msgstr ""
+
+#: .\templates\emails\logo_decided.subject.txt:1
+#, python-format
+msgid "%(provider_name)s 的公司标志未通过审核"
+msgstr ""
+
+#: .\templates\emails\logo_decided.txt:1
+#, python-format
+msgid ""
+"您好，\n"
+"\n"
+"「%(provider_name)s」提交的公司标志已通过审核，现已显示在公司页面上。\n"
+"\n"
+"审核意见：\n"
+"%(reason)s\n"
+"\n"
+"管理公司页面：\n"
+"%(url)s"
+msgstr ""
+
+#: .\templates\emails\logo_decided.txt:9
+#, python-format
+msgid ""
+"您好，\n"
+"\n"
+"「%(provider_name)s」提交的公司标志未获发布，页面上显示的仍是原来的标志。\n"
+"\n"
+"审核意见：\n"
+"%(reason)s\n"
+"\n"
+"修改后可重新上传：\n"
+"%(url)s"
+msgstr ""
+
+#: .\templates\emails\member_invited.subject.txt:1
+#, python-format
+msgid "%(provider_name)s 邀请您管理其公司页面"
+msgstr ""
+
+#: .\templates\emails\member_invited.txt:1
+#, python-format
+msgid ""
+"您好，\n"
+"\n"
+"「%(provider_name)s」邀请您以「%(role_label)s」的身份，在包公 BaoGong 管理其"
+"公司页面。\n"
+"\n"
+"接受后，您可以编辑该公司页面、回复买家评价、处理报价。\n"
+"\n"
+"接受邀请（7 天内有效，需用本邮箱登录）：\n"
+"%(url)s\n"
+"\n"
+"如果您不认识这家公司，请忽略本邮件——不点击链接就不会有任何变化。"
+msgstr ""
+
+#: .\templates\emails\member_removed.subject.txt:1
+#, python-format
+msgid "您对 %(provider_name)s 页面的管理权限已被取消"
+msgstr ""
+
+#: .\templates\emails\member_removed.txt:1
+#, python-format
+msgid ""
+"您好，\n"
+"\n"
+"「%(provider_name)s」的拥有者已取消您对该公司页面的管理权限。您的包公账号不受"
+"影响，仍可正常使用。\n"
+"\n"
+"如果这不是您预期的变动，请直接联系该公司；权限由公司自行管理，本平台不代为调"
+"整。\n"
+"\n"
+"我的账户：\n"
 "%(url)s"
 msgstr ""
 
@@ -3513,7 +3809,7 @@ msgid "提交于"
 msgstr ""
 
 #: .\templates\providers\claim_detail.html:27
-#: .\templates\providers\manage.html:74
+#: .\templates\providers\manage.html:151
 msgid "审核中"
 msgstr ""
 
@@ -3615,7 +3911,7 @@ msgid "牌照号码"
 msgstr ""
 
 #: .\templates\providers\claim_start.html:32
-#: .\templates\providers\detail.html:98
+#: .\templates\providers\detail.html:96
 msgid "登记地址"
 msgstr ""
 
@@ -3667,8 +3963,8 @@ msgstr ""
 msgid "一把尺量到底：每一行都是同一个问题，横着看就是各家的答案。"
 msgstr ""
 
-#: .\templates\providers\compare.html:56 .\templates\providers\detail.html:103
-#: .\templates\providers\detail.html:368 .\templates\providers\list.html:71
+#: .\templates\providers\compare.html:56 .\templates\providers\detail.html:101
+#: .\templates\providers\detail.html:366 .\templates\providers\list.html:71
 msgid "地区"
 msgstr ""
 
@@ -3681,13 +3977,13 @@ msgid "是"
 msgstr ""
 
 #: .\templates\providers\compare.html:77 .\templates\providers\compare.html:89
-#: .\templates\providers\compare.html:98 .\templates\providers\detail.html:182
-#: .\templates\providers\detail.html:189
+#: .\templates\providers\compare.html:98 .\templates\providers\detail.html:180
+#: .\templates\providers\detail.html:187
 msgid "未提供"
 msgstr ""
 
-#: .\templates\providers\compare.html:104 .\templates\providers\detail.html:66
-#: .\templates\providers\detail.html:279
+#: .\templates\providers\compare.html:104 .\templates\providers\detail.html:64
+#: .\templates\providers\detail.html:277
 msgid "服务与价格"
 msgstr ""
 
@@ -3699,7 +3995,7 @@ msgstr ""
 msgid "未公布服务与价格"
 msgstr ""
 
-#: .\templates\providers\compare.html:124 .\templates\providers\detail.html:337
+#: .\templates\providers\compare.html:124 .\templates\providers\detail.html:335
 msgid "下一步"
 msgstr ""
 
@@ -3740,149 +4036,149 @@ msgstr ""
 msgid "持牌秘书公司目录"
 msgstr ""
 
-#: .\templates\providers\detail.html:38 .\templates\providers\detail.html:94
+#: .\templates\providers\detail.html:36 .\templates\providers\detail.html:92
 msgid "在官方名单内"
 msgstr ""
 
-#: .\templates\providers\detail.html:64
+#: .\templates\providers\detail.html:62
 msgid "官方登记"
 msgstr ""
 
-#: .\templates\providers\detail.html:65
+#: .\templates\providers\detail.html:63
 msgid "平台补充"
 msgstr ""
 
-#: .\templates\providers\detail.html:67
+#: .\templates\providers\detail.html:65
 #: .\templates\reviews\_review_list.html:20
 msgid "用户评价"
 msgstr ""
 
-#: .\templates\providers\detail.html:82
+#: .\templates\providers\detail.html:80
 msgid "官方登记资料"
 msgstr ""
 
-#: .\templates\providers\detail.html:83
+#: .\templates\providers\detail.html:81
 msgid "以下字段直接来自官方登记册，本平台不作修改。"
 msgstr ""
 
-#: .\templates\providers\detail.html:92
+#: .\templates\providers\detail.html:90
 msgid "牌照状态"
 msgstr ""
 
-#: .\templates\providers\detail.html:108
+#: .\templates\providers\detail.html:106
 msgid "本平台首次收录"
 msgstr ""
 
-#: .\templates\providers\detail.html:130
+#: .\templates\providers\detail.html:128
 msgid "平台补充资料已下架"
 msgstr ""
 
-#: .\templates\providers\detail.html:132
+#: .\templates\providers\detail.html:130
 msgid ""
 "该公司已不在官方持牌名单内，本平台不再显示其自行提供的简介、服务与价格资料。"
 "上方的官方登记内容与既有评价予以保留，供已与该公司往来的人查阅。"
 msgstr ""
 
-#: .\templates\providers\detail.html:146
+#: .\templates\providers\detail.html:144
 msgid "平台补充资料"
 msgstr ""
 
-#: .\templates\providers\detail.html:147
+#: .\templates\providers\detail.html:145
 msgid "以下资料由公司自行提供或由本平台整理，非官方登记内容。"
 msgstr ""
 
-#: .\templates\providers\detail.html:156
+#: .\templates\providers\detail.html:154
 msgid "此页面尚未被认领"
 msgstr ""
 
-#: .\templates\providers\detail.html:158
+#: .\templates\providers\detail.html:156
 msgid ""
 "该公司尚未在本平台补充服务范围与价格资料。若您是该公司的负责人，可认领此页面"
 "并完善资料。"
 msgstr ""
 
-#: .\templates\providers\detail.html:165
+#: .\templates\providers\detail.html:163
 msgid "已有认领申请正在审核中。"
 msgstr ""
 
-#: .\templates\providers\detail.html:169
+#: .\templates\providers\detail.html:167
 msgid "认领此页面"
 msgstr ""
 
-#: .\templates\providers\detail.html:178
+#: .\templates\providers\detail.html:176
 msgid "网站"
 msgstr ""
 
-#: .\templates\providers\detail.html:195 .\templates\providers\detail.html:199
+#: .\templates\providers\detail.html:193 .\templates\providers\detail.html:197
 msgid "是,未提供"
 msgstr ""
 
-#: .\templates\providers\detail.html:205
+#: .\templates\providers\detail.html:203
 msgid "平台认证"
 msgstr ""
 
-#: .\templates\providers\detail.html:209
+#: .\templates\providers\detail.html:207
 #, python-format
 msgid "%(name)s（%(month)s）"
 msgstr ""
 
-#: .\templates\providers\detail.html:222
+#: .\templates\providers\detail.html:220
 msgid ""
 "披露：本平台与该公司有导流合作关系，若您经本平台联系并成交，本平台可能收取佣"
 "金。此关系不影响该公司在目录中的排序或评分。"
 msgstr ""
 
-#: .\templates\providers\detail.html:240
+#: .\templates\providers\detail.html:238
 msgid "认识这家公司"
 msgstr ""
 
-#: .\templates\providers\detail.html:241
+#: .\templates\providers\detail.html:239
 msgid "由该公司自行撰写，本平台仅作刊登，不核实其中的业务描述。"
 msgstr ""
 
-#: .\templates\providers\detail.html:262
+#: .\templates\providers\detail.html:260
 msgid "微信"
 msgstr ""
 
-#: .\templates\providers\detail.html:268
+#: .\templates\providers\detail.html:266
 msgid "联系方式由该公司提供，本平台不参与其后的洽谈，也不代收任何款项。"
 msgstr ""
 
-#: .\templates\providers\detail.html:303
+#: .\templates\providers\detail.html:301
 msgid "已含政府费用"
 msgstr ""
 
-#: .\templates\providers\detail.html:311
+#: .\templates\providers\detail.html:309
 msgid "价格由该公司提供或由本平台整理，仅供参考，最终以正式报价为准。"
 msgstr ""
 
-#: .\templates\providers\detail.html:320
+#: .\templates\providers\detail.html:318
 msgid "可以直接发布需求，让这间及其他持牌公司按你的情况报价。"
 msgstr ""
 
-#: .\templates\providers\detail.html:322
+#: .\templates\providers\detail.html:320
 msgid "该公司尚未在本平台公布服务与价格"
 msgstr ""
 
-#: .\templates\providers\detail.html:322 .\templates\providers\detail.html:352
+#: .\templates\providers\detail.html:320 .\templates\providers\detail.html:350
 msgid "发布需求拿报价"
 msgstr ""
 
-#: .\templates\providers\detail.html:339
+#: .\templates\providers\detail.html:337
 msgid ""
 "本平台不代办任何注册手续，只帮你把持牌公司放在一起比较，并把你的需求转给它们"
 "报价。"
 msgstr ""
 
-#: .\templates\providers\detail.html:346
+#: .\templates\providers\detail.html:344
 msgid "管理本页面"
 msgstr ""
 
-#: .\templates\providers\detail.html:357
+#: .\templates\providers\detail.html:355
 msgid "加入并排比较"
 msgstr ""
 
-#: .\templates\providers\detail.html:373
+#: .\templates\providers\detail.html:371
 msgid "已验证评价"
 msgstr ""
 
@@ -3969,6 +4265,7 @@ msgid "清空"
 msgstr ""
 
 #: .\templates\providers\manage.html:4 .\templates\providers\manage.html:14
+#: .\templates\providers\team.html:11
 msgid "管理公司页面"
 msgstr ""
 
@@ -3981,66 +4278,189 @@ msgstr ""
 msgid "当前方案：%(tier)s"
 msgstr ""
 
-#: .\templates\providers\manage.html:30
+#: .\templates\providers\manage.html:21 .\templates\providers\team.html:4
+#: .\templates\providers\team.html:13
+msgid "成员管理"
+msgstr ""
+
+#: .\templates\providers\manage.html:36
 msgid ""
 "公司名称与牌照资料来自官方登记册，本平台不能修改；如有出入，请向公司注册处更"
 "新。"
 msgstr ""
 
-#: .\templates\providers\manage.html:44
+#: .\templates\providers\manage.html:50
 msgid "联络方式填错了？提交更正"
 msgstr ""
 
-#: .\templates\providers\manage.html:53
+#: .\templates\providers\manage.html:59
 msgid "通用模式：每 12 个月可更新一次"
 msgstr ""
 
-#: .\templates\providers\manage.html:55
+#: .\templates\providers\manage.html:61
 msgid ""
 "提交后，下一次更新要等 12 个月。联络方式写错可随时提交更正，不占用这次机会。"
 "公司简介、服务语言、银行合作等栏目需订阅付费方案后开放。"
 msgstr ""
 
-#: .\templates\providers\manage.html:67
+#: .\templates\providers\manage.html:73
 msgid "提交更正"
 msgstr ""
 
-#: .\templates\providers\manage.html:67
+#: .\templates\providers\manage.html:73
 msgid "保存并发布"
 msgstr ""
 
-#: .\templates\providers\manage.html:74
+#: .\templates\providers\manage.html:84
+msgid "上传公司标志"
+msgstr ""
+
+#: .\templates\providers\manage.html:89
+msgid "这是目前显示在公司页面与目录列表上的标志。上传新的会替换它。"
+msgstr ""
+
+#: .\templates\providers\manage.html:91
+msgid ""
+"目前页面上显示的是公司名称首字。上传标志后，买家在目录列表中更容易认出贵公"
+"司。"
+msgstr ""
+
+#: .\templates\providers\manage.html:99
+msgid "有一份标志正在等待审核"
+msgstr ""
+
+#: .\templates\providers\manage.html:102
+msgid "正在进行安全扫描"
+msgstr ""
+
+#: .\templates\providers\manage.html:108 .\templates\providers\team.html:83
+msgid "撤回"
+msgstr ""
+
+#: .\templates\providers\manage.html:119
+msgid ""
+"所有上传的文件都要先通过安全扫描才会显示在页面上，扫描服务尚未就绪之前，我们"
+"不会收下无法处理的文件。"
+msgstr ""
+
+#: .\templates\providers\manage.html:128
+msgid "提交审核"
+msgstr ""
+
+#: .\templates\providers\manage.html:141 .\templates\providers\manage.html:185
+msgid "审核意见："
+msgstr ""
+
+#: .\templates\providers\manage.html:151
 msgid "等待审核的公司简介"
 msgstr ""
 
-#: .\templates\providers\manage.html:76
+#: .\templates\providers\manage.html:153
 msgid ""
 "简介以贵公司的名义刊登，我们会先人工阅读一次再发布。审核期间页面显示的仍是上"
 "一版。"
 msgstr ""
 
-#: .\templates\providers\manage.html:94
+#: .\templates\providers\manage.html:171
 msgid "记录"
 msgstr ""
 
-#: .\templates\providers\manage.html:94
+#: .\templates\providers\manage.html:171
 msgid "修改记录"
 msgstr ""
 
-#: .\templates\providers\manage.html:105
+#: .\templates\providers\manage.html:182
 msgid "更正"
 msgstr ""
 
-#: .\templates\providers\manage.html:108
-msgid "审核意见："
-msgstr ""
-
-#: .\templates\providers\manage.html:114
+#: .\templates\providers\manage.html:191
 msgid "还没有修改记录"
 msgstr ""
 
-#: .\templates\providers\manage.html:114
+#: .\templates\providers\manage.html:191
 msgid "这里会列出谁在什么时候改了哪些栏目。"
+msgstr ""
+
+#: .\templates\providers\team.html:15
+msgid "员工可以编辑页面、回复评价、处理报价；拥有者还可以邀请和停用成员。"
+msgstr ""
+
+#: .\templates\providers\team.html:23
+msgid "团队"
+msgstr ""
+
+#: .\templates\providers\team.html:23
+msgid "现有成员"
+msgstr ""
+
+#: .\templates\providers\team.html:30
+msgid "（你）"
+msgstr ""
+
+#: .\templates\providers\team.html:35
+#, python-format
+msgid "%(date)s 加入"
+msgstr ""
+
+#: .\templates\providers\team.html:37
+msgid "已停用"
+msgstr ""
+
+#: .\templates\providers\team.html:47
+msgid "改为员工"
+msgstr ""
+
+#: .\templates\providers\team.html:47
+msgid "设为拥有者"
+msgstr ""
+
+#: .\templates\providers\team.html:51
+msgid "停用后该成员将无法再编辑本页面，确定吗？"
+msgstr ""
+
+#: .\templates\providers\team.html:54
+msgid "停用"
+msgstr ""
+
+#: .\templates\providers\team.html:63
+msgid ""
+"公司至少要保留一位拥有者。要转移拥有权，请先把同事设为拥有者，再把自己改为员"
+"工。"
+msgstr ""
+
+#: .\templates\providers\team.html:69
+msgid "等待接受"
+msgstr ""
+
+#: .\templates\providers\team.html:69
+msgid "已发出的邀请"
+msgstr ""
+
+#: .\templates\providers\team.html:77
+#, python-format
+msgid "%(date)s 前有效"
+msgstr ""
+
+#: .\templates\providers\team.html:94
+msgid "邀请"
+msgstr ""
+
+#: .\templates\providers\team.html:94
+msgid "邀请同事加入"
+msgstr ""
+
+#: .\templates\providers\team.html:96
+msgid ""
+"填写邮箱后我们会发出邀请链接。对方需要用这个邮箱登录并接受，才会成为成员——账"
+"号不会被自动加入。"
+msgstr ""
+
+#: .\templates\providers\team.html:102
+msgid "发送邀请"
+msgstr ""
+
+#: .\templates\providers\team.html:109
+msgid "该公司已不在官方持牌名单上，页面已锁定，暂时无法邀请新成员。"
 msgstr ""
 
 #: .\templates\reviews\_review_list.html:30

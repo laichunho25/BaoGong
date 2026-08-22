@@ -11,6 +11,7 @@ from typing import Any
 
 import environ
 from celery.schedules import crontab
+from django.utils.translation import gettext_lazy as _
 
 from apps.core.i18n import languages_with_catalogues
 
@@ -331,7 +332,10 @@ TURNSTILE_SECRET = env("TURNSTILE_SECRET", default="")
 # ---------------------------------------------------------------- domain constants
 
 # COMPLIANCE.md section 1: every page showing registry data must link the source.
-REGISTRY_SOURCE_NAME = "香港公司註冊處《信託或公司服務持牌人登記冊》／data.gov.hk"
+# The msgid is the register's own title, in the Traditional Chinese the Registry
+# publishes it under; the Simplified rendering is a translation like any other,
+# so a Simplified page does not print one stray Traditional line in its footer.
+REGISTRY_SOURCE_NAME = _("香港公司註冊處《信託或公司服務持牌人登記冊》／data.gov.hk")
 REGISTRY_SOURCE_URL = "https://www.tcsp.cr.gov.hk/"
 
 # ---------------------------------------------------------------- rest framework

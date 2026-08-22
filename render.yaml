@@ -36,12 +36,18 @@ services:
       - www.baogong.com.hk
       - baogong.com.hk
     # Render sets $PORT; gunicorn must bind it, not the Dockerfile's 8000.
+    # load_articles ships the guide library with the image: it skips slugs that
+    # already exist, so it is a no-op on every redeploy except the one that adds
+    # a file. Without it a fresh database serves an empty /guides/ until someone
+    # remembers to open a shell, which is exactly the kind of step nobody
+    # remembers.
     # check_env runs first so a half-filled env group prints one readable list
     # of what is missing, instead of a Django traceback about whichever secret
     # happened to be read first.
     dockerCommand: >-
       sh -c "python scripts/check_env.py &&
              python manage.py migrate --noinput &&
+             python manage.py load_articles &&
              python manage.py collectstatic --noinput &&
              gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 60"
     envVars:
@@ -158,6 +164,15 @@ envVarGroups:
       # How workers build links: a Celery task has no request to ask. Left
       # unset it falls back to http://localhost:8000 and every verification
       # and notification mail ships a dead link.
+      #
+      # BEFORE the custom domain resolves, point this at the service's own
+      # https://<service>.onrender.com host in the dashboard. Nothing else
+      # notices - ALLOWED_HOSTS already picks up RENDER_EXTERNAL_HOSTNAME and
+      # canonical tags are built from the request - but mail is built without a
+      # request, so a domain that does not resolve yet means every verification
+      # link in every inbox is dead, and account verification is the one flow
+      # with no way around it. Switch it back at the same time as the DNS cut
+      # over (docs/DEPLOY_RENDER.md section 10.4).
       - key: SITE_URL
         value: https://www.baogong.com.hk
       # Mail. prod.py refuses to boot without the API key and without a From

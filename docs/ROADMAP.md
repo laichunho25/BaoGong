@@ -54,13 +54,13 @@ P0 → P1 → P2 → P3 → P4 → P6
 _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 — 建議處理時機`）_
 
 - `[P0] docker compose up --build 未在本機驗證` — 本機無 Docker／WSL2，compose 檔僅靜態檢查 — 裝好 Docker Desktop 後立即補跑。
-- `[P0] 免責文字只有繁中 msgid，locale/ 尚無 zh-Hans／en 翻譯` — 預設語言 zh-Hans 會落回繁中 — P2 做 i18n 時補，且法律文字須人手翻譯不得機器轉換。
+- ~~`[P0] 免責文字只有繁中 msgid，locale/ 尚無 zh-Hans／en 翻譯`~~ — 已補上 zh-Hans。頁尾那段 COMPLIANCE §7 免責聲明、`data.gov.hk 開放數據條款`、以及 `REGISTRY_SOURCE_NAME`（原本是設定裡的裸字串，現已包 `gettext_lazy`）是全站僅有的三處繁中 msgid，在一個簡中站上就是三塊突兀的繁體。msgid 仍是權威繁中原文，簡中在 `locale/zh_Hans` 逐句寫成、非機器轉換。**遺留**：法律文字仍待專案負責人（最終是律師）簽字，併入 P8 的法律覆核批次；`en` 一本尚未產生（見下方 P2）。
 - `[P0] check_banned_phrases 為正則規則版` — 變體寫法（拼音、諧音、圖片文字）可繞過 — 有真實違規樣本後補測試語料，P8 合規檢查前重新評估。
 - ~~`[P0] TCSP_CSV_URL 未經驗證`~~ — 已於 P1 對真實檔案驗證（7,457 列），欄位對映見 DATA_MODEL.md。
 - `[P1] district 由地址字串比對推導，覆蓋 94.4%（417 列未識別）` — **P2 地區篩選已上線，這 417 間公司選任何地區都不會出現**（空字串不進篩選清單，見 `available_districts`）— 補足 locality 對照表，或在 UI 加「未分類地區」選項；P3 前處理。
 - `[P1] 同步沒有用 ETag／checksum 短路` — 官方檔約每月更新一次，每日仍全量 upsert 7,457 列 — 資料量再大時再優化，目前一次約 20 秒。
 - `[P1] sanity check 告警只寫 logger.critical` — 靠 Sentry 的 logging integration 才會通知 — P8 接正式告警通道（郵件／IM）。
-- `[P1] registry_health / healthz/registry 仍需外部 monitor 去打` — 指令回非零碼、endpoint 回 503，但沒人盯就等於沒有 — 部署到 Render 時掛 uptime monitor（見 DEPLOY_RENDER §4.2）。
+- `[P1] registry_health / healthz/registry 仍需外部 monitor 去打` — 指令回非零碼、endpoint 回 503，但沒人盯就等於沒有 — 部署到 Render 時掛 uptime monitor（見 DEPLOY_RENDER §4.4）。
 - `[P1] 除名通知文案未經法律覆核` — `apps/registry/notices.py` 的措辭是對具名公司的公開陳述 — 上線前（P8）連同 COMPLIANCE §7 免責文一併送律師。
 - `[P1] LicenseeChange.notified_at 目前無人寫入` — `registry_health --fail-on-critical` 會永遠告警 — P8 告警通道落地時同步寫入。
 - ~~`[P0] 三篇金管局反洗錢草稿未經核實`~~ — 已解決，但不是靠核實：那份「2026 年 2 月新指引」的名稱、編號與生效日期查不到，所以**拿掉的是那個框架而不是那三篇文章**。三篇本來就只寫了長期穩定的內容（風險為本、CDD、持續監察、STR），改掉標題與 slug 裡對特定通函的指涉之後，沒有一句話依賴那份查不到的文件，於是可以 `status: published`。原 slug `hkma-aml-guidance-2026-overview` 一併改成 `bank-aml-review-framework`——網址裡的年份同樣是一種宣稱。若既有 DB 裡已載入舊 slug 的草稿列，在後台刪掉即可（草稿不公開）。**遺留**：`hkma-aml-account-review-and-freeze` 對銀行終止關係的權利有陳述，已改寫成「以你簽的條款為準」的描述句，仍建議併入 P8 的法律覆核批次。
@@ -68,7 +68,7 @@ _（每個 Phase 結束時由 Claude 追加，格式：`[Pn] 描述 — 影響 �
 - `[P2] responsiveness_score 恆為 0` — 排序權重 §5 的 0.08 目前對所有公司同值，等於少了一個維度 — P5 RFQ 落地後由回覆時間寫入。
 - ~~`[P2] rating_cached / verified_review_count 尚無寫入者`~~ — P4-1 已由 `reviews.services.recompute_provider_rating` 回寫，並接著重算排序輸入；沒有已驗證評價時寫 **null 而非 5.00**（RATING_SYSTEM §4）。在 P4-2 上線前 `is_verified` 仍無人寫入，因此全站分數實際上還是空狀態。
 - ~~`[P2] 認領 CTA 只是靜態文字`~~ — P3 已接上 `providers:claim_start`，已有待審申請的頁面改顯示「審核中」。
-- `[P2] 只有 zh_Hans 一本目錄，且內部後台仍是英文` — `locale/zh_Hans` 已建立並翻完面向用戶的 choice label，但**內部後台的 msgid 刻意留空**（給員工看的，翻了反而看不出哪些字還沒人審過），`zh_Hant` / `en` 兩本尚未產生（640 條面向用戶的簡中 msgid） — **切換器不再開空頭支票**：`settings.LANGUAGES` 現在由 `apps.core.i18n.languages_with_catalogues()` 過濾成「locale/ 下真的編譯得出來的語言」，所以目前只有簡中、選單整個不渲染，Accept-Language 也不會再讓英文瀏覽器拿到一個標著 `lang="en"` 的簡中頁。補上任何一本 `.mo` 該語言就自己亮起來 — 與 P0 的免責文案一併處理，法律相關文字須人手翻譯不得機器轉換。
+- `[P2] 只有 zh_Hans 一本目錄，且內部後台仍是英文` — `locale/zh_Hans` 已建立並翻完面向用戶的 choice label，但**內部後台的 msgid 刻意留空**（給員工看的，翻了反而看不出哪些字還沒人審過），`zh_Hant` / `en` 兩本尚未產生（640 條面向用戶的簡中 msgid） — **切換器不再開空頭支票**：`settings.LANGUAGES` 現在由 `apps.core.i18n.languages_with_catalogues()` 過濾成「locale/ 下真的編譯得出來的語言」，所以目前只有簡中、選單整個不渲染，Accept-Language 也不會再讓英文瀏覽器拿到一個標著 `lang="en"` 的簡中頁。補上任何一本 `.mo` 該語言就自己亮起來 — 免責文案的簡中已補（見上方 P0），`zh_Hant` / `en` 仍待處理，法律相關文字須人手翻譯不得機器轉換。
 - `[P2] Provider.logo 用 FileField 而非 ImageField，且未接 core.uploads / 掃描器` — P3 的 `ClaimEvidence` 已有 magic-byte 嗅探、大小上限與病毒掃描，但 logo 尚未開放上傳，也還沒走同一條路 — P7 開放公司自助編輯 profile 時，logo 必須改走 `inspect_upload` + 掃描，且沒裝 Pillow 就不驗尺寸。
 - `[P2] 目錄頁沒有快取` — 7,457 列每次都打 DB，查詢數已測 < 15 但仍是每請求全打 — 有真實流量後再加 Redis 片段快取。
 - `[P3] 手機號碼只收不驗` — `User.phone` 是選填自由文字，沒有 SMS 驗證，因此不可作為身分證據 — P5 RFQ 需要可聯絡的買家時再接簡訊供應商（內地號碼須先確認 COMPLIANCE §2 的跨境限制）。

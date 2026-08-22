@@ -30,9 +30,11 @@ class TestHomePage:
 
     def test_includes_the_compliance_disclaimer(self):
         # COMPLIANCE.md section 7 - the disclaimer is site-wide, not opt-in.
+        # The msgid is the authoritative Traditional text; what a reader gets is
+        # its Simplified translation, because the site's language is Simplified.
         content = Client().get("/").content.decode()
-        assert "並非香港公司註冊處或任何政府機構" in content
-        assert "不構成法律、稅務、會計或任何專業意見" in content
+        assert "并非香港公司注册处或任何政府机构" in content
+        assert "不构成法律、税务、会计或任何专业意见" in content
 
     def test_credits_the_data_source(self):
         # COMPLIANCE.md section 1.

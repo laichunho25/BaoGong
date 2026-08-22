@@ -181,7 +181,54 @@ git push -u origin main
 `healthCheckPath: /healthz` 會讓 Render 在 DB 或 Redis 掛掉時把該版本判定為不健康、
 不切流量。這是刻意的。
 
-### 4.1 帳號裡已經有別的 project 怎麼辦
+### 4.1 部署成功了，但網站看起來是空的
+
+`/healthz` 回 200 只代表 process 活著。新資料庫裡沒有任何一列資料，所以首頁與目錄
+會是空的。分兩種來源處理：
+
+**指南文章——不用做任何事。** `apps/content/library/*.md` 隨 image 出貨，web 的
+啟動指令在 migrate 之後跑 `load_articles`：已存在的 slug 會被**跳過**（後台的編輯
+不會被覆寫），只有新增的檔案會寫進去。要覆寫得自己在 Shell 明講 `--update`。
+
+**持牌名單——第一次要手動觸發一次。** beat 每天 **06:00 UTC**（香港 14:00）才跑，
+所以剛部署完的目錄是空的。到 `baogong-web` → **Shell**：
+
+```bash
+python manage.py sync_tcsp --dry-run   # 先看下載與解析是否正常
+python manage.py sync_tcsp             # 寫入官方名單（約 7,400 列）
+python manage.py backfill_providers    # 為每一列建立可展示的公司頁
+```
+
+兩件事要知道：
+
+- `sync_tcsp` 會把原始 CSV 存一份到 S3 存檔。**存檔失敗不會擋下同步**（只寫 log），
+  所以 §3 的物件儲存還沒決定也可以先跑。
+- 同步有健全性檢查：列數與上一次成功的差距過大會直接中止而**不寫入**——
+  寧可舊資料，不要錯資料。第一次沒有上一次可比，所以會照寫。
+
+### 4.2 網域還沒生效之前，先把 `SITE_URL` 指回 onrender
+
+`render.yaml` 的 env group 預設把 `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` / `SITE_URL`
+都寫成 `www.baogong.com.hk`。網域還沒買、DNS 還沒指過來的時候：
+
+| 變數 | 網域生效前 | 網域生效後 |
+|---|---|---|
+| `ALLOWED_HOSTS` | 不用改（`prod.py` 會自動信任 `RENDER_EXTERNAL_HOSTNAME`） | 維持兩個網域 |
+| `CSRF_TRUSTED_ORIGINS` | 不用改（同上，自動補上 onrender 那個） | 維持 |
+| `SITE_URL` | **要改**成 `https://<service>.onrender.com` | 改回 `https://www.baogong.com.hk` |
+
+只有 `SITE_URL` 非改不可，原因是它是唯一**沒有 request 可問**的地方：Celery 任務寄信時
+用它組連結。指著一個還不存在的網域，等於每一封驗證信裡的連結都打不開，
+而信箱驗證是沒有替代路徑的一步。
+
+另外兩件事：
+
+- **憑證沒簽發前不要用瀏覽器開那個網域。** `prod.py` 開了一年的 HSTS 加 preload，
+  瀏覽器記下來之後你自己也連不進去，且無法清除。詳見 §10.4 第 4 步。
+- Render dashboard 上 custom domain 顯示 **Unverified** 是 DNS 還沒指過來，
+  不是部署失敗；服務本身照樣在 `<service>.onrender.com` 上跑。
+
+### 4.3 帳號裡已經有別的 project 怎麼辦
 
 一個 Render workspace 可以同時跑多個 Blueprint，彼此不共用任何東西。要注意的只有三件：
 
@@ -194,7 +241,7 @@ git push -u origin main
   Free Postgres 每個 workspace 只有一個而且 30 天後刪除，所以無論舊 project 有沒有用掉，
   這裡都要用付費方案。
 
-### 4.2 名單新鮮度監控 `/healthz/registry`
+### 4.4 名單新鮮度監控 `/healthz/registry`
 
 `/healthz` 只答「這個 process 活著嗎」——每日同步悄悄停掉時它照樣回 200。
 `/healthz/registry` 答的是「資料還值得顯示嗎」：最後一次**成功**同步超過 26 小時
@@ -214,7 +261,7 @@ Better Stack／Render Cron 打 `curl -f`）盯 503。
 不需登入，因為 monitor 要打得到；回傳內容不是網站本來就要公開的
 （COMPLIANCE §1 的 `last_synced_at`、筆數）就是純數字。
 
-### 4.3 只有 web 跑 migration，worker 與 beat 等它
+### 4.5 只有 web 跑 migration，worker 與 beat 等它
 
 `migrate` 只寫在 **web** 的 `dockerCommand` 裡。三個服務同時 migrate 會搶同一組鎖，
 可能留下套用到一半的 schema——比崩一次糟得多，所以改 schema 的權限只給一個服務。

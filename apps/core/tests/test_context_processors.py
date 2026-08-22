@@ -11,4 +11,5 @@ class TestComplianceContext:
 
     def test_source_name_credits_the_companies_registry(self):
         context = compliance(RequestFactory().get("/"))
-        assert "公司註冊處" in context["registry_source_name"]
+        # Lazy, so it credits the Registry in whichever language the page is in.
+        assert "公司注册处" in str(context["registry_source_name"])
