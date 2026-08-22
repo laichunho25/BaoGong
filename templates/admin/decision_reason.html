@@ -1,11 +1,11 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
-{# Intermediate page for every action that must carry a reason: claim approval,
-   claim rejection, scan override, and the review moderation decisions. The
-   list of what is about to be affected is shown again here, because the
-   selection was made on a different page and an approval granted to the wrong
-   company is not undoable. #}
+{% comment %} Intermediate page for every action that must carry a reason: claim
+   approval, claim rejection, scan override, and the review moderation
+   decisions. The list of what is about to be affected is shown again here,
+   because the selection was made on a different page and an approval granted
+   to the wrong company is not undoable. {% endcomment %}
 
 {% block content %}
 <h1>{{ title }}</h1>

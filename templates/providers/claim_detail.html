@@ -18,8 +18,9 @@
     </p>
   </header>
 
-  {# Status. A decided claim always shows the reason it was decided on - a
-     rejection the applicant cannot act on is not a decision they can answer. #}
+  {% comment %} Status. A decided claim always shows the reason it was decided
+     on - a rejection the applicant cannot act on is not a decision they can
+     answer. {% endcomment %}
   {% if claim.status == "pending" %}
     <div class="flex gap-3 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-900">
       <span class="mt-0.5 shrink-0">{% include "components/icon.html" with name="clock" class="h-4 w-4" %}</span>
