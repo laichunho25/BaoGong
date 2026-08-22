@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.django_db
 
-PASSWORD = "correct-horse-battery"
+PASSWORD = "Correct-Horse9!"
 
 
 def _member(provider: Provider, user: User, role: str = MemberRole.OWNER) -> ProviderMember:

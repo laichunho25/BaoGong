@@ -89,6 +89,13 @@
   HTML 裡不含任何需求標題。牆設了登入門檻，首頁就不能從旁邊開一道。
 - **報價通知不帶金額**：`rfq_new_quote` 只說哪一家報了價與連結，價格與費用明細要登入才看得到；
   `quote_decided` 連落選的公司一起寄——對方為這則需求用掉了一次額度，就有權知道結果。
+- **登入節流的計數器不留人**：`apps/core/throttling.py` 的 key 是 `sha256(IP|郵箱)` 的前綴，
+  不是明文。cache 是共用服務，能讀到它的東西就能讀到 key；一份「誰在幾點嘗試登入誰的帳號」
+  的清單，是我們沒有理由保留、也沒有在 PICS 說要收的個資。計數只在 cache，重啟即散。
+- **憑證與 session**：密碼只存 hash（Django 預設 hasher）；驗證信、邀請與重設密碼的 token
+  一律只存 SHA-256（`accounts.EmailVerification`、`ProviderMemberInvite`、Django 的重設 token），
+  資料庫外洩不等於送出一批可用的接管連結。session cookie 為 HttpOnly + SameSite=Lax，
+  prod 另加 Secure，兩週後過期。
 - 用戶可要求查閱／更正／刪除其個資 → 後台必須有 DSAR 處理介面。
 - **不得**把用戶個資或 NNC1 原文送給 LLM 供應商以外的第三方；送 LLM 前做 PII redaction（除 NNC1 抽取這個必要用途）。
 - Anthropic API 用量不做 training（確認 commercial terms）。

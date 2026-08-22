@@ -1045,6 +1045,23 @@ def withdraw_logo(*, logo: ProviderLogoUpload, user: User) -> ProviderLogoUpload
 
 
 @transaction.atomic
+def public_logo_name(provider: Provider, extension: str) -> str:
+    """The filename a published logo is served under.
+
+    The name is part of the page, not an implementation detail: image search
+    reads the filename, and this is the only file on the site that an ordinary
+    visitor's browser ever fetches by name. ``abc-secretaries-tc000123-logo.png``
+    says what the picture is; ``0193f2c8-....png`` says nothing, to a reader or
+    to a crawler.
+
+    Built from the slug, so the URL matches the company's own page URL and
+    changes only when that does. Nothing else may name this file - a second
+    caller with its own convention would mean two spellings of the same logo
+    in the bucket.
+    """
+    return f"{provider.slug}-logo.{extension}"
+
+
 def decide_logo(
     *, logo: ProviderLogoUpload, reviewer: User, approve: bool, note: str
 ) -> ProviderLogoUpload:
@@ -1074,7 +1091,9 @@ def decide_logo(
         provider = Provider.objects.select_for_update().get(pk=logo.provider_id)
         with logo.file.open("rb") as handle:
             payload = handle.read()
-        provider.logo.save(f"{provider.slug}.{logo.extension}", ContentFile(payload), save=False)
+        provider.logo.save(
+            public_logo_name(provider, logo.extension), ContentFile(payload), save=False
+        )
         provider.save(update_fields=["logo", "updated_at"])
         logo.published_at = now
         recompute_ranking_inputs(provider_ids=[str(provider.pk)])

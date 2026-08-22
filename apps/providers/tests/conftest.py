@@ -55,6 +55,11 @@ def make_licensee() -> Callable[..., Licensee]:
 #: file of zeros would be rejected for the right reason and prove nothing.
 PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 
+#: One spelling for the whole app's tests. The fixtures create users through
+#: the manager, which does not validate, but the sign-in path does - so this
+#: has to satisfy the character-mix rule like a real password.
+PASSWORD = "Correct-Horse9!"
+
 
 @pytest.fixture
 def make_user() -> Callable[..., User]:
@@ -64,7 +69,7 @@ def make_user() -> Callable[..., User]:
         counter["n"] += 1
         fields: dict[str, Any] = {
             "email": f"claimant{counter['n']}@example.com",
-            "password": "correct-horse-battery",
+            "password": PASSWORD,
             "role": Role.BUYER,
         }
         fields.update(overrides)

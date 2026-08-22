@@ -7,6 +7,11 @@
   <meta name="description" content="{% block meta_description %}{% translate '香港持牌秘书公司比较、真实评价与报价撮合平台' %}{% endblock %}">
   <meta name="theme-color" content="#4f46e5">
   {% block canonical %}{% endblock %}
+  {% comment %} Pages that exist for one signed-out person and nobody else - sign in,
+     register, the password reset flow - fill this in with noindex. A search
+     result for a reset form only ever helps the person who is not the
+     account holder. {% endcomment %}
+  {% block meta_robots %}{% endblock %}
 
   {% comment %} Self-hosted assets only. PRD section 4: no Google Fonts / reCAPTCHA / GA -
      they are unreliable or blocked for mainland-China visitors. {% endcomment %}

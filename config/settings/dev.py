@@ -43,3 +43,10 @@ STORAGES = {
 }
 
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+
+# Local memory unless a Redis is asked for. The rate limiters now go through
+# the cache, and a developer running `manage.py runserver` without the compose
+# stack up would otherwise meet a ConnectionError on the sign-in page - which
+# is a confusing way to find out that the broker is not running.
+if not env.bool("USE_REDIS_CACHE", default=False):
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

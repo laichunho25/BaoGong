@@ -204,6 +204,28 @@ class TestDecision:
         assert logo.published_at is not None
         assert not logo.file
 
+    def test_a_published_logo_is_named_after_the_company(
+        self,
+        claimed: Callable[..., Provider],
+        make_user: Callable[..., User],
+        moderator: User,
+        make_image_upload: Callable[..., SimpleUploadedFile],
+        clean_scanner: None,
+    ) -> None:
+        """The only file on the site an ordinary visitor's browser fetches by
+        name, so the name is part of the page: image search reads it, and the
+        opaque private-bucket key it arrived under says nothing to a reader."""
+        provider = claimed()
+        logo = _cleared(provider, make_user(), make_image_upload())
+
+        services.decide_logo(logo=logo, reviewer=moderator, approve=True, note="Checked by hand")
+
+        provider.refresh_from_db()
+        # Not an exact match: storage appends a suffix when a name is already
+        # taken, which is what keeps a re-upload from overwriting the file a
+        # cache is still serving.
+        assert f"{provider.slug}-logo" in provider.logo.name
+
     def test_publishing_raises_completeness(
         self,
         claimed: Callable[..., Provider],

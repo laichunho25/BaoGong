@@ -156,6 +156,42 @@ def verify_email(token: str) -> User:
     return user
 
 
+def resend_verification_email(email: str, *, request: HttpRequest | None = None) -> bool:
+    """Send a fresh verification link to ``email``, if it needs one.
+
+    Reachable while signed out, because being unable to sign in is the whole
+    reason somebody asks for this. The return value is for the caller's logs
+    and tests only - the page says the same thing either way, so that this
+    cannot be used to find out which addresses hold an account.
+
+    Nothing is created for an unknown address: the mail is only ever sent to a
+    mailbox that already registered.
+    """
+    user_model = get_user_model()
+    user = user_model.objects.filter(email__iexact=email.strip().lower()).first()
+    if user is None or user.is_email_verified:
+        return False
+    issued = issue_email_verification(user)
+    send_verification_email(user, issued.token, request=request)
+    return True
+
+
+def mark_email_verified(user: User) -> User:
+    """Record that ``user`` proved control of their mailbox by other means.
+
+    Called after a password reset. The reset link went to the address and came
+    back used, which is the same proof the verification link asks for and a
+    stronger one than a click: it also changed the credential. Making the
+    person then hunt for a second mail to confirm the address they just
+    demonstrably read would be theatre.
+    """
+    if user.is_email_verified:
+        return user
+    user.email_verified_at = timezone.now()
+    user.save(update_fields=["email_verified_at", "updated_at"])
+    return user
+
+
 def set_role(user: User, role: str, *, changed_by: User) -> User:
     """Change a user's role. Only a moderator or above may do so."""
     if not changed_by.is_moderator:

@@ -2,6 +2,7 @@
 {% load i18n %}
 
 {% block title %}{% translate "请验证邮箱" %} - 包公 BaoGong{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-md">
@@ -10,20 +11,34 @@
       {% include "components/icon.html" with name="doc" class="h-6 w-6" %}
     </span>
     <h1 class="mt-4 font-display text-2xl font-semibold tracking-tight text-ink">{% translate "请验证邮箱" %}</h1>
+    {% if pending_email %}
+      <p class="mt-2 text-sm leading-relaxed text-ink-muted">
+        {% blocktranslate %}我们已向 {{ pending_email }} 发送了一封验证邮件，链接 48 小时内有效。{% endblocktranslate %}
+      </p>
+    {% else %}
+      <p class="mt-2 text-sm leading-relaxed text-ink-muted">
+        {% translate "验证邮件中的链接 48 小时内有效。" %}
+      </p>
+    {% endif %}
+    {% comment %} Verification comes before the first sign-in, so this page has to work
+       for somebody with no session: the address is asked for rather than read
+       off request.user. {% endcomment %}
     <p class="mt-2 text-sm leading-relaxed text-ink-muted">
-      {% blocktranslate %}我们已向 {{ user }} 发送了一封验证邮件，链接 48 小时内有效。{% endblocktranslate %}
-    </p>
-    <p class="mt-2 text-sm leading-relaxed text-ink-muted">
-      {% translate "没有收到？请检查垃圾邮件文件夹，或重新发送。" %}
+      {% translate "验证完成后即可用密码登录。没有收到？请检查垃圾邮件文件夹，或重新发送。" %}
     </p>
 
-    <form method="post" action="{% url 'accounts:resend_verification' %}" class="mt-6">
+    <form method="post" action="{% url 'accounts:resend_verification' %}" class="mt-6 space-y-4 text-left">
       {% csrf_token %}
+      {% include "accounts/_form.html" %}
       <button type="submit"
               class="w-full rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700">
         {% translate "重新发送验证邮件" %}
       </button>
     </form>
   </div>
+
+  <p class="mt-4 text-center text-sm text-ink-muted">
+    <a href="{% url 'accounts:login' %}" class="font-medium text-brand-700 underline underline-offset-2">{% translate "已验证，去登录" %}</a>
+  </p>
 </div>
 {% endblock %}

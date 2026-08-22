@@ -25,6 +25,7 @@ from apps.providers.models import (
     ServiceCategory,
     Tier,
 )
+from apps.providers.tests.conftest import PASSWORD
 from apps.registry.models import LicenceStatus, allow_registry_writes
 
 if TYPE_CHECKING:
@@ -35,8 +36,6 @@ if TYPE_CHECKING:
     from apps.accounts.models import User
 
 pytestmark = pytest.mark.django_db
-
-PASSWORD = "correct-horse-battery"
 
 
 @pytest.fixture
@@ -378,7 +377,8 @@ class TestManagePage:
         )
 
         provider.refresh_from_db()
-        assert provider.contact_phone == "+852 2000 0000"
+        # Stored without the spaces it was typed with (core.validators).
+        assert provider.contact_phone == "+85220000000"
         assert provider.description == ""
         assert not ProviderProfileEdit.objects.filter(submitted_description__gt="").exists()
 

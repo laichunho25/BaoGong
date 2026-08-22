@@ -20,6 +20,10 @@ DATABASES = {
     )
 }
 
+# Local memory, not the Redis in base: a test run must not need a broker, and
+# the rate-limit tests want counters that start empty in every process.
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 

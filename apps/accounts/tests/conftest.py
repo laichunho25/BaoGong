@@ -15,14 +15,23 @@ from apps.registry.models import LicenceStatus, Licensee, allow_registry_writes
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-PASSWORD = "correct-horse-battery"
+#: Passes the character-mix rule in apps/core/password_validation.py. The
+#: fixtures below create users through the manager, which does not validate,
+#: but the view tests post this string at forms that do.
+PASSWORD = "Correct-Horse9!"
 
 
 @pytest.fixture
 def make_user() -> Callable[..., User]:
+    """Build a user. ``verified=True`` gives it a confirmed address.
+
+    Verification is a separate argument rather than the default because most
+    of what is tested here is what an account may *not* do before it is
+    verified - including sign in at all.
+    """
     counter = {"n": 0}
 
-    def _make(**overrides: Any) -> User:
+    def _make(*, verified: bool = False, **overrides: Any) -> User:
         counter["n"] += 1
         fields: dict[str, Any] = {
             "email": f"user{counter['n']}@example.com",
@@ -30,6 +39,8 @@ def make_user() -> Callable[..., User]:
             "role": Role.BUYER,
         }
         fields.update(overrides)
+        if verified:
+            fields["email_verified_at"] = timezone.now()
         return User.objects.create_user(**fields)
 
     return _make

@@ -215,3 +215,51 @@ download view 取用；backend 能簽名就發限時簽名 URL，不能簽名就
 - **Agent**：用 `responses`/mock 打樁 Anthropic；另有 `evals/` 用真實 API 手動跑（不進 CI）。
 - **Integration**：完整流程 — 註冊 → 發 RFQ → 報價 → 下單 → 上傳 NNC1 → 評價驗證。
 - **Data**：同步任務用 fixture CSV 測 diff 與 sanity check 中止路徑。
+
+## 8. 帳號、登入與憑證（權威）
+
+帳號能做的每一件事都指向一家真實的持牌公司——發表評價、代表公司回覆、認領頁面、
+發需求單。所以這條路上的規則寫在這裡，不散落在各個 view。
+
+**次序：先驗證郵箱，再用密碼登入。**
+
+```
+註冊 → 建立帳號（不登入）→ 寄驗證信 → 點連結 → 登入頁 → 密碼登入 → dashboard
+```
+
+- `register` **不再**自動登入。未經驗證的地址只是「有人這樣宣稱」，
+  憑這個發出的 session 就是一個能以該地址發文的 session。
+- `EmailLoginForm.confirm_login_allowed` 擋下未驗證帳號，並把地址帶到
+  `accounts:verification_sent`，那裡可以**免登入**重寄——需要重寄的人正好就是登不進來的人。
+- 重寄與忘記密碼的回覆**不因地址是否已註冊而不同**：會因此不同的表單，
+  等於一份「哪些地址在本平台有帳號」的查詢介面。
+
+**只給未登入者看的頁**（`views.AnonymousOnlyMixin` + `redirect_authenticated_user`）：
+註冊、登入、忘記密碼全流程。已登入者一律轉到 dashboard，且這四類頁面都帶 `noindex`。
+
+**密碼**（`config/settings/base.py::AUTH_PASSWORD_VALIDATORS`）：
+10 位以上，且同時要有大寫、小寫、數字與符號
+（`apps/core/password_validation.py`，一則訊息說完整條規則，不要讓人失敗四次）。
+規則由 `password_validators_help_texts()` 渲染到表單上，改設定就會改文案。
+
+**忘記密碼**：`accounts:password_reset` 一組四頁，連結 3 小時、單次有效
+（`PASSWORD_RESET_TIMEOUT`）。完成重設會順帶把郵箱標記為已驗證
+（`services.mark_email_verified`）——信寄到那個信箱又被用掉，是比驗證信更強的證明。
+
+**節流**（`apps/core/throttling.py`，計數放 Redis cache，key 只存雜湊）：
+
+| 流程 | 額度 | 鍵 |
+|---|---|---|
+| 登入 | 6 次 / 15 分鐘 | 來源 IP + 郵箱 |
+| 重寄驗證信 | 4 次 / 小時 | 來源 IP + 郵箱 |
+| 忘記密碼 | 4 次 / 小時 | 來源 IP + 郵箱 |
+
+鍵同時綁 IP 與郵箱：只綁郵箱，任何人打錯幾次就能把一家公司鎖在自己頁面外；
+只綁 IP，一個共用出口的辦公室會被整層鎖住。
+
+**識別碼**：所有 model 繼承 `core.BaseModel`，主鍵是 UUIDv7，全站無自增序號——
+訂單／需求單的 URL 猜不到第幾張，也就推不出還有誰下過單。
+但 UUID 不是授權：`rfq_detail` 仍逐次比對 `buyer_id`，非本人只看得到牆上公開的部分。
+
+**電話**：`apps/core/validators.py` 是全站唯一一份規則——只收數字，
+可帶 `+` 國碼，空白與 `-()` 在入庫前去掉。三個表單（註冊、認領、公司資料）共用同一份。

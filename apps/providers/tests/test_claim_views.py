@@ -27,8 +27,6 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.django_db
 
-PASSWORD = "correct-horse-battery"
-
 
 def _claim(provider: Provider, user: User) -> ProviderClaim:
     return services.submit_claim(provider=provider, user=user, contact_name="Chan Tai Man")

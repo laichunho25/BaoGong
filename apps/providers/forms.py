@@ -22,6 +22,7 @@ from apps.core.uploads import (
     InspectedUpload,
     inspect_upload,
 )
+from apps.core.validators import PHONE_INPUT_ATTRS, normalise_phone, validate_phone
 from apps.providers.models import BankType, EvidenceKind, Language, ServiceCategory
 
 if TYPE_CHECKING:
@@ -71,7 +72,10 @@ class ClaimSubmissionForm(forms.Form):
         label=_("联系电话"),
         max_length=32,
         required=False,
-        widget=forms.TextInput(attrs={"class": INPUT_CLASSES, "autocomplete": "tel"}),
+        validators=[validate_phone],
+        widget=forms.TextInput(
+            attrs={"class": INPUT_CLASSES, "autocomplete": "tel", **PHONE_INPUT_ATTRS}
+        ),
     )
     business_registration_no = forms.CharField(
         label=_("商业登记号码（BR）"),
@@ -119,6 +123,10 @@ class ClaimSubmissionForm(forms.Form):
         #: Populated by ``clean_evidence``; the view stores these with the files.
         self.inspected: list[InspectedUpload] = []
 
+    def clean_contact_phone(self) -> str:
+        """Keep the digits, drop the spaces and dashes somebody typed."""
+        return normalise_phone(str(self.cleaned_data.get("contact_phone") or ""))
+
     def clean_evidence(self) -> list[Any]:
         """Inspect every uploaded file before anything is stored."""
         uploads: list[Any] = self.cleaned_data["evidence"]
@@ -160,7 +168,10 @@ class ProviderProfileForm(forms.Form):
         label=_("联系电话"),
         max_length=32,
         required=False,
-        widget=forms.TextInput(attrs={"class": INPUT_CLASSES, "autocomplete": "tel"}),
+        validators=[validate_phone],
+        widget=forms.TextInput(
+            attrs={"class": INPUT_CLASSES, "autocomplete": "tel", **PHONE_INPUT_ATTRS}
+        ),
     )
     contact_wechat = forms.CharField(
         label=_("微信号"),
@@ -241,6 +252,10 @@ class ProviderProfileForm(forms.Form):
         ):
             if name in self.fields:
                 self.fields[name].widget.attrs["class"] = CHECKBOX_CLASSES
+
+    def clean_contact_phone(self) -> str:
+        """Keep the digits, drop the spaces and dashes somebody typed."""
+        return normalise_phone(str(self.cleaned_data.get("contact_phone") or ""))
 
     def clean_industry_specialties(self) -> list[str]:
         raw = self.cleaned_data.get("industry_specialties", "")

@@ -10,14 +10,18 @@ from typing import Any
 
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
+from django.contrib.auth.password_validation import (
+    password_validators_help_texts,
+    validate_password,
+)
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import MemberRole, Role
 from apps.core import turnstile
 from apps.core.form_styles import INPUT_CLASSES
+from apps.core.validators import PHONE_INPUT_ATTRS, normalise_phone, validate_phone
 
 
 class TurnstileMixin(forms.Form):
@@ -54,7 +58,10 @@ class RegistrationForm(TurnstileMixin, forms.Form):
         label=_("手机号（选填）"),
         required=False,
         max_length=32,
-        widget=forms.TextInput(attrs={"class": INPUT_CLASSES, "autocomplete": "tel"}),
+        validators=[validate_phone],
+        widget=forms.TextInput(
+            attrs={"class": INPUT_CLASSES, "autocomplete": "tel", **PHONE_INPUT_ATTRS}
+        ),
     )
     role = forms.ChoiceField(
         label=_("我是"),
@@ -65,6 +72,16 @@ class RegistrationForm(TurnstileMixin, forms.Form):
         initial=Role.BUYER,
         widget=forms.RadioSelect,
     )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Filled in here rather than on the field so the rules are rendered in
+        # the language of the request, and so that a change to
+        # AUTH_PASSWORD_VALIDATORS shows up on the form without an edit here.
+        # The rules are shown before the box is typed in, not after it is
+        # rejected: a policy a visitor only meets by failing it is a policy
+        # they meet several times.
+        self.fields["password"].help_text = " ".join(password_validators_help_texts())
 
     def clean_email(self) -> str:
         email = str(self.cleaned_data["email"]).strip().lower()
@@ -77,9 +94,21 @@ class RegistrationForm(TurnstileMixin, forms.Form):
         validate_password(password)
         return password
 
+    def clean_phone(self) -> str:
+        """Store the digits, not the punctuation somebody typed around them."""
+        return normalise_phone(str(self.cleaned_data.get("phone") or ""))
+
 
 class EmailLoginForm(AuthenticationForm):
-    """Django's login form, relabelled for an email identifier."""
+    """Django's login form, relabelled for an email identifier.
+
+    It also refuses an account whose address has never been confirmed. The
+    order is deliberate - verify, then sign in - because everything an account
+    can do here reaches a real, named, licensed company: an unconfirmed
+    mailbox can otherwise post a review, send a requirement carrying somebody
+    else's phone number, or apply for control of a page, and the only address
+    we have to answer for it is one nobody has proved they can read.
+    """
 
     username = forms.EmailField(
         label=_("邮箱"),
@@ -92,8 +121,73 @@ class EmailLoginForm(AuthenticationForm):
         ),
     )
 
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        "unverified": _("请先完成邮箱验证再登录。我们已向该邮箱发送过验证链接。"),
+    }
+
     def clean_username(self) -> str:
         return str(self.cleaned_data["username"]).strip().lower()
+
+    def confirm_login_allowed(self, user: Any) -> None:
+        super().confirm_login_allowed(user)
+        if not user.is_email_verified:
+            # Carried on the exception so the view can offer the resend form
+            # for this address without asking the visitor to type it again.
+            self.unverified_email = user.email
+            raise ValidationError(self.error_messages["unverified"], code="unverified")
+
+
+class ResendVerificationForm(forms.Form):
+    """Ask for the verification mail again, without being signed in.
+
+    Signing in is exactly what the person cannot do yet, so this form is
+    reachable while anonymous. It never says whether the address is registered
+    - the view answers the same way either way (see ``views.resend_verification``).
+    """
+
+    email = forms.EmailField(
+        label=_("邮箱"),
+        widget=forms.EmailInput(attrs={"class": INPUT_CLASSES, "autocomplete": "email"}),
+    )
+
+    def clean_email(self) -> str:
+        return str(self.cleaned_data["email"]).strip().lower()
+
+
+class ForgotPasswordForm(PasswordResetForm):
+    """Django's reset request, restyled and normalised to a lower-case address.
+
+    No "no such account" message here either, for the usual reason: a form
+    that distinguishes the two is a free list of which addresses hold an
+    account on a platform where the account belongs to a named company.
+    """
+
+    email = forms.EmailField(
+        label=_("邮箱"),
+        max_length=254,
+        widget=forms.EmailInput(attrs={"class": INPUT_CLASSES, "autocomplete": "email"}),
+    )
+
+    def clean_email(self) -> str:
+        return str(self.cleaned_data["email"]).strip().lower()
+
+
+# django-stubs types SetPasswordForm as generic over the user model; the
+# runtime class is not subscriptable, so the parameter cannot be written here.
+class ChooseNewPasswordForm(SetPasswordForm):  # type: ignore[type-arg]
+    """The second half of the reset, restyled and with the rules on show."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["new_password1"].label = _("新密码")
+        self.fields["new_password1"].help_text = " ".join(password_validators_help_texts())
+        self.fields["new_password2"].label = _("再输入一次")
+        self.fields["new_password2"].help_text = ""
+        for name in ("new_password1", "new_password2"):
+            self.fields[name].widget.attrs.update(
+                {"class": INPUT_CLASSES, "autocomplete": "new-password"}
+            )
 
 
 class MemberInviteForm(forms.Form):

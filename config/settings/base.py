@@ -125,15 +125,53 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:dashboard"
 LOGOUT_REDIRECT_URL = "/"
 
+# ---------------------------------------------------------------- sessions
+# A session cookie is the account. These are set in base rather than prod so
+# that a developer meets the same expiry behaviour as production and does not
+# build a flow that only works with a year-long session.
+#
+# The name is neutral: "sessionid" announces Django to anything reading a
+# response, which narrows an attacker's search for known bugs.
+SESSION_COOKIE_NAME = "bg_session"
+CSRF_COOKIE_NAME = "bg_csrf"
+# Two weeks, refreshed on each request. Long enough that a company checking
+# its quotes twice a month is not signed out; short enough that a session
+# stolen from a shared machine expires on its own.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+# Lax, not Strict: a verification or invitation link arrives from a mail
+# client, and Strict would land the reader on a page that says they are signed
+# out when they are not.
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Ten, not the eight that is usually asked for: the extra two characters cost
+# a person one keystroke and cost an offline cracker two orders of magnitude,
+# and the accounts here can publish text in a licensed company's name.
+PASSWORD_MIN_LENGTH = 10
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {"min_length": 10},
+        "OPTIONS": {"min_length": PASSWORD_MIN_LENGTH},
     },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    # Character mix. Last in the list so a visitor reads the cheaper failures
+    # ("too common", "too much like your email") before the long one.
+    {
+        "NAME": "apps.core.password_validation.PasswordComplexityValidator",
+        "OPTIONS": {"min_length": PASSWORD_MIN_LENGTH},
+    },
 ]
+
+# A reset link is a bearer token for the account. Django's default is three
+# days, which is two and a half days after the person has either used it or
+# forgotten they asked.
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 3
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="包公 BaoGong <no-reply@example.com>")
 
@@ -211,6 +249,21 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 REDIS_URL = CELERY_BROKER_URL
+
+# ---------------------------------------------------------------- cache
+# Redis rather than the per-process default, because the cache holds the rate
+# limiters for sign-in, password reset and the advisor (apps/core/throttling.py).
+# With LocMemCache each gunicorn worker keeps its own counters, so an attacker
+# gets one full allowance per worker and the limit means whatever the process
+# count happens to be. Falls back to local memory only when there is no Redis,
+# which is the test runner.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "baogong",
+    }
+}
 
 # DatabaseScheduler syncs these into django_celery_beat on startup, so the
 # schedule stays in version control while remaining editable from the admin.
